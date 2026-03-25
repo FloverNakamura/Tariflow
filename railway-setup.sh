@@ -5,9 +5,12 @@ echo "🚀 Tariflow Railway Setup"
 echo ""
 
 # Step 1: Login to Railway
-echo "Step 1: Login to Railway"
-echo "→ This will open a browser. Sign in or create a free account."
-railway login
+echo "Step 1: Login to Railway (browserless mode)"
+echo "→ Go to https://railway.app/account/tokens"
+echo "→ Create a new token and copy it"
+read -p "Paste your Railway token: " RAILWAY_TOKEN
+export RAILWAY_TOKEN
+railway login --browserless
 
 # Step 2: Create Railway project
 echo ""
