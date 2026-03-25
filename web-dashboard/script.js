@@ -607,50 +607,30 @@ function init() {
 
   // Component Toggle: Enable/Disable fields based on checkbox state
   const componentToggles = document.querySelectorAll('.component-toggle');
-  componentToggles.forEach(toggle => {
-    toggle.addEventListener('change', (e) => {
-      const targetId = e.target.dataset.target;
-      const targetDiv = byId(targetId);
-      if (!targetDiv) {
-        return;
-      }
-      
-      if (e.target.checked) {
-        setSectionEnabled(targetDiv, true);
-        if (targetId === 'evFields') {
-          ensureAtLeastOneEvVehicle();
-        }
-        if (targetId === 'largeLoadFields') {
-          ensureAtLeastOneLargeLoad();
-        }
-      } else {
-        setSectionEnabled(targetDiv, false);
-        if (targetId === 'largeLoadFields') {
-          if (largeLoadsContainer) {
-            largeLoadsContainer.innerHTML = '';
-          }
-        }
-      }
-    });
-    
-    // Set initial state
-    const targetId = toggle.dataset.target;
+  const syncComponentToggleState = (toggleEl) => {
+    const targetId = toggleEl.dataset.target;
     const targetDiv = byId(targetId);
     if (!targetDiv) {
       return;
     }
 
-    if (!toggle.checked) {
-      setSectionEnabled(targetDiv, false);
-    } else if (targetId === 'largeLoadFields') {
-      setSectionEnabled(targetDiv, true);
-      ensureAtLeastOneLargeLoad();
-    } else if (targetId === 'evFields') {
-      setSectionEnabled(targetDiv, true);
+    const isEnabled = toggleEl.checked;
+    setSectionEnabled(targetDiv, isEnabled);
+
+    if (isEnabled && targetId === 'evFields') {
       ensureAtLeastOneEvVehicle();
-    } else {
-      setSectionEnabled(targetDiv, true);
     }
+    if (isEnabled && targetId === 'largeLoadFields') {
+      ensureAtLeastOneLargeLoad();
+    }
+    if (!isEnabled && targetId === 'largeLoadFields' && largeLoadsContainer) {
+      largeLoadsContainer.innerHTML = '';
+    }
+  };
+
+  componentToggles.forEach(toggle => {
+    toggle.addEventListener('change', () => syncComponentToggleState(toggle));
+    syncComponentToggleState(toggle);
   });
 
   // PV-Mode Toggle

@@ -293,6 +293,19 @@ h1 {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6f7786;
+  opacity: 1;
+}
+
 .field input:not([type="checkbox"]):not([type="radio"]):focus,
 .field select:focus {
   border-color: var(--accent-strong);
@@ -379,7 +392,6 @@ fieldset legend {
 .evFields.disabled,
 .largeLoadFields.disabled {
   opacity: 0.5;
-  pointer-events: none;
 }
 
 .pvFields.disabled input,
@@ -388,7 +400,7 @@ fieldset legend {
 .evFields.disabled input,
 .largeLoadFields.disabled input {
   background-color: var(--panel);
-  color: #999;
+  color: var(--text);
   cursor: not-allowed;
 }
 
