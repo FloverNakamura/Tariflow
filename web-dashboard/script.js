@@ -45,13 +45,15 @@ async function apiFetch(path, options = {}) {
 
     try {
       const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
+      if (timeoutId) clearTimeout(timeoutId);
+      if (externalAbortHandler) {
+        fetchOptions.signal.removeEventListener('abort', externalAbortHandler);
+      }
+
       if (response.ok) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (externalAbortHandler) {
-          fetchOptions.signal.removeEventListener('abort', externalAbortHandler);
-        }
         return { response, base };
       }
+
       lastError = new Error(`HTTP ${response.status} via ${base}`);
     } catch (error) {
       if (timeoutId) clearTimeout(timeoutId);
@@ -557,9 +559,30 @@ const addEvBtn = byId('addEvBtn');
 const largeLoadsContainer = byId('largeLoads');
 const addLargeLoadBtn = byId('addLargeLoadBtn');
 
+function reportInitError(message) {
+  console.error(message);
+  if (!apiStatus) {
+    return;
+  }
+
+  apiStatus.textContent = 'Frontend-Fehler beim Starten';
+  apiStatus.classList.remove('ok');
+  apiStatus.classList.add('fail');
+  apiStatus.title = message;
+}
+
+function runInitStep(name, fn) {
+  try {
+    fn();
+  } catch (error) {
+    const detail = error?.message || String(error);
+    reportInitError(`Initialisierung fehlgeschlagen (${name}): ${detail}`);
+  }
+}
+
 function openInfoModal(key) {
   const entry = INFO_TEXTS[key];
-  if (!entry) return;
+  if (!entry || !infoModalTitle || !infoModalBody || !infoModal || !infoModalClose) return;
   infoModalTitle.textContent = entry.title;
   infoModalBody.innerHTML    = entry.html;
   infoModal.classList.remove('hidden');
@@ -567,6 +590,9 @@ function openInfoModal(key) {
 }
 
 function closeInfoModal() {
+  if (!infoModal) {
+    return;
+  }
   infoModal.classList.add('hidden');
 }
 
@@ -580,16 +606,16 @@ document.addEventListener('click', (e) => {
 });
 
 // Close via × button
-infoModalClose.addEventListener('click', closeInfoModal);
+infoModalClose?.addEventListener('click', closeInfoModal);
 
 // Close on overlay click (click outside modal-box)
-infoModal.addEventListener('click', (e) => {
+infoModal?.addEventListener('click', (e) => {
   if (e.target === infoModal) closeInfoModal();
 });
 
 // Close on Escape key
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !infoModal.classList.contains('hidden')) closeInfoModal();
+  if (e.key === 'Escape' && infoModal && !infoModal.classList.contains('hidden')) closeInfoModal();
 });
 
 init();
@@ -599,143 +625,154 @@ function init() {
     return;
   }
 
-  unlockAllFormInputs();
+  runInitStep('Formular freischalten', unlockAllFormInputs);
+  runInitStep('Energieanalyse', initEnergyAnalysisSection);
+  runInitStep('Haushaltsverbrauch', initHouseholdConsumptionPriority);
+  runInitStep('E-Autos', initEvVehicles);
+  runInitStep('Grossverbraucher', initLargeLoads);
 
-  initEnergyAnalysisSection();
-  initHouseholdConsumptionPriority();
+  runInitStep('Komponenten-Toggles', () => {
+    const componentToggles = document.querySelectorAll('.component-toggle');
+    const controlledSections = document.querySelectorAll('.pvFields, .storageFields, .heatPumpFields, .evFields, .largeLoadFields');
 
-  initEvVehicles();
-  initLargeLoads();
-
-  // Component Toggle: Enable/Disable fields based on checkbox state
-  const componentToggles = document.querySelectorAll('.component-toggle');
-  const controlledSections = document.querySelectorAll('.pvFields, .storageFields, .heatPumpFields, .evFields, .largeLoadFields');
-
-  // Safety reset: remove stale disabled states that could survive from cached DOM/CSS states.
-  controlledSections.forEach((section) => {
-    setSectionEnabled(section, true);
-  });
-
-  const syncComponentToggleState = (toggleEl) => {
-    const targetId = toggleEl.dataset.target;
-    const targetDiv = byId(targetId);
-    if (!targetDiv) {
-      return;
-    }
-
-    const isEnabled = toggleEl.checked;
-    setSectionEnabled(targetDiv, isEnabled);
-    setFieldsetActiveState(toggleEl, isEnabled);
-
-    if (targetId === 'evFields' && addEvBtn) {
-      addEvBtn.disabled = !isEnabled;
-    }
-    if (targetId === 'largeLoadFields' && addLargeLoadBtn) {
-      addLargeLoadBtn.disabled = !isEnabled;
-    }
-
-    if (isEnabled && targetId === 'evFields') {
-      ensureAtLeastOneEvVehicle();
-    }
-    if (isEnabled && targetId === 'largeLoadFields') {
-      ensureAtLeastOneLargeLoad();
-    }
-    if (!isEnabled && targetId === 'largeLoadFields' && largeLoadsContainer) {
-      largeLoadsContainer.innerHTML = '';
-    }
-  };
-
-  componentToggles.forEach(toggle => {
-    toggle.addEventListener('change', () => syncComponentToggleState(toggle));
-    syncComponentToggleState(toggle);
-  });
-
-  // Safety pass for browsers/cache races: enforce state once again after first paint.
-  setTimeout(() => {
-    componentToggles.forEach((toggle) => syncComponentToggleState(toggle));
-    unlockAllFormInputs();
-  }, 0);
-
-  // PV-Mode Toggle
-  const pvModeRadios = document.querySelectorAll('input[name="pvMode"]');
-  pvModeRadios.forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      const pvKnownSection = byId('pvKnownSection');
-      const pvCalcSection = byId('pvCalcSection');
-      
-      if (e.target.value === 'known') {
-        pvKnownSection.classList.remove('hidden');
-        pvCalcSection.classList.add('hidden');
-      } else {
-        pvKnownSection.classList.add('hidden');
-        pvCalcSection.classList.remove('hidden');
-      }
+    // Safety reset: remove stale disabled states that could survive from cached DOM/CSS states.
+    controlledSections.forEach((section) => {
+      setSectionEnabled(section, true);
     });
+
+    const syncComponentToggleState = (toggleEl) => {
+      const targetId = toggleEl.dataset.target;
+      const targetDiv = byId(targetId);
+      if (!targetDiv) {
+        return;
+      }
+
+      const isEnabled = toggleEl.checked;
+      setSectionEnabled(targetDiv, isEnabled);
+      setFieldsetActiveState(toggleEl, isEnabled);
+
+      if (targetId === 'evFields' && addEvBtn) {
+        addEvBtn.disabled = !isEnabled;
+      }
+      if (targetId === 'largeLoadFields' && addLargeLoadBtn) {
+        addLargeLoadBtn.disabled = !isEnabled;
+      }
+
+      if (isEnabled && targetId === 'evFields') {
+        ensureAtLeastOneEvVehicle();
+      }
+      if (isEnabled && targetId === 'largeLoadFields') {
+        ensureAtLeastOneLargeLoad();
+      }
+      if (!isEnabled && targetId === 'largeLoadFields' && largeLoadsContainer) {
+        largeLoadsContainer.innerHTML = '';
+      }
+    };
+
+    componentToggles.forEach((toggle) => {
+      toggle.addEventListener('change', () => syncComponentToggleState(toggle));
+      syncComponentToggleState(toggle);
+    });
+
+    // Safety pass for browsers/cache races: enforce state once again after first paint.
+    setTimeout(() => {
+      componentToggles.forEach((toggle) => syncComponentToggleState(toggle));
+      unlockAllFormInputs();
+    }, 0);
   });
 
-  checkApiReachability();
+  runInitStep('PV-Modus', () => {
+    const pvModeRadios = document.querySelectorAll('input[name="pvMode"]');
+    pvModeRadios.forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        const pvKnownSection = byId('pvKnownSection');
+        const pvCalcSection = byId('pvCalcSection');
+        if (!pvKnownSection || !pvCalcSection) {
+          return;
+        }
 
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    clearError();
-    clearSuccess();
-
-    const payload = buildPayload();
-    const validationError = validatePayload(payload);
-    if (validationError) {
-      showError(validationError);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { response } = await apiFetch('/calculate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        if (e.target.value === 'known') {
+          pvKnownSection.classList.remove('hidden');
+          pvCalcSection.classList.add('hidden');
+        } else {
+          pvKnownSection.classList.add('hidden');
+          pvCalcSection.classList.remove('hidden');
+        }
       });
-
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Serverfehler bei der Berechnung.');
-      }
-
-      latestData = result.data;
-      renderResults(result.data);
-      renderEnergyAnalysis();
-      exportBtn.disabled = false;
-      resultsSection.classList.remove('hidden');
-      energyResultsSection?.classList.remove('hidden');
-      showSuccess(buildSuccessMessage(result.data));
-      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (error) {
-      showError(error.message || 'Backend nicht erreichbar.');
-    } finally {
-      setLoading(false);
-    }
-  });
-
-  exportBtn.addEventListener('click', () => {
-    if (!latestData) return;
-    const name = `kalkulation_${new Date().toISOString().slice(0, 10)}.json`;
-    const blob = new Blob([JSON.stringify(latestData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    link.click();
-    URL.revokeObjectURL(url);
-  });
-
-  if (marketTickerRefresh) {
-    marketTickerRefresh.addEventListener('click', async () => {
-      await updateMarketTicker(true);
-      scheduleMarketTicker();
     });
-  }
+  });
 
-  window.addEventListener('beforeunload', stopMarketTicker);
+  runInitStep('Backend-Status', () => {
+    void checkApiReachability();
+  });
+
+  runInitStep('Berechnungsformular', () => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearError();
+      clearSuccess();
+
+      try {
+        const payload = buildPayload();
+        const validationError = validatePayload(payload);
+        if (validationError) {
+          showError(validationError);
+          return;
+        }
+
+        setLoading(true);
+
+        const { response } = await apiFetch('/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Serverfehler bei der Berechnung.');
+        }
+
+        latestData = result.data;
+        renderResults(result.data);
+        renderEnergyAnalysis();
+        exportBtn.disabled = false;
+        resultsSection.classList.remove('hidden');
+        energyResultsSection?.classList.remove('hidden');
+        showSuccess(buildSuccessMessage(result.data));
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        showError(error.message || 'Backend nicht erreichbar.');
+      } finally {
+        setLoading(false);
+      }
+  });
+  });
+
+  runInitStep('Export', () => {
+    exportBtn?.addEventListener('click', () => {
+      if (!latestData) return;
+      const name = `kalkulation_${new Date().toISOString().slice(0, 10)}.json`;
+      const blob = new Blob([JSON.stringify(latestData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+  });
+
+  runInitStep('Marktticker', () => {
+    if (marketTickerRefresh) {
+      marketTickerRefresh.addEventListener('click', async () => {
+        await updateMarketTicker(true);
+        scheduleMarketTicker();
+      });
+    }
+
+    window.addEventListener('beforeunload', stopMarketTicker);
+  });
 }
 
 async function checkApiReachability() {
@@ -745,19 +782,8 @@ async function checkApiReachability() {
   apiStatus.classList.remove('ok', 'fail');
 
   try {
-    const payload = {
-      household: { plz: '01069', persons: 2, buildingType: 'EFH' },
-      pv: { hasPv: false },
-      storage: { hasStorage: false },
-      heatPump: { hasHeatPump: false },
-      emobility: { hasEV: false },
-      tariff: { compareStaticTariff: true, compareDynamicTariff: true, module14a: 'none' }
-    };
-
-    const { response, base } = await apiFetch('/calculate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    const { response, base } = await apiFetch('/market-live', {
+      method: 'GET',
       timeoutMs: 5000
     });
 
