@@ -1189,7 +1189,7 @@ function setSectionEnabled(targetDiv, enabled) {
     if (control.classList.contains('info-btn')) {
       return;
     }
-    control.disabled = false;
+    control.disabled = !enabled;
   });
 }
 
@@ -1208,7 +1208,6 @@ function unlockAllFormInputs() {
   const editableControls = form.querySelectorAll('input, select, textarea');
   editableControls.forEach((control) => {
     control.removeAttribute('readonly');
-    control.disabled = false;
   });
 }
 

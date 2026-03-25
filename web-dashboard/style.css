@@ -407,7 +407,8 @@ fieldset legend {
 .heatPumpFields.disabled,
 .evFields.disabled,
 .largeLoadFields.disabled {
-  display: none;
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .pvFields.disabled input,
@@ -415,9 +416,25 @@ fieldset legend {
 .heatPumpFields.disabled input,
 .evFields.disabled input,
 .largeLoadFields.disabled input {
-  background-color: var(--panel);
-  color: var(--text);
-  -webkit-text-fill-color: var(--text);
+  background-color: #eef1f5;
+  color: #8a92a0;
+  -webkit-text-fill-color: #8a92a0;
+  cursor: not-allowed;
+}
+
+.pvFields.disabled select,
+.storageFields.disabled select,
+.heatPumpFields.disabled select,
+.evFields.disabled select,
+.largeLoadFields.disabled select,
+.pvFields.disabled button,
+.storageFields.disabled button,
+.heatPumpFields.disabled button,
+.evFields.disabled button,
+.largeLoadFields.disabled button {
+  background-color: #eef1f5;
+  color: #8a92a0;
+  border-color: #d3d9e3;
   cursor: not-allowed;
 }
 
