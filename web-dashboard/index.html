@@ -34,17 +34,17 @@
         <div class="grid three">
           <label class="field">
             <span>PLZ (Pflicht) <button type="button" class="info-btn" data-info="plz">&#9432;</button></span>
-            <input id="plz" type="text" maxlength="5" placeholder="01069" required>
+            <input id="plz" type="text" maxlength="5" required>
             <small class="hint">Bitte 5-stellig eingeben.</small>
           </label>
           <label class="field">
             <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
-            <input id="persons" type="number" min="1" max="10" step="1" placeholder="2">
+            <input id="persons" type="number" min="1" max="10" step="1">
             <small class="hint">Wird verwendet, wenn kein absoluter Haushaltsverbrauch eingetragen ist.</small>
           </label>
           <label class="field">
             <span>Haushaltsverbrauch absolut (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
-            <input id="householdAnnualConsumption" type="number" min="100" step="1" placeholder="Optional, z.B. 4200">
+            <input id="householdAnnualConsumption" type="number" min="100" step="1">
             <small class="hint">Wenn gesetzt, wird dieser Wert priorisiert.</small>
           </label>
         </div>
@@ -76,7 +76,7 @@
             <div id="pvKnownSection" class="grid two">
               <label class="field">
                 <span>PV-Leistung (kWp) <button type="button" class="info-btn" data-info="peakpower">&#9432;</button></span>
-                <input id="peakpower" type="number" step="0.1" min="0.1" placeholder="5">
+                <input id="peakpower" type="number" step="0.1" min="0.1">
               </label>
             </div>
 
@@ -84,19 +84,19 @@
             <div id="pvCalcSection" class="grid four hidden">
               <label class="field">
                 <span>Dachfläche (m²) <button type="button" class="info-btn" data-info="roofArea">&#9432;</button></span>
-                <input id="roofArea" type="number" step="0.1" min="1" placeholder="25">
+                <input id="roofArea" type="number" step="0.1" min="1">
               </label>
               <label class="field">
                 <span>Dachneigung (°) <button type="button" class="info-btn" data-info="angle">&#9432;</button></span>
-                <input id="angle" type="number" step="1" min="0" max="90" placeholder="30">
+                <input id="angle" type="number" step="1" min="0" max="90">
               </label>
               <label class="field">
                 <span>Ausrichtung (°) <button type="button" class="info-btn" data-info="aspect">&#9432;</button></span>
-                <input id="aspect" type="number" step="1" min="-180" max="180" placeholder="0">
+                <input id="aspect" type="number" step="1" min="-180" max="180">
               </label>
               <label class="field">
                 <span>Moduleffizienz (%) <button type="button" class="info-btn" data-info="moduleEfficiency">&#9432;</button></span>
-                <input id="moduleEfficiency" type="number" step="0.1" min="5" max="25" placeholder="18">
+                <input id="moduleEfficiency" type="number" step="0.1" min="5" max="25">
               </label>
             </div>
           </div>
@@ -114,7 +114,7 @@
             <div class="grid two">
               <label class="field">
                 <span>Speicherkapazität (kWh) <button type="button" class="info-btn" data-info="storageCapacity">&#9432;</button></span>
-                <input id="storageCapacity" type="number" step="0.1" min="0" placeholder="5">
+                <input id="storageCapacity" type="number" step="0.1" min="0">
               </label>
             </div>
           </div>
@@ -132,7 +132,7 @@
             <div class="grid two">
               <label class="field">
                 <span>Jahresverbrauch (kWh/Jahr) <button type="button" class="info-btn" data-info="heatPumpConsumption">&#9432;</button></span>
-                <input id="heatPumpConsumption" type="number" min="0" placeholder="3000">
+                <input id="heatPumpConsumption" type="number" min="0">
               </label>
             </div>
           </div>
@@ -185,7 +185,7 @@
           <div class="grid two">
             <label class="field">
               <span>Wohnfläche (m²) <button type="button" class="info-btn" data-info="areaM2">&#9432;</button></span>
-              <input id="areaM2" type="number" min="10" step="1" placeholder="210">
+              <input id="areaM2" type="number" min="10" step="1">
             </label>
 
             <label class="field">
@@ -199,12 +199,12 @@
 
             <label class="field">
               <span>Jährliche Stromkosten (EUR) <button type="button" class="info-btn" data-info="annualPowerCost">&#9432;</button></span>
-              <input id="annualPowerCost" type="number" min="0" step="0.01" placeholder="5800">
+              <input id="annualPowerCost" type="number" min="0" step="0.01">
             </label>
 
             <label class="field">
               <span>Jährlicher Stromverbrauch (kWh) <button type="button" class="info-btn" data-info="annualPowerUse">&#9432;</button></span>
-              <input id="annualPowerUse" type="number" min="1" step="1" placeholder="20000">
+              <input id="annualPowerUse" type="number" min="1" step="1">
             </label>
           </div>
 
@@ -223,12 +223,12 @@
 
             <label id="consumptionField" class="field hidden">
               <span id="heatingConsumptionLabel">Jährlicher Heizverbrauch <button type="button" class="info-btn" data-info="heatingConsumption">&#9432;</button></span>
-              <input id="heatingConsumption" type="number" min="0" step="1" placeholder="15000">
+              <input id="heatingConsumption" type="number" min="0" step="1">
             </label>
 
             <label id="districtBaseField" class="field">
               <span>Fernwärme Grundpreis (EUR/Jahr) <button type="button" class="info-btn" data-info="districtBasePrice">&#9432;</button></span>
-              <input id="districtBasePrice" type="number" min="0" step="0.01" placeholder="420">
+              <input id="districtBasePrice" type="number" min="0" step="0.01">
             </label>
           </div>
         </section>

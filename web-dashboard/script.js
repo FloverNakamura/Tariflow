@@ -599,6 +599,8 @@ function init() {
     return;
   }
 
+  unlockAllFormInputs();
+
   initEnergyAnalysisSection();
   initHouseholdConsumptionPriority();
 
@@ -644,6 +646,7 @@ function init() {
   // Safety pass for browsers/cache races: enforce state once again after first paint.
   setTimeout(() => {
     componentToggles.forEach((toggle) => syncComponentToggleState(toggle));
+    unlockAllFormInputs();
   }, 0);
 
   // PV-Mode Toggle
@@ -1020,15 +1023,15 @@ function addEvVehicle(vehicle = {}) {
     <div class="grid four">
       <label class="field">
         <span>Batteriekapazität (kWh) <button type="button" class="info-btn" data-info="evBattery">&#9432;</button></span>
-        <input class="ev-vehicle-capacity" type="number" step="0.1" min="10" max="200" placeholder="60" value="${vehicle.batteryCapacity_kwh ?? ''}">
+        <input class="ev-vehicle-capacity" type="number" step="0.1" min="10" max="200" value="${vehicle.batteryCapacity_kwh ?? ''}">
       </label>
       <label class="field">
         <span>Jährliche Laufleistung (km) <button type="button" class="info-btn" data-info="evAnnualKm">&#9432;</button></span>
-        <input class="ev-vehicle-km" type="number" step="100" min="100" max="200000" placeholder="12000" value="${vehicle.annualKm ?? ''}">
+        <input class="ev-vehicle-km" type="number" step="100" min="100" max="200000" value="${vehicle.annualKm ?? ''}">
       </label>
       <label class="field">
         <span>Wallbox-Leistung (kW) <button type="button" class="info-btn" data-info="evWallbox">&#9432;</button></span>
-        <input class="ev-vehicle-wallbox" type="number" step="0.1" min="1.4" max="22" placeholder="11" value="${vehicle.wallboxPower_kw ?? ''}">
+        <input class="ev-vehicle-wallbox" type="number" step="0.1" min="1.4" max="22" value="${vehicle.wallboxPower_kw ?? ''}">
       </label>
       <label class="field toggle">
         <span>Bidirektionales Laden <button type="button" class="info-btn" data-info="bidi">&#9432;</button></span>
@@ -1110,15 +1113,15 @@ function addLargeLoad(load = {}) {
     <div class="grid three">
       <label class="field">
         <span>Leistung (kW) <button type="button" class="info-btn" data-info="largeLoadPower">&#9432;</button></span>
-        <input class="large-load-power" type="number" step="0.1" min="4.2" max="200" placeholder="5.0" value="${load.powerKw ?? ''}">
+        <input class="large-load-power" type="number" step="0.1" min="4.2" max="200" value="${load.powerKw ?? ''}">
       </label>
       <label class="field">
         <span>Startstunde (0-23) <button type="button" class="info-btn" data-info="largeLoadStart">&#9432;</button></span>
-        <input class="large-load-start" type="number" step="1" min="0" max="23" placeholder="10" value="${load.startHour ?? ''}">
+        <input class="large-load-start" type="number" step="1" min="0" max="23" value="${load.startHour ?? ''}">
       </label>
       <label class="field">
         <span>Endstunde (0-23) <button type="button" class="info-btn" data-info="largeLoadEnd">&#9432;</button></span>
-        <input class="large-load-end" type="number" step="1" min="0" max="23" placeholder="14" value="${load.endHour ?? ''}">
+        <input class="large-load-end" type="number" step="1" min="0" max="23" value="${load.endHour ?? ''}">
       </label>
     </div>
   `;
@@ -1198,6 +1201,17 @@ function setFieldsetActiveState(toggleEl, enabled) {
   fieldset.classList.toggle('is-active', enabled);
 }
 
+function unlockAllFormInputs() {
+  if (!form) {
+    return;
+  }
+  const editableControls = form.querySelectorAll('input, select, textarea');
+  editableControls.forEach((control) => {
+    control.removeAttribute('readonly');
+    control.disabled = false;
+  });
+}
+
 function initHouseholdConsumptionPriority() {
   const personsInput = byId('persons');
   const annualConsumptionInput = byId('householdAnnualConsumption');
@@ -1206,9 +1220,8 @@ function initHouseholdConsumptionPriority() {
   }
 
   const syncPriorityState = () => {
-    const hasAbsolute = annualConsumptionInput.value.trim() !== '';
-    personsInput.toggleAttribute('disabled', hasAbsolute);
-    personsInput.setAttribute('aria-disabled', hasAbsolute ? 'true' : 'false');
+    personsInput.removeAttribute('disabled');
+    personsInput.setAttribute('aria-disabled', 'false');
   };
 
   annualConsumptionInput.addEventListener('input', syncPriorityState);
