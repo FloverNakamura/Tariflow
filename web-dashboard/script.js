@@ -627,6 +627,13 @@ function init() {
     setSectionEnabled(targetDiv, isEnabled);
     setFieldsetActiveState(toggleEl, isEnabled);
 
+    if (targetId === 'evFields' && addEvBtn) {
+      addEvBtn.disabled = !isEnabled;
+    }
+    if (targetId === 'largeLoadFields' && addLargeLoadBtn) {
+      addLargeLoadBtn.disabled = !isEnabled;
+    }
+
     if (isEnabled && targetId === 'evFields') {
       ensureAtLeastOneEvVehicle();
     }
