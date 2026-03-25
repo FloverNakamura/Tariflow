@@ -48,6 +48,7 @@ const btnLoading = byId('btnLoading');
 const errorBox = byId('errorBox');
 const successBox = byId('successBox');
 const resultsSection = byId('resultsSection');
+const energyResultsSection = byId('energyResultsSection');
 const exportBtn = byId('exportBtn');
 const apiStatus = byId('apiStatus');
 const marketTickerRefresh = byId('marketTickerRefresh');
@@ -93,6 +94,11 @@ const INFO_TEXTS = {
              <li>6-10 Personen: typisiert mit weiter ansteigendem Haushaltsverbrauch</li>
            </ul>
            <p>Es können 1 bis 10 Personen eingegeben werden. Der Jahresverbrauch wird auf alle 8.760 Stunden des Jahres nach dem H0-Profil verteilt.</p>`
+  },
+  householdAnnualConsumption: {
+    title: 'Haushaltsverbrauch absolut (kWh/Jahr)',
+    html: `<p>Optional kann der gemessene Jahresverbrauch direkt eingetragen werden.</p>
+           <p>Wenn dieser Wert gesetzt ist, wird er in der Tarifsimulation <strong>bevorzugt</strong> und die Personenzahl nur noch als Zusatzinformation genutzt.</p>`
   },
   pv: {
     title: 'Solaranlage (PV)',
@@ -652,8 +658,10 @@ function init() {
 
       latestData = result.data;
       renderResults(result.data);
+      renderEnergyAnalysis();
       exportBtn.disabled = false;
       resultsSection.classList.remove('hidden');
+      energyResultsSection?.classList.remove('hidden');
       showSuccess(buildSuccessMessage(result.data));
       resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
@@ -757,7 +765,8 @@ function buildPayload() {
     household: {
       plz: byId('plz').value.trim(),
       persons: parseInt(byId('persons').value, 10),
-      buildingType: 'EFH'
+      buildingType: 'EFH',
+      annualConsumption_kwh: optionalNumber('householdAnnualConsumption')
     },
     pv: pvData,
     storage: {
@@ -796,8 +805,10 @@ function buildPayload() {
 function validatePayload(payload) {
   const plzEl = byId('plz');
   const personsEl = byId('persons');
+  const annualConsumptionEl = byId('householdAnnualConsumption');
   plzEl.classList.remove('invalid');
   personsEl.classList.remove('invalid');
+  annualConsumptionEl?.classList.remove('invalid');
 
   if (!/^\d{5}$/.test(payload.household.plz)) {
     plzEl.classList.add('invalid');
@@ -807,6 +818,14 @@ function validatePayload(payload) {
   if (!Number.isInteger(payload.household.persons) || payload.household.persons < 1 || payload.household.persons > 10) {
     personsEl.classList.add('invalid');
     return 'Bitte eine Personenzahl zwischen 1 und 10 eingeben.';
+  }
+
+  if (payload.household.annualConsumption_kwh != null) {
+    const annual = Number(payload.household.annualConsumption_kwh);
+    if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
+      annualConsumptionEl?.classList.add('invalid');
+      return 'Der absolute Haushaltsverbrauch muss zwischen 100 und 200000 kWh/Jahr liegen.';
+    }
   }
 
   const pvMode = document.querySelector('input[name="pvMode"]:checked').value;
@@ -1542,19 +1561,15 @@ function initEnergyAnalysisSection() {
     return;
   }
 
-  const ids = [
-    'areaM2', 'powerTariff', 'annualPowerCost', 'annualPowerUse',
-    'heatingType', 'heatingConsumption', 'districtBasePrice'
-  ];
+  const heatingTypeEl = byId('heatingType');
+  const syncFromHeatingType = () => {
+    const heatingType = heatingTypeEl?.value || 'district';
+    const cfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
+    syncEnergyInputVisibility(cfg);
+  };
 
-  ids.forEach((id) => {
-    const element = byId(id);
-    if (!element) return;
-    element.addEventListener('input', renderEnergyAnalysis);
-    element.addEventListener('change', renderEnergyAnalysis);
-  });
-
-  renderEnergyAnalysis();
+  heatingTypeEl?.addEventListener('change', syncFromHeatingType);
+  syncFromHeatingType();
 }
 
 function renderEnergyAnalysis() {
