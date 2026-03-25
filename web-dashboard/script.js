@@ -623,6 +623,7 @@ function init() {
 
     const isEnabled = toggleEl.checked;
     setSectionEnabled(targetDiv, isEnabled);
+    setFieldsetActiveState(toggleEl, isEnabled);
 
     if (isEnabled && targetId === 'evFields') {
       ensureAtLeastOneEvVehicle();
@@ -1185,8 +1186,16 @@ function setSectionEnabled(targetDiv, enabled) {
     if (control.classList.contains('info-btn')) {
       return;
     }
-    control.disabled = !enabled;
+    control.disabled = false;
   });
+}
+
+function setFieldsetActiveState(toggleEl, enabled) {
+  const fieldset = toggleEl.closest('fieldset');
+  if (!fieldset) {
+    return;
+  }
+  fieldset.classList.toggle('is-active', enabled);
 }
 
 function initHouseholdConsumptionPriority() {

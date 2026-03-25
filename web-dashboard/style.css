@@ -375,6 +375,15 @@ fieldset legend {
   margin: 0;
 }
 
+.toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.component-grid fieldset.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(227, 34, 58, 0.1);
+}
+
 .toggle span {
   display: inline-flex;
   align-items: center;
