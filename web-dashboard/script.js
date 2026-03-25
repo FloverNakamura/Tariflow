@@ -89,6 +89,12 @@ const marketTickerDynamicCurrent = byId('marketTickerDynamicCurrent');
 const marketTickerTrend = byId('marketTickerTrend');
 const marketTickerWindow = byId('marketTickerWindow');
 const marketTickerStatus = byId('marketTickerStatus');
+const wizardStage = byId('wizardStage');
+const wizardPrev = byId('wizardPrev');
+const wizardNext = byId('wizardNext');
+const wizardStepLabel = byId('wizardStepLabel');
+const wizardStepTitle = byId('wizardStepTitle');
+const wizardProgressFill = byId('wizardProgressFill');
 
 let latestData = null;
 let monthlyChart = null;
@@ -102,6 +108,12 @@ const MARKET_TICKER_SAMPLE_LIMIT = 120;
 const MARKET_TICKER_HISTORY_HOURS = 168;
 const MARKET_TICKER_INTERVAL_MS = 60 * 60 * 1000;
 const MARKET_TICKER_SYNC_DELAY_MS = 1500;
+const WIZARD_ANIMATION_MS = 360;
+
+const wizardState = {
+  steps: [],
+  currentIndex: 0
+};
 
 // ─── Info-Texte ─────────────────────────────────────────────────────────────
 const INFO_TEXTS = {
@@ -626,6 +638,7 @@ function init() {
   }
 
   runInitStep('Formular freischalten', unlockAllFormInputs);
+  runInitStep('Formular-Wizard', initWizard);
   runInitStep('Energieanalyse', initEnergyAnalysisSection);
   runInitStep('Haushaltsverbrauch', initHouseholdConsumptionPriority);
   runInitStep('E-Autos', initEvVehicles);
@@ -709,6 +722,12 @@ function init() {
   runInitStep('Berechnungsformular', () => {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+
+      if (!isWizardOnLastStep()) {
+        goToWizardStep(wizardState.currentIndex + 1, 'forward');
+        return;
+      }
+
       clearError();
       clearSuccess();
 
@@ -1260,10 +1279,164 @@ function initHouseholdConsumptionPriority() {
   syncPriorityState();
 }
 
+function initWizard() {
+  if (!wizardStage || !wizardPrev || !wizardNext) {
+    return;
+  }
+
+  wizardState.steps = Array.from(wizardStage.querySelectorAll('.wizard-step'));
+  if (!wizardState.steps.length) {
+    return;
+  }
+
+  wizardState.currentIndex = 0;
+  wizardState.steps.forEach((step, index) => {
+    step.classList.remove('is-mounted', 'is-active', 'enter-from-right', 'enter-from-left', 'leave-to-left', 'leave-to-right');
+    if (index === 0) {
+      step.classList.add('is-mounted', 'is-active');
+    }
+  });
+
+  updateWizardUi();
+  syncWizardHeight();
+
+  wizardPrev.addEventListener('click', () => {
+    goToWizardStep(wizardState.currentIndex - 1, 'backward');
+  });
+
+  wizardNext.addEventListener('click', () => {
+    goToWizardStep(wizardState.currentIndex + 1, 'forward');
+  });
+
+  window.addEventListener('resize', syncWizardHeight);
+}
+
+function isWizardOnLastStep() {
+  if (!wizardState.steps.length) {
+    return true;
+  }
+  return wizardState.currentIndex >= wizardState.steps.length - 1;
+}
+
+function goToWizardStep(targetIndex, direction = 'forward') {
+  if (!wizardState.steps.length) {
+    return false;
+  }
+
+  const maxIndex = wizardState.steps.length - 1;
+  const clampedTarget = Math.max(0, Math.min(targetIndex, maxIndex));
+  if (clampedTarget === wizardState.currentIndex) {
+    return false;
+  }
+
+  if (direction === 'forward' && !validateWizardStep(wizardState.currentIndex)) {
+    return false;
+  }
+
+  const currentStep = wizardState.steps[wizardState.currentIndex];
+  const nextStep = wizardState.steps[clampedTarget];
+  const enteringClass = direction === 'forward' ? 'enter-from-right' : 'enter-from-left';
+  const leavingClass = direction === 'forward' ? 'leave-to-left' : 'leave-to-right';
+
+  nextStep.classList.remove('enter-from-right', 'enter-from-left', 'leave-to-left', 'leave-to-right', 'is-active', 'is-mounted');
+  nextStep.classList.add('is-mounted', enteringClass);
+
+  requestAnimationFrame(() => {
+    currentStep.classList.remove('leave-to-left', 'leave-to-right');
+    currentStep.classList.add(leavingClass);
+    currentStep.classList.remove('is-active');
+
+    nextStep.classList.add('is-active');
+    nextStep.classList.remove(enteringClass);
+    syncWizardHeight();
+  });
+
+  window.setTimeout(() => {
+    currentStep.classList.remove('is-mounted', 'leave-to-left', 'leave-to-right', 'enter-from-right', 'enter-from-left');
+    syncWizardHeight();
+  }, WIZARD_ANIMATION_MS + 20);
+
+  wizardState.currentIndex = clampedTarget;
+  updateWizardUi();
+  return true;
+}
+
+function validateWizardStep(index) {
+  const step = wizardState.steps[index];
+  if (!step) {
+    return true;
+  }
+
+  const fields = Array.from(step.querySelectorAll('input, select, textarea')).filter((field) => {
+    if (field.disabled || field.type === 'hidden') {
+      return false;
+    }
+    return true;
+  });
+
+  for (const field of fields) {
+    if (field.willValidate && !field.checkValidity()) {
+      field.reportValidity();
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function syncWizardHeight() {
+  if (!wizardStage || !wizardState.steps.length) {
+    return;
+  }
+  const activeStep = wizardState.steps[wizardState.currentIndex];
+  if (!activeStep) {
+    return;
+  }
+  wizardStage.style.minHeight = `${activeStep.offsetHeight}px`;
+}
+
+function updateWizardUi() {
+  if (!wizardState.steps.length) {
+    return;
+  }
+
+  const total = wizardState.steps.length;
+  const current = wizardState.currentIndex + 1;
+  const isLast = wizardState.currentIndex === total - 1;
+  const title = wizardState.steps[wizardState.currentIndex].dataset.stepTitle || 'Eingaben';
+  const percent = (current / total) * 100;
+
+  if (wizardStepLabel) {
+    wizardStepLabel.textContent = `Schritt ${current} von ${total}`;
+  }
+  if (wizardStepTitle) {
+    wizardStepTitle.textContent = title;
+  }
+  if (wizardProgressFill) {
+    wizardProgressFill.style.width = `${percent}%`;
+    wizardProgressFill.parentElement?.setAttribute('aria-valuenow', String(current));
+    wizardProgressFill.parentElement?.setAttribute('aria-valuemax', String(total));
+  }
+
+  if (wizardPrev) {
+    wizardPrev.disabled = wizardState.currentIndex === 0;
+  }
+  if (wizardNext) {
+    wizardNext.disabled = isLast;
+    wizardNext.textContent = isLast ? 'Letzter Schritt' : 'Weiter';
+  }
+}
+
 function setLoading(loading) {
   calcBtn.disabled = loading;
   btnLabel.classList.toggle('hidden', loading);
   btnLoading.classList.toggle('hidden', !loading);
+  if (wizardPrev) {
+    wizardPrev.disabled = loading || wizardState.currentIndex === 0;
+  }
+  if (wizardNext) {
+    wizardNext.disabled = loading || isWizardOnLastStep();
+  }
 }
 
 function renderResults(data) {

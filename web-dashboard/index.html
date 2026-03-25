@@ -30,27 +30,45 @@
     <section class="panel">
       <h2>Eingaben</h2>
       <form id="calcForm" novalidate>
-        <!-- Basis: PLZ, Personen -->
-        <div class="grid three">
-          <label class="field">
-            <span>PLZ (Pflicht) <button type="button" class="info-btn" data-info="plz">&#9432;</button></span>
-            <input id="plz" type="text" maxlength="5" required>
-            <small class="hint">Bitte 5-stellig eingeben.</small>
-          </label>
-          <label class="field">
-            <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
-            <input id="persons" type="number" min="1" max="10" step="1">
-            <small class="hint">Wird verwendet, wenn kein absoluter Haushaltsverbrauch eingetragen ist.</small>
-          </label>
-          <label class="field">
-            <span>Haushaltsverbrauch absolut (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
-            <input id="householdAnnualConsumption" type="number" min="100" step="1">
-            <small class="hint">Wenn gesetzt, wird dieser Wert priorisiert.</small>
-          </label>
+        <div class="wizard-header" aria-live="polite">
+          <div class="wizard-header-row">
+            <p id="wizardStepLabel" class="wizard-step-label">Schritt 1 von 5</p>
+            <p id="wizardStepTitle" class="wizard-step-title">Standort</p>
+          </div>
+          <div class="wizard-progress" role="progressbar" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1" aria-label="Fortschritt im Formular">
+            <div id="wizardProgressFill" class="wizard-progress-fill"></div>
+          </div>
         </div>
 
-        <!-- Komponenten-Grid: PV, Speicher, WP, E-Auto -->
-        <div class="component-grid">
+        <div id="wizardStage" class="wizard-stage">
+          <section class="wizard-step is-mounted is-active" data-step-title="Standort">
+            <div class="grid one">
+              <label class="field">
+                <span>PLZ (Pflicht) <button type="button" class="info-btn" data-info="plz">&#9432;</button></span>
+                <input id="plz" type="text" maxlength="5" pattern="\d{5}" inputmode="numeric" required>
+                <small class="hint">Bitte 5-stellig eingeben.</small>
+              </label>
+            </div>
+          </section>
+
+          <section class="wizard-step" data-step-title="Haushalt">
+            <div class="grid two">
+              <label class="field">
+                <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
+                <input id="persons" type="number" min="1" max="10" step="1" required>
+                <small class="hint">Wird verwendet, wenn kein absoluter Haushaltsverbrauch eingetragen ist.</small>
+              </label>
+              <label class="field">
+                <span>Haushaltsverbrauch absolut (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
+                <input id="householdAnnualConsumption" type="number" min="100" step="1">
+                <small class="hint">Wenn gesetzt, wird dieser Wert priorisiert.</small>
+              </label>
+            </div>
+          </section>
+
+          <section class="wizard-step" data-step-title="Komponenten">
+            <!-- Komponenten-Grid: PV, Speicher, WP, E-Auto -->
+            <div class="component-grid">
 
         <!-- PV-Eingabe mit Conditional Enable/Disable -->
         <fieldset class="pvSection">
@@ -169,82 +187,91 @@
           </div>
         </fieldset>
 
-        </div><!-- /component-grid -->
+            </div><!-- /component-grid -->
 
-        <div class="grid two">
-          <div class="field note-box full-span">
-            <span>Tarif- und Modulvergleich</span>
-            <small>Alle Tarife werden immer verglichen. §14a-Module werden nur berücksichtigt, wenn Großgeräte über 4,2 kW vorhanden sind.</small>
-          </div>
+            <div class="grid two">
+              <div class="field note-box full-span">
+                <span>Tarif- und Modulvergleich</span>
+                <small>Alle Tarife werden immer verglichen. §14a-Module werden nur berücksichtigt, wenn Großgeräte über 4,2 kW vorhanden sind.</small>
+              </div>
+            </div>
+          </section>
+
+          <section class="wizard-step" data-step-title="Energieanalyse">
+            <section class="subsection energy-inputs">
+              <h2>Energieanalyse Haus: Eingaben <button type="button" class="info-btn" data-info="inputsOverview">&#9432;</button></h2>
+              <p class="note">Diese Eingaben werden zusammen mit der Tarifkalkulation berechnet und gemeinsam als Ergebnis angezeigt.</p>
+
+              <div class="grid two">
+                <label class="field">
+                  <span>Wohnfläche (m²) <button type="button" class="info-btn" data-info="areaM2">&#9432;</button></span>
+                  <input id="areaM2" type="number" min="10" step="1">
+                </label>
+
+                <label class="field">
+                  <span>Aktueller Stromtarif <button type="button" class="info-btn" data-info="powerTariff">&#9432;</button></span>
+                  <select id="powerTariff">
+                    <option value="single" selected>Einzähler-Tarif</option>
+                    <option value="twoRate">Zweitarif HT/NT</option>
+                    <option value="dynamic">Dynamischer Tarif</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Jährliche Stromkosten (EUR) <button type="button" class="info-btn" data-info="annualPowerCost">&#9432;</button></span>
+                  <input id="annualPowerCost" type="number" min="0" step="0.01">
+                </label>
+
+                <label class="field">
+                  <span>Jährlicher Stromverbrauch (kWh) <button type="button" class="info-btn" data-info="annualPowerUse">&#9432;</button></span>
+                  <input id="annualPowerUse" type="number" min="1" step="1">
+                </label>
+              </div>
+
+              <div class="grid three">
+                <label class="field">
+                  <span>Heizart <button type="button" class="info-btn" data-info="heatingType">&#9432;</button></span>
+                  <select id="heatingType">
+                    <option value="district" selected>Fernwärme</option>
+                    <option value="gas">Gas</option>
+                    <option value="oil">Öl</option>
+                    <option value="wood">Holz/Pellets</option>
+                    <option value="heatpump">Wärmepumpe</option>
+                  </select>
+                  <p id="heatingHint" class="hint"></p>
+                </label>
+
+                <label id="consumptionField" class="field hidden">
+                  <span id="heatingConsumptionLabel">Jährlicher Heizverbrauch <button type="button" class="info-btn" data-info="heatingConsumption">&#9432;</button></span>
+                  <input id="heatingConsumption" type="number" min="0" step="1">
+                </label>
+
+                <label id="districtBaseField" class="field">
+                  <span>Fernwärme Grundpreis (EUR/Jahr) <button type="button" class="info-btn" data-info="districtBasePrice">&#9432;</button></span>
+                  <input id="districtBasePrice" type="number" min="0" step="0.01">
+                </label>
+              </div>
+            </section>
+          </section>
+
+          <section class="wizard-step" data-step-title="Berechnen">
+            <div class="actions">
+              <button id="calcBtn" type="submit">
+                <span id="btnLabel">Kalkulation starten</span>
+                <span id="btnLoading" class="hidden">Berechnung läuft...</span>
+              </button>
+              <button id="exportBtn" type="button" class="ghost" disabled>Ergebnis exportieren</button>
+            </div>
+
+            <p id="errorBox" class="error hidden"></p>
+            <p id="successBox" class="success hidden"></p>
+          </section>
         </div>
 
-        <section class="subsection energy-inputs">
-          <h2>Energieanalyse Haus: Eingaben <button type="button" class="info-btn" data-info="inputsOverview">&#9432;</button></h2>
-          <p class="note">Diese Eingaben werden zusammen mit der Tarifkalkulation berechnet und gemeinsam als Ergebnis angezeigt.</p>
-
-          <div class="grid two">
-            <label class="field">
-              <span>Wohnfläche (m²) <button type="button" class="info-btn" data-info="areaM2">&#9432;</button></span>
-              <input id="areaM2" type="number" min="10" step="1">
-            </label>
-
-            <label class="field">
-              <span>Aktueller Stromtarif <button type="button" class="info-btn" data-info="powerTariff">&#9432;</button></span>
-              <select id="powerTariff">
-                <option value="single" selected>Einzähler-Tarif</option>
-                <option value="twoRate">Zweitarif HT/NT</option>
-                <option value="dynamic">Dynamischer Tarif</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Jährliche Stromkosten (EUR) <button type="button" class="info-btn" data-info="annualPowerCost">&#9432;</button></span>
-              <input id="annualPowerCost" type="number" min="0" step="0.01">
-            </label>
-
-            <label class="field">
-              <span>Jährlicher Stromverbrauch (kWh) <button type="button" class="info-btn" data-info="annualPowerUse">&#9432;</button></span>
-              <input id="annualPowerUse" type="number" min="1" step="1">
-            </label>
-          </div>
-
-          <div class="grid three">
-            <label class="field">
-              <span>Heizart <button type="button" class="info-btn" data-info="heatingType">&#9432;</button></span>
-              <select id="heatingType">
-                <option value="district" selected>Fernwärme</option>
-                <option value="gas">Gas</option>
-                <option value="oil">Öl</option>
-                <option value="wood">Holz/Pellets</option>
-                <option value="heatpump">Wärmepumpe</option>
-              </select>
-              <p id="heatingHint" class="hint"></p>
-            </label>
-
-            <label id="consumptionField" class="field hidden">
-              <span id="heatingConsumptionLabel">Jährlicher Heizverbrauch <button type="button" class="info-btn" data-info="heatingConsumption">&#9432;</button></span>
-              <input id="heatingConsumption" type="number" min="0" step="1">
-            </label>
-
-            <label id="districtBaseField" class="field">
-              <span>Fernwärme Grundpreis (EUR/Jahr) <button type="button" class="info-btn" data-info="districtBasePrice">&#9432;</button></span>
-              <input id="districtBasePrice" type="number" min="0" step="0.01">
-            </label>
-          </div>
-        </section>
-
-        <!-- Buttons -->
-        <div class="actions">
-          <button id="calcBtn" type="submit">
-            <span id="btnLabel">Kalkulation starten</span>
-            <span id="btnLoading" class="hidden">Berechnung läuft...</span>
-          </button>
-          <button id="exportBtn" type="button" class="ghost" disabled>Ergebnis exportieren</button>
+        <div class="wizard-nav">
+          <button id="wizardPrev" type="button" class="ghost">Zurück</button>
+          <button id="wizardNext" type="button">Weiter</button>
         </div>
-
-        <!-- Fehler- und Erfolgsmeldungen -->
-        <p id="errorBox" class="error hidden"></p>
-        <p id="successBox" class="success hidden"></p>
       </form>
     </section>
 

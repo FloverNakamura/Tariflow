@@ -21,7 +21,10 @@ body {
   margin: 0;
   color: var(--text);
   font-family: Manrope, "Space Grotesk", "Segoe UI", sans-serif;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 8% 12%, rgba(242, 85, 111, 0.12), transparent 30%),
+    radial-gradient(circle at 92% 18%, rgba(227, 34, 58, 0.08), transparent 34%),
+    linear-gradient(180deg, #f9fbff 0%, #f4f7fb 100%);
   min-height: 100vh;
 }
 
@@ -46,18 +49,19 @@ body {
 }
 
 .page {
-  width: min(1120px, calc(100% - 2rem));
-  margin: 2rem auto 3rem;
+  width: min(1120px, calc(100% - 2.2rem));
+  margin: 1.3rem auto 2.2rem;
   display: grid;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 
 .hero {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 1.4rem 1.2rem;
-  box-shadow: var(--shadow);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0.5rem 0.2rem 0.35rem;
+  box-shadow: none;
+  text-align: center;
 }
 
 .brand-lockup {
@@ -103,6 +107,7 @@ h1 {
   color: var(--muted);
   line-height: 1.5;
   max-width: 80ch;
+  margin-inline: auto;
 }
 
 .tool-switch {
@@ -192,17 +197,130 @@ h1 {
 }
 
 .panel {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
 }
 
 .panel h2 {
   margin: 0 0 1rem;
   font-size: 1.05rem;
   letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.wizard-header {
+  margin-bottom: 0.9rem;
+}
+
+.wizard-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin-bottom: 0.45rem;
+}
+
+.wizard-step-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.wizard-step-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.wizard-progress {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #eceff5;
+  overflow: hidden;
+}
+
+.wizard-progress-fill {
+  height: 100%;
+  width: 20%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f2556f 0%, #e3223a 100%);
+  transition: width 0.28s ease;
+}
+
+.wizard-stage {
+  position: relative;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.wizard-step {
+  display: none;
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  transform: translateX(0);
+  transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.36s ease;
+}
+
+.wizard-step.is-mounted {
+  display: block;
+}
+
+.wizard-step.is-active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.wizard-step.enter-from-right {
+  transform: translateX(110%);
+  opacity: 0;
+}
+
+.wizard-step.enter-from-left {
+  transform: translateX(-110%);
+  opacity: 0;
+}
+
+.wizard-step.leave-to-left {
+  transform: translateX(-110%);
+  opacity: 0;
+}
+
+.wizard-step.leave-to-right {
+  transform: translateX(110%);
+  opacity: 0;
+}
+
+.wizard-nav {
+  margin-top: 0.95rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.wizard-nav button {
+  flex: 1;
+}
+
+#wizardNext {
+  color: #ffffff;
+  background: #e3223a;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+#wizardNext:disabled,
+#wizardPrev:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 .subsection {
@@ -251,6 +369,10 @@ h1 {
 
 .grid.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid.one {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .grid.three {
@@ -343,11 +465,11 @@ textarea::placeholder {
 
 /* Fieldset Styling */
 fieldset {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 1rem 1.1rem;
+  border: none;
+  border-radius: 0;
+  padding: 0.95rem 0;
   margin: 0;
-  background: #ffffff;
+  background: transparent;
 }
 
 fieldset legend {
@@ -503,10 +625,10 @@ button:not(.info-btn) {
 
 .ev-vehicle,
 .large-load {
-  border: 1px solid var(--line);
+  border: 1px solid #e6eaf1;
   border-radius: 12px;
   padding: 0.9rem;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .ev-vehicle-head {
@@ -870,10 +992,10 @@ tr.best {
   flex-direction: column;
   justify-content: center;
   gap: 0.35rem;
-  border: 1px solid var(--line);
+  border: 1px solid #e6eaf1;
   border-radius: 12px;
   padding: 0.9rem 1rem;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.68);
 }
 
 .note-box small {
@@ -1011,6 +1133,12 @@ td.bad {
 
   .actions {
     flex-direction: column;
+  }
+
+  .wizard-header-row,
+  .wizard-nav {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .market-ticker-stats {
