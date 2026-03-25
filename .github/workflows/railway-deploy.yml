@@ -1,0 +1,39 @@
+name: Deploy Backend to Railway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend-api/**'
+      - '.github/workflows/railway-deploy.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Build Backend
+        run: |
+          cd backend-api
+          npm ci
+          npm run build
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          cd backend-api
+          railway up --service tariflow-backend
+
+      - name: Get Railway URL
+        id: railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          URL=$(railway service info tariflow-backend --json 2>/dev/null | jq -r '.publicDomain' || echo "https://tariflow-backend.railway.app")
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $URL"
