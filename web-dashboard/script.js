@@ -607,6 +607,13 @@ function init() {
 
   // Component Toggle: Enable/Disable fields based on checkbox state
   const componentToggles = document.querySelectorAll('.component-toggle');
+  const controlledSections = document.querySelectorAll('.pvFields, .storageFields, .heatPumpFields, .evFields, .largeLoadFields');
+
+  // Safety reset: remove stale disabled states that could survive from cached DOM/CSS states.
+  controlledSections.forEach((section) => {
+    setSectionEnabled(section, true);
+  });
+
   const syncComponentToggleState = (toggleEl) => {
     const targetId = toggleEl.dataset.target;
     const targetDiv = byId(targetId);
@@ -1173,11 +1180,7 @@ function setSectionEnabled(targetDiv, enabled) {
     if (control.classList.contains('info-btn')) {
       return;
     }
-    if (!enabled) {
-      control.setAttribute('disabled', 'disabled');
-    } else {
-      control.removeAttribute('disabled');
-    }
+    control.disabled = !enabled;
   });
 }
 

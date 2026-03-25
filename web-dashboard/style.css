@@ -298,6 +298,9 @@ select,
 textarea {
   font: inherit;
   color: var(--text);
+  font-weight: 600;
+  -webkit-text-fill-color: var(--text);
+  opacity: 1;
 }
 
 input::placeholder,
@@ -401,6 +404,7 @@ fieldset legend {
 .largeLoadFields.disabled input {
   background-color: var(--panel);
   color: var(--text);
+  -webkit-text-fill-color: var(--text);
   cursor: not-allowed;
 }
 
