@@ -95,6 +95,9 @@ const wizardNext = byId('wizardNext');
 const wizardStepLabel = byId('wizardStepLabel');
 const wizardStepTitle = byId('wizardStepTitle');
 const wizardProgressFill = byId('wizardProgressFill');
+const knowsHouseholdConsumption = byId('knowsHouseholdConsumption');
+const householdKnownBlock = byId('householdKnownBlock');
+const householdUnknownBlock = byId('householdUnknownBlock');
 
 let latestData = null;
 let monthlyChart = null;
@@ -639,8 +642,9 @@ function init() {
 
   runInitStep('Formular freischalten', unlockAllFormInputs);
   runInitStep('Formular-Wizard', initWizard);
+  runInitStep('Entscheidungsbuttons', initDecisionButtons);
   runInitStep('Energieanalyse', initEnergyAnalysisSection);
-  runInitStep('Haushaltsverbrauch', initHouseholdConsumptionPriority);
+  runInitStep('Haushaltsverbrauch', initHouseholdConsumptionMode);
   runInitStep('E-Autos', initEvVehicles);
   runInitStep('Grossverbraucher', initLargeLoads);
 
@@ -663,6 +667,7 @@ function init() {
       const isEnabled = toggleEl.checked;
       setSectionEnabled(targetDiv, isEnabled);
       setFieldsetActiveState(toggleEl, isEnabled);
+      syncDecisionButtons(toggleEl.id, isEnabled);
 
       if (targetId === 'evFields' && addEvBtn) {
         addEvBtn.disabled = !isEnabled;
@@ -820,6 +825,7 @@ async function checkApiReachability() {
 
 function buildPayload() {
   const pvMode = document.querySelector('input[name="pvMode"]:checked').value;
+  const hasKnownHouseholdConsumption = knowsHouseholdConsumption?.checked === true;
   const hasPv = byId('hasPv').checked;
   const hasStorage = byId('hasStorage').checked;
   const hasHeatPump = byId('hasHeatPump').checked;
@@ -857,12 +863,14 @@ function buildPayload() {
     pvData.aspect_deg = optionalNumber('aspect');
   }
 
-  const annualHouseholdConsumption = optionalNumber('householdAnnualConsumption');
+  const annualHouseholdConsumption = hasKnownHouseholdConsumption ? optionalNumber('householdAnnualConsumption') : null;
+  const personsRaw = parseInt(byId('persons').value, 10);
+  const persons = Number.isInteger(personsRaw) ? personsRaw : 1;
 
   return {
     household: {
       plz: byId('plz').value.trim(),
-      persons: parseInt(byId('persons').value, 10),
+      persons,
       buildingType: 'EFH',
       annualConsumption_kwh: annualHouseholdConsumption
     },
@@ -904,6 +912,7 @@ function validatePayload(payload) {
   const plzEl = byId('plz');
   const personsEl = byId('persons');
   const annualConsumptionEl = byId('householdAnnualConsumption');
+  const hasKnownHouseholdConsumption = knowsHouseholdConsumption?.checked === true;
   plzEl.classList.remove('invalid');
   personsEl.classList.remove('invalid');
   annualConsumptionEl?.classList.remove('invalid');
@@ -913,12 +922,19 @@ function validatePayload(payload) {
     return 'Bitte eine gültige 5-stellige PLZ eingeben.';
   }
 
-  if (!Number.isInteger(payload.household.persons) || payload.household.persons < 1 || payload.household.persons > 10) {
-    personsEl.classList.add('invalid');
-    return 'Bitte eine Personenzahl zwischen 1 und 10 eingeben.';
+  if (!hasKnownHouseholdConsumption) {
+    if (!Number.isInteger(payload.household.persons) || payload.household.persons < 1 || payload.household.persons > 10) {
+      personsEl.classList.add('invalid');
+      return 'Bitte eine Personenzahl zwischen 1 und 10 eingeben.';
+    }
   }
 
-  if (payload.household.annualConsumption_kwh != null) {
+  if (hasKnownHouseholdConsumption) {
+    if (payload.household.annualConsumption_kwh == null) {
+      annualConsumptionEl?.classList.add('invalid');
+      return 'Bitte den bekannten Haushaltsverbrauch in kWh/Jahr eingeben.';
+    }
+
     const annual = Number(payload.household.annualConsumption_kwh);
     if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
       annualConsumptionEl?.classList.add('invalid');
@@ -1263,20 +1279,72 @@ function unlockAllFormInputs() {
   });
 }
 
-function initHouseholdConsumptionPriority() {
+function initHouseholdConsumptionMode() {
   const personsInput = byId('persons');
   const annualConsumptionInput = byId('householdAnnualConsumption');
-  if (!personsInput || !annualConsumptionInput) {
+  if (!personsInput || !annualConsumptionInput || !knowsHouseholdConsumption || !householdKnownBlock || !householdUnknownBlock) {
     return;
   }
 
-  const syncPriorityState = () => {
-    personsInput.removeAttribute('disabled');
-    personsInput.setAttribute('aria-disabled', 'false');
+  const syncMode = () => {
+    const known = knowsHouseholdConsumption.checked;
+
+    householdKnownBlock.classList.toggle('hidden', !known);
+    householdUnknownBlock.classList.toggle('hidden', known);
+
+    setSectionEnabled(householdKnownBlock, known);
+    setSectionEnabled(householdUnknownBlock, !known);
+
+    annualConsumptionInput.required = known;
+    personsInput.required = !known;
+
+    if (known) {
+      personsInput.classList.remove('invalid');
+    } else {
+      annualConsumptionInput.classList.remove('invalid');
+    }
   };
 
-  annualConsumptionInput.addEventListener('input', syncPriorityState);
-  syncPriorityState();
+  knowsHouseholdConsumption.addEventListener('change', syncMode);
+  syncDecisionButtons('knowsHouseholdConsumption', knowsHouseholdConsumption.checked);
+  syncMode();
+}
+
+function initDecisionButtons() {
+  const groups = document.querySelectorAll('.decision-toggle[data-toggle-id]');
+  groups.forEach((group) => {
+    const toggleId = group.dataset.toggleId;
+    const toggle = byId(toggleId);
+    if (!toggle) {
+      return;
+    }
+
+    const buttons = group.querySelectorAll('.decision-btn');
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const value = button.dataset.value === 'true';
+        if (toggle.checked === value) {
+          syncDecisionButtons(toggleId, value);
+          return;
+        }
+        toggle.checked = value;
+        syncDecisionButtons(toggleId, value);
+        toggle.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  });
+}
+
+function syncDecisionButtons(toggleId, state) {
+  const group = document.querySelector(`.decision-toggle[data-toggle-id="${toggleId}"]`);
+  if (!group) {
+    return;
+  }
+  const buttons = group.querySelectorAll('.decision-btn');
+  buttons.forEach((button) => {
+    const buttonValue = button.dataset.value === 'true';
+    button.classList.toggle('active', buttonValue === state);
+  });
 }
 
 function initWizard() {

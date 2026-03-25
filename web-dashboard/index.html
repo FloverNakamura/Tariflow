@@ -32,10 +32,10 @@
       <form id="calcForm" novalidate>
         <div class="wizard-header" aria-live="polite">
           <div class="wizard-header-row">
-            <p id="wizardStepLabel" class="wizard-step-label">Schritt 1 von 5</p>
+            <p id="wizardStepLabel" class="wizard-step-label">Schritt 1 von 9</p>
             <p id="wizardStepTitle" class="wizard-step-title">Standort</p>
           </div>
-          <div class="wizard-progress" role="progressbar" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1" aria-label="Fortschritt im Formular">
+          <div class="wizard-progress" role="progressbar" aria-valuemin="1" aria-valuemax="9" aria-valuenow="1" aria-label="Fortschritt im Formular">
             <div id="wizardProgressFill" class="wizard-progress-fill"></div>
           </div>
         </div>
@@ -52,142 +52,156 @@
           </section>
 
           <section class="wizard-step" data-step-title="Haushalt">
-            <div class="grid two">
-              <label class="field">
-                <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
-                <input id="persons" type="number" min="1" max="10" step="1" required>
-                <small class="hint">Wird verwendet, wenn kein absoluter Haushaltsverbrauch eingetragen ist.</small>
-              </label>
-              <label class="field">
-                <span>Haushaltsverbrauch absolut (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
-                <input id="householdAnnualConsumption" type="number" min="100" step="1">
-                <small class="hint">Wenn gesetzt, wird dieser Wert priorisiert.</small>
-              </label>
-            </div>
+            <fieldset>
+              <legend>Ist Ihr Haushaltsverbrauch bekannt? <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></legend>
+              <input id="knowsHouseholdConsumption" type="checkbox" class="decision-state-input" hidden>
+              <div class="decision-toggle" data-toggle-id="knowsHouseholdConsumption">
+                <button type="button" class="decision-btn" data-value="true">Ja, Verbrauch ist bekannt</button>
+                <button type="button" class="decision-btn active" data-value="false">Nein, über Personen schätzen</button>
+              </div>
+
+              <div id="householdKnownBlock" class="conditional-block hidden">
+                <label class="field">
+                  <span>Haushaltsverbrauch absolut (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
+                  <input id="householdAnnualConsumption" type="number" min="100" step="1">
+                  <small class="hint">Wenn bekannt, wird dieser Wert direkt für die Berechnung verwendet.</small>
+                </label>
+              </div>
+
+              <div id="householdUnknownBlock" class="conditional-block">
+                <label class="field">
+                  <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
+                  <input id="persons" type="number" min="1" max="10" step="1" required>
+                  <small class="hint">Wird verwendet, wenn kein absoluter Haushaltsverbrauch eingetragen ist.</small>
+                </label>
+              </div>
+            </fieldset>
           </section>
 
-          <section class="wizard-step" data-step-title="Komponenten">
-            <!-- Komponenten-Grid: PV, Speicher, WP, E-Auto -->
-            <div class="component-grid">
-
-        <!-- PV-Eingabe mit Conditional Enable/Disable -->
-        <fieldset class="pvSection">
-          <legend>Solaranlage (PV) <button type="button" class="info-btn" data-info="pv">&#9432;</button></legend>
-          <label class="field toggle">
-            <input id="hasPv" type="checkbox" class="component-toggle" data-target="pvFields">
-            <span>Solaranlage vorhanden <button type="button" class="info-btn" data-info="pv">&#9432;</button></span>
-          </label>
-
-          <div id="pvFields" class="pvFields">
-            <div class="grid two">
-              <label class="field toggle">
-                <input type="radio" name="pvMode" id="pvModeKnown" value="known" checked>
-                <span>Ich kenne meine Leistung (kWp) <button type="button" class="info-btn" data-info="pvModeKnown">&#9432;</button></span>
-              </label>
-              <label class="field toggle">
-                <input type="radio" name="pvMode" id="pvModeCalculate" value="calculate">
-                <span>Ich berechne aus der Dachfläche <button type="button" class="info-btn" data-info="pvModeCalculate">&#9432;</button></span>
-              </label>
-            </div>
-
-            <!-- Wenn kWp bekannt -->
-            <div id="pvKnownSection" class="grid two">
-              <label class="field">
-                <span>PV-Leistung (kWp) <button type="button" class="info-btn" data-info="peakpower">&#9432;</button></span>
-                <input id="peakpower" type="number" step="0.1" min="0.1">
-              </label>
-            </div>
-
-            <!-- Wenn aus Dach berechnet -->
-            <div id="pvCalcSection" class="grid four hidden">
-              <label class="field">
-                <span>Dachfläche (m²) <button type="button" class="info-btn" data-info="roofArea">&#9432;</button></span>
-                <input id="roofArea" type="number" step="0.1" min="1">
-              </label>
-              <label class="field">
-                <span>Dachneigung (°) <button type="button" class="info-btn" data-info="angle">&#9432;</button></span>
-                <input id="angle" type="number" step="1" min="0" max="90">
-              </label>
-              <label class="field">
-                <span>Ausrichtung (°) <button type="button" class="info-btn" data-info="aspect">&#9432;</button></span>
-                <input id="aspect" type="number" step="1" min="-180" max="180">
-              </label>
-              <label class="field">
-                <span>Moduleffizienz (%) <button type="button" class="info-btn" data-info="moduleEfficiency">&#9432;</button></span>
-                <input id="moduleEfficiency" type="number" step="0.1" min="5" max="25">
-              </label>
-            </div>
-          </div>
-        </fieldset>
-
-        <!-- Speicher mit Conditional Enable/Disable -->
-        <fieldset class="storageSection">
-          <legend>Stromspeicher <button type="button" class="info-btn" data-info="storage">&#9432;</button></legend>
-          <label class="field toggle">
-            <input id="hasStorage" type="checkbox" class="component-toggle" data-target="storageFields">
-            <span>Speicher vorhanden <button type="button" class="info-btn" data-info="storage">&#9432;</button></span>
-          </label>
-
-          <div id="storageFields" class="storageFields">
-            <div class="grid two">
-              <label class="field">
-                <span>Speicherkapazität (kWh) <button type="button" class="info-btn" data-info="storageCapacity">&#9432;</button></span>
-                <input id="storageCapacity" type="number" step="0.1" min="0">
-              </label>
-            </div>
-          </div>
-        </fieldset>
-
-        <!-- Wärmepumpe mit Conditional Enable/Disable -->
-        <fieldset class="heatPumpSection">
-          <legend>Wärmepumpe <button type="button" class="info-btn" data-info="heatPump">&#9432;</button></legend>
-          <label class="field toggle">
-            <input id="hasHeatPump" type="checkbox" class="component-toggle" data-target="heatPumpFields">
-            <span>Wärmepumpe vorhanden <button type="button" class="info-btn" data-info="heatPump">&#9432;</button></span>
-          </label>
-
-          <div id="heatPumpFields" class="heatPumpFields">
-            <div class="grid two">
-              <label class="field">
-                <span>Jahresverbrauch (kWh/Jahr) <button type="button" class="info-btn" data-info="heatPumpConsumption">&#9432;</button></span>
-                <input id="heatPumpConsumption" type="number" min="0">
-              </label>
-            </div>
-          </div>
-        </fieldset>
-
-        <!-- Großverbraucher (in einer Reihe mit Wärmepumpe) -->
-        <fieldset class="largeLoadSection">
-            <legend>Großverbraucher <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
-            <label class="field toggle">
-              <input id="hasLargeLoad42" type="checkbox" class="component-toggle" data-target="largeLoadFields">
-              <span>Großgeräte über 4,2 kW vorhanden <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></span>
-            </label>
-            <div id="largeLoadFields" class="largeLoadFields">
-              <div id="largeLoads" class="large-loads"></div>
-              <div class="ev-toolbar">
-                <button id="addLargeLoadBtn" type="button" class="ghost">Großverbraucher hinzufügen</button>
+          <section class="wizard-step" data-step-title="Solaranlage (PV)">
+            <fieldset class="pvSection">
+              <legend>Ist eine Solaranlage vorhanden? <button type="button" class="info-btn" data-info="pv">&#9432;</button></legend>
+              <input id="hasPv" type="checkbox" class="component-toggle decision-state-input" data-target="pvFields" hidden>
+              <div class="decision-toggle" data-toggle-id="hasPv">
+                <button type="button" class="decision-btn" data-value="true">Ja, PV ist vorhanden</button>
+                <button type="button" class="decision-btn active" data-value="false">Nein, keine PV</button>
               </div>
-            </div>
-        </fieldset>
 
-        <!-- E-Auto unterhalb als volle Breite -->
-        <fieldset class="evSection full-span">
-          <legend>Elektrofahrzeug <button type="button" class="info-btn" data-info="ev">&#9432;</button></legend>
-          <label class="field toggle">
-            <input id="hasEv" type="checkbox" class="component-toggle" data-target="evFields">
-            <span>E-Autos mit Wallbox vorhanden <button type="button" class="info-btn" data-info="ev">&#9432;</button></span>
-          </label>
+              <div id="pvFields" class="pvFields">
+                <div class="grid two">
+                  <label class="field toggle">
+                    <input type="radio" name="pvMode" id="pvModeKnown" value="known" checked>
+                    <span>Ich kenne meine Leistung (kWp) <button type="button" class="info-btn" data-info="pvModeKnown">&#9432;</button></span>
+                  </label>
+                  <label class="field toggle">
+                    <input type="radio" name="pvMode" id="pvModeCalculate" value="calculate">
+                    <span>Ich berechne aus der Dachfläche <button type="button" class="info-btn" data-info="pvModeCalculate">&#9432;</button></span>
+                  </label>
+                </div>
 
-          <div id="evFields" class="evFields">
-            <div id="evVehicles" class="ev-vehicles"></div>
-            <div class="ev-toolbar">
-              <button id="addEvBtn" type="button" class="ghost">Weiteres E-Auto hinzufügen</button>
-            </div>
-          </div>
-        </fieldset>
+                <div id="pvKnownSection" class="grid two">
+                  <label class="field">
+                    <span>PV-Leistung (kWp) <button type="button" class="info-btn" data-info="peakpower">&#9432;</button></span>
+                    <input id="peakpower" type="number" step="0.1" min="0.1">
+                  </label>
+                </div>
 
-            </div><!-- /component-grid -->
+                <div id="pvCalcSection" class="grid four hidden">
+                  <label class="field">
+                    <span>Dachfläche (m²) <button type="button" class="info-btn" data-info="roofArea">&#9432;</button></span>
+                    <input id="roofArea" type="number" step="0.1" min="1">
+                  </label>
+                  <label class="field">
+                    <span>Dachneigung (°) <button type="button" class="info-btn" data-info="angle">&#9432;</button></span>
+                    <input id="angle" type="number" step="1" min="0" max="90">
+                  </label>
+                  <label class="field">
+                    <span>Ausrichtung (°) <button type="button" class="info-btn" data-info="aspect">&#9432;</button></span>
+                    <input id="aspect" type="number" step="1" min="-180" max="180">
+                  </label>
+                  <label class="field">
+                    <span>Moduleffizienz (%) <button type="button" class="info-btn" data-info="moduleEfficiency">&#9432;</button></span>
+                    <input id="moduleEfficiency" type="number" step="0.1" min="5" max="25">
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="wizard-step" data-step-title="Stromspeicher">
+            <fieldset class="storageSection">
+              <legend>Ist ein Stromspeicher vorhanden? <button type="button" class="info-btn" data-info="storage">&#9432;</button></legend>
+              <input id="hasStorage" type="checkbox" class="component-toggle decision-state-input" data-target="storageFields" hidden>
+              <div class="decision-toggle" data-toggle-id="hasStorage">
+                <button type="button" class="decision-btn" data-value="true">Ja, Speicher ist vorhanden</button>
+                <button type="button" class="decision-btn active" data-value="false">Nein, kein Speicher</button>
+              </div>
+
+              <div id="storageFields" class="storageFields">
+                <div class="grid two">
+                  <label class="field">
+                    <span>Speicherkapazität (kWh) <button type="button" class="info-btn" data-info="storageCapacity">&#9432;</button></span>
+                    <input id="storageCapacity" type="number" step="0.1" min="0">
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="wizard-step" data-step-title="Wärmepumpe">
+            <fieldset class="heatPumpSection">
+              <legend>Ist eine Wärmepumpe vorhanden? <button type="button" class="info-btn" data-info="heatPump">&#9432;</button></legend>
+              <input id="hasHeatPump" type="checkbox" class="component-toggle decision-state-input" data-target="heatPumpFields" hidden>
+              <div class="decision-toggle" data-toggle-id="hasHeatPump">
+                <button type="button" class="decision-btn" data-value="true">Ja, Wärmepumpe ist vorhanden</button>
+                <button type="button" class="decision-btn active" data-value="false">Nein, keine Wärmepumpe</button>
+              </div>
+
+              <div id="heatPumpFields" class="heatPumpFields">
+                <div class="grid two">
+                  <label class="field">
+                    <span>Jahresverbrauch (kWh/Jahr) <button type="button" class="info-btn" data-info="heatPumpConsumption">&#9432;</button></span>
+                    <input id="heatPumpConsumption" type="number" min="0">
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="wizard-step" data-step-title="Großverbraucher">
+            <fieldset class="largeLoadSection">
+              <legend>Gibt es Großverbraucher über 4,2 kW? <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
+              <input id="hasLargeLoad42" type="checkbox" class="component-toggle decision-state-input" data-target="largeLoadFields" hidden>
+              <div class="decision-toggle" data-toggle-id="hasLargeLoad42">
+                <button type="button" class="decision-btn" data-value="true">Ja, Großverbraucher vorhanden</button>
+                <button type="button" class="decision-btn active" data-value="false">Nein, keine Großverbraucher</button>
+              </div>
+
+              <div id="largeLoadFields" class="largeLoadFields">
+                <div id="largeLoads" class="large-loads"></div>
+                <div class="ev-toolbar">
+                  <button id="addLargeLoadBtn" type="button" class="ghost">Großverbraucher hinzufügen</button>
+                </div>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="wizard-step" data-step-title="Elektrofahrzeug">
+            <fieldset class="evSection">
+              <legend>Sind E-Autos mit Wallbox vorhanden? <button type="button" class="info-btn" data-info="ev">&#9432;</button></legend>
+              <input id="hasEv" type="checkbox" class="component-toggle decision-state-input" data-target="evFields" hidden>
+              <div class="decision-toggle" data-toggle-id="hasEv">
+                <button type="button" class="decision-btn" data-value="true">Ja, E-Auto vorhanden</button>
+                <button type="button" class="decision-btn active" data-value="false">Nein, kein E-Auto</button>
+              </div>
+
+              <div id="evFields" class="evFields">
+                <div id="evVehicles" class="ev-vehicles"></div>
+                <div class="ev-toolbar">
+                  <button id="addEvBtn" type="button" class="ghost">Weiteres E-Auto hinzufügen</button>
+                </div>
+              </div>
+            </fieldset>
 
             <div class="grid two">
               <div class="field note-box full-span">

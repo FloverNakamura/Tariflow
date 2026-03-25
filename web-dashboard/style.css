@@ -328,6 +328,38 @@ h1 {
   cursor: not-allowed;
 }
 
+.decision-state-input {
+  display: none;
+}
+
+.decision-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0.2rem 0 0.9rem;
+}
+
+.decision-btn {
+  min-height: 56px;
+  border-radius: 14px;
+  border: 1px solid #d9dfeb;
+  background: rgba(255, 255, 255, 0.74);
+  color: #243041;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.decision-btn.active {
+  border-color: #e3223a;
+  color: #e3223a;
+  background: #fff1f3;
+  box-shadow: 0 0 0 2px rgba(227, 34, 58, 0.08);
+}
+
+.conditional-block {
+  margin-top: 0.45rem;
+}
+
 .subsection {
   margin-top: 1rem;
   border: 1px solid var(--line);
@@ -1144,6 +1176,10 @@ td.bad {
   .wizard-nav {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .decision-toggle {
+    grid-template-columns: 1fr;
   }
 
   .market-ticker-stats {
