@@ -1,0 +1,9 @@
+functions/
+web-dashboard/
+netlify.toml
+wrangler.toml
+DEPLOY.md
+README.md
+restructure-for-netlify.sh
+railway-*.sh
+.vscode/

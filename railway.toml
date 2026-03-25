@@ -1,0 +1,7 @@
+[build]
+# Build only the backend-api directory
+rootDirectory = "backend-api"
+
+[deploy]
+# Start command
+startCommand = "npm run start"
