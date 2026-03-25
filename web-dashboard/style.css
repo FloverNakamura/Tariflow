@@ -70,13 +70,17 @@ body {
 }
 
 .brand-logo {
-  width: min(520px, 100%);
-  height: auto;
+  width: auto;
+  height: 72px;
+  max-width: 100%;
   display: block;
 }
 
 .brand-logo-secondary {
-  width: min(220px, 42vw);
+  width: auto;
+  height: 72px;
+  max-width: 100%;
+  display: block;
 }
 
 .kicker {
@@ -298,7 +302,7 @@ select,
 textarea {
   font: inherit;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
   -webkit-text-fill-color: var(--text);
   opacity: 1;
 }
@@ -394,7 +398,7 @@ fieldset legend {
 .heatPumpFields.disabled,
 .evFields.disabled,
 .largeLoadFields.disabled {
-  opacity: 0.5;
+  display: none;
 }
 
 .pvFields.disabled input,
@@ -957,6 +961,11 @@ td.bad {
 }
 
 @media (max-width: 720px) {
+  .brand-logo,
+  .brand-logo-secondary {
+    height: 56px;
+  }
+
   .page {
     width: calc(100% - 1rem);
     margin-top: 1rem;

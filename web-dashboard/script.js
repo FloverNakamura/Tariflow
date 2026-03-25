@@ -1174,14 +1174,6 @@ function optionalNumber(id) {
 
 function setSectionEnabled(targetDiv, enabled) {
   targetDiv.classList.toggle('disabled', !enabled);
-
-  const controls = targetDiv.querySelectorAll('input, select, textarea, button');
-  controls.forEach((control) => {
-    if (control.classList.contains('info-btn')) {
-      return;
-    }
-    control.disabled = !enabled;
-  });
 }
 
 function initHouseholdConsumptionPriority() {
