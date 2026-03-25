@@ -56,7 +56,6 @@ const marketTickerDynamicCurrent = byId('marketTickerDynamicCurrent');
 const marketTickerTrend = byId('marketTickerTrend');
 const marketTickerWindow = byId('marketTickerWindow');
 const marketTickerStatus = byId('marketTickerStatus');
-const energyAnalysisFrame = byId('energyAnalysisFrame');
 
 let latestData = null;
 let monthlyChart = null;
@@ -437,6 +436,81 @@ const INFO_TEXTS = {
   }
 };
 
+Object.assign(INFO_TEXTS, {
+  inputsOverview: {
+    title: 'Energieanalyse: Eingaben',
+    html: '<p>Hier werden Wohnflaeche, Stromdaten und Heizart fuer die Energieanalyse erfasst.</p>'
+  },
+  areaM2: {
+    title: 'Wohnflaeche',
+    html: '<p>Die Wohnflaeche ist die Bezugsbasis fuer Kosten und Verbraeuche pro Quadratmeter.</p>'
+  },
+  powerTariff: {
+    title: 'Aktueller Stromtarif',
+    html: '<p>Der Tariftyp dient der Einordnung. Der tatsaechliche Durchschnittspreis wird aus Kosten und Verbrauch berechnet.</p>'
+  },
+  annualPowerCost: {
+    title: 'Jaehrliche Stromkosten',
+    html: '<p>Gesamte Stromkosten pro Jahr in Euro.</p>'
+  },
+  annualPowerUse: {
+    title: 'Jaehrlicher Stromverbrauch',
+    html: '<p>Gesamter Haushaltsstromverbrauch pro Jahr in kWh.</p>'
+  },
+  heatingType: {
+    title: 'Heizart',
+    html: '<p>Abhaengig von der Heizart werden unterschiedliche Kostenmodelle und Wirkungsgrade genutzt.</p>'
+  },
+  heatingConsumption: {
+    title: 'Heizverbrauch',
+    html: '<p>Jaehrlicher Verbrauch der gewaehhlten Heizart. Bei Waermepumpe ist das elektrischer Heizstrom.</p>'
+  },
+  districtBasePrice: {
+    title: 'Fernwaerme Grundpreis',
+    html: '<p>Fixer Jahrespreis, der bei Fernwaerme zusaetzlich zum Arbeitspreis angesetzt wird.</p>'
+  },
+  resultsOverview: {
+    title: 'Energieanalyse: Ergebnisse',
+    html: '<p>Zeigt Kennzahlen zu Strom, Heizung, Effizienzklasse und Kostenvergleich alternativer Heizsysteme.</p>'
+  },
+  resPowerUse: {
+    title: 'Gesamtstromverbrauch/Jahr',
+    html: '<p>Der eingegebene Stromjahresverbrauch in kWh.</p>'
+  },
+  resPowerPrice: {
+    title: 'Durchschnittlicher Strompreis',
+    html: '<p>Berechnet als Jahresstromkosten geteilt durch Jahresstromverbrauch.</p>'
+  },
+  resPowerPerM2: {
+    title: 'Stromkosten pro Quadratmeter',
+    html: '<p>Stromkosten bezogen auf die Wohnflaeche.</p>'
+  },
+  resHeatCost: {
+    title: 'Heizkosten/Jahr',
+    html: '<p>Jaehrliche Heizkosten auf Basis der gewaehlten Heizart und Eingaben.</p>'
+  },
+  resHeatPerM2: {
+    title: 'Heizverbrauch pro Quadratmeter',
+    html: '<p>Normierter Waermebedarf zur Effizienzbewertung des Gebaeudes.</p>'
+  },
+  resEfficiency: {
+    title: 'Effizienzbewertung',
+    html: '<p>Klasse A bis E basierend auf dem Waermebedarf pro Quadratmeter.</p>'
+  },
+  resHeatCostPerKwh: {
+    title: 'Heizkosten pro kWh',
+    html: '<p>Jaehrliche Heizkosten geteilt durch den Heizverbrauch.</p>'
+  },
+  resHeatCostPerM2: {
+    title: 'Heizkosten pro Quadratmeter',
+    html: '<p>Jaehrliche Heizkosten bezogen auf die Wohnflaeche.</p>'
+  },
+  heatingCompareTable: {
+    title: 'Vergleich alternativer Heizsysteme',
+    html: '<p>Vergleicht geschaetzten Verbrauch und Kosten alternativer Heizarten gegen das aktuelle System.</p>'
+  }
+});
+
 // ─── Modal-Logik ─────────────────────────────────────────────────────────────
 const infoModal      = byId('infoModal');
 const infoModalTitle = byId('infoModalTitle');
@@ -489,9 +563,7 @@ function init() {
     return;
   }
 
-  if (energyAnalysisFrame && !energyAnalysisFrame.src) {
-    energyAnalysisFrame.src = energyAnalysisFrame.dataset.src || 'energieanalyse.html';
-  }
+  initEnergyAnalysisSection();
 
   initEvVehicles();
   initLargeLoads();
@@ -1409,6 +1481,257 @@ function renderCharts(data) {
       }
     }
   });
+}
+
+const EA_REF_HEAT_NEED_KWH_PER_M2 = 14.6;
+const EA_HEAT_PUMP_COP = 3.2;
+
+const EA_HEATING_TYPES = {
+  district: {
+    inputLabel: 'Fernwaermeverbrauch (automatisch aus m2 berechnet)',
+    hint: 'Fernwaerme: Verbrauch wird aus Wohnflaeche x 14,6 kWh/m2 berechnet.',
+    needsConsumption: false,
+    needsBasePrice: true,
+    variableCostPerKwh: 0.145,
+    efficiency: 1.0
+  },
+  gas: {
+    inputLabel: 'Jaehrlicher Gasverbrauch (kWh)',
+    hint: 'Gas: Bitte den jaehrlichen Gasverbrauch in kWh eingeben.',
+    needsConsumption: true,
+    needsBasePrice: false,
+    variableCostPerKwh: 0.12,
+    efficiency: 0.92
+  },
+  oil: {
+    inputLabel: 'Jaehrlicher Oelverbrauch (kWh aeq.)',
+    hint: 'Oel: Bitte den jaehrlichen Oelverbrauch in kWh-aequivalent eingeben.',
+    needsConsumption: true,
+    needsBasePrice: false,
+    variableCostPerKwh: 0.11,
+    efficiency: 0.88
+  },
+  wood: {
+    inputLabel: 'Jaehrlicher Holz-/Pelletverbrauch (kWh)',
+    hint: 'Holz/Pellets: Bitte den jaehrlichen Energieverbrauch in kWh eingeben.',
+    needsConsumption: true,
+    needsBasePrice: false,
+    variableCostPerKwh: 0.08,
+    efficiency: 0.85
+  },
+  heatpump: {
+    inputLabel: 'Jaehrlicher Heizstromverbrauch Waermepumpe (kWh)',
+    hint: 'Waermepumpe: Bitte den jaehrlichen Stromverbrauch fuer Heizung in kWh eingeben.',
+    needsConsumption: true,
+    needsBasePrice: false,
+    variableCostPerKwh: null,
+    efficiency: EA_HEAT_PUMP_COP
+  }
+};
+
+const EA_ALTERNATIVES = [
+  { key: 'district', label: 'Fernwaerme', variableCostPerKwh: 0.145, basePrice: 420, efficiency: 1.0 },
+  { key: 'gas', label: 'Gas', variableCostPerKwh: 0.12, basePrice: 0, efficiency: 0.92 },
+  { key: 'oil', label: 'Oel', variableCostPerKwh: 0.11, basePrice: 0, efficiency: 0.88 },
+  { key: 'wood', label: 'Holz/Pellets', variableCostPerKwh: 0.08, basePrice: 0, efficiency: 0.85 },
+  { key: 'heatpump', label: 'Waermepumpe', variableCostPerKwh: null, basePrice: 0, efficiency: EA_HEAT_PUMP_COP }
+];
+
+function initEnergyAnalysisSection() {
+  if (!byId('areaM2')) {
+    return;
+  }
+
+  const ids = [
+    'areaM2', 'powerTariff', 'annualPowerCost', 'annualPowerUse',
+    'heatingType', 'heatingConsumption', 'districtBasePrice'
+  ];
+
+  ids.forEach((id) => {
+    const element = byId(id);
+    if (!element) return;
+    element.addEventListener('input', renderEnergyAnalysis);
+    element.addEventListener('change', renderEnergyAnalysis);
+  });
+
+  renderEnergyAnalysis();
+}
+
+function renderEnergyAnalysis() {
+  const areaM2 = eaNum('areaM2', 210);
+  const annualPowerCost = eaNum('annualPowerCost', 5800);
+  const annualPowerUse = Math.max(eaNum('annualPowerUse', 20000), 1);
+  const heatingType = byId('heatingType')?.value || 'district';
+  const heatingCfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
+
+  syncEnergyInputVisibility(heatingCfg);
+
+  const avgPowerPrice = annualPowerCost / annualPowerUse;
+  const districtBasePrice = eaNum('districtBasePrice', 420);
+  const typedHeatingConsumption = eaNum('heatingConsumption', 0);
+
+  const heatConsumptionKwh = heatingType === 'district'
+    ? areaM2 * EA_REF_HEAT_NEED_KWH_PER_M2
+    : typedHeatingConsumption;
+
+  const heatNeedKwh = toEnergyHeatNeedKwh(heatingType, heatConsumptionKwh);
+  const heatingCostAbs = calcEnergyHeatingCost({
+    heatingType,
+    heatConsumptionKwh,
+    avgPowerPrice,
+    districtBasePrice
+  });
+
+  const heatCostPerKwh = eaSafeDiv(heatingCostAbs, Math.max(heatConsumptionKwh, 1));
+  const heatCostPerM2 = eaSafeDiv(heatingCostAbs, Math.max(areaM2, 1));
+
+  const householdPowerCost = heatingType === 'heatpump'
+    ? Math.max((annualPowerUse - heatConsumptionKwh) * avgPowerPrice, 0)
+    : annualPowerCost;
+  const powerCostPerM2 = eaSafeDiv(householdPowerCost, Math.max(areaM2, 1));
+
+  const heatPerM2 = eaSafeDiv(heatNeedKwh, Math.max(areaM2, 1));
+  const quality = classifyEnergyHeatNeed(heatPerM2);
+
+  setText('resPowerUse', `${eaFmtNum(annualPowerUse)} kWh`);
+  setText('resPowerPrice', `${eaFmtMoney(avgPowerPrice)} / kWh`);
+  setText('resPowerPerM2', `${eaFmtMoney(powerCostPerM2)} / m2`);
+  setText('resHeatCost', eaFmtMoney(heatingCostAbs));
+
+  setText('resHeatPerM2', `${eaFmtNum(heatPerM2)} kWh/m2`);
+  const resEfficiency = byId('resEfficiency');
+  if (resEfficiency) {
+    resEfficiency.innerHTML = `${quality.label} <span class="quality-badge ${quality.className}">${quality.grade}</span>`;
+  }
+  setText('resHeatCostPerKwh', `${eaFmtMoney(heatCostPerKwh)} / kWh`);
+  setText('resHeatCostPerM2', `${eaFmtMoney(heatCostPerM2)} / m2`);
+
+  renderEnergyComparisonTable({
+    heatNeedKwh,
+    avgPowerPrice,
+    districtBasePrice,
+    currentHeatingType: heatingType,
+    currentHeatingCost: heatingCostAbs
+  });
+}
+
+function syncEnergyInputVisibility(cfg) {
+  const hint = byId('heatingHint');
+  const consumptionField = byId('consumptionField');
+  const districtBaseField = byId('districtBaseField');
+  const label = byId('heatingConsumptionLabel');
+
+  if (hint) hint.textContent = cfg.hint;
+  if (label) label.textContent = cfg.inputLabel;
+  consumptionField?.classList.toggle('hidden', !cfg.needsConsumption);
+  districtBaseField?.classList.toggle('hidden', !cfg.needsBasePrice);
+}
+
+function calcEnergyHeatingCost({ heatingType, heatConsumptionKwh, avgPowerPrice, districtBasePrice }) {
+  if (heatingType === 'heatpump') {
+    return heatConsumptionKwh * avgPowerPrice;
+  }
+
+  if (heatingType === 'district') {
+    return heatConsumptionKwh * EA_HEATING_TYPES.district.variableCostPerKwh + districtBasePrice;
+  }
+
+  const cfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
+  return heatConsumptionKwh * cfg.variableCostPerKwh;
+}
+
+function toEnergyHeatNeedKwh(heatingType, annualConsumptionKwh) {
+  const cfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
+  if (!annualConsumptionKwh || annualConsumptionKwh <= 0) return 0;
+  return annualConsumptionKwh * cfg.efficiency;
+}
+
+function classifyEnergyHeatNeed(heatNeedPerM2) {
+  if (heatNeedPerM2 <= 40) return { grade: 'A', label: 'sehr gut', className: 'verygood' };
+  if (heatNeedPerM2 <= 70) return { grade: 'B', label: 'gut', className: 'good' };
+  if (heatNeedPerM2 <= 110) return { grade: 'C', label: 'mittel', className: 'medium' };
+  if (heatNeedPerM2 <= 160) return { grade: 'D', label: 'schlecht', className: 'bad' };
+  return { grade: 'E', label: 'sehr schlecht', className: 'verybad' };
+}
+
+function renderEnergyComparisonTable({
+  heatNeedKwh,
+  avgPowerPrice,
+  districtBasePrice,
+  currentHeatingType,
+  currentHeatingCost
+}) {
+  const tbody = document.querySelector('#heatingCompareTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  EA_ALTERNATIVES.forEach((alt) => {
+    const neededConsumption = alt.efficiency > 0 ? heatNeedKwh / alt.efficiency : 0;
+    const annualCost = estimateEnergyAnnualCost({
+      alternative: alt,
+      neededConsumption,
+      avgPowerPrice,
+      districtBasePrice
+    });
+
+    const delta = annualCost - currentHeatingCost;
+    const tr = document.createElement('tr');
+    if (alt.key === currentHeatingType) tr.classList.add('best');
+
+    tr.innerHTML = `
+      <td>${escapeHtml(alt.label)}${alt.key === currentHeatingType ? ' (aktuell)' : ''}</td>
+      <td>${eaFmtNum(neededConsumption)} kWh</td>
+      <td>${eaFmtMoney(annualCost)}</td>
+      <td>${eaFmtSignedMoney(delta)}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+function estimateEnergyAnnualCost({ alternative, neededConsumption, avgPowerPrice, districtBasePrice }) {
+  if (alternative.key === 'heatpump') {
+    return neededConsumption * avgPowerPrice;
+  }
+
+  if (alternative.key === 'district') {
+    return neededConsumption * alternative.variableCostPerKwh + districtBasePrice;
+  }
+
+  return neededConsumption * alternative.variableCostPerKwh + (alternative.basePrice || 0);
+}
+
+function setText(id, value) {
+  const node = byId(id);
+  if (node) node.textContent = value;
+}
+
+function eaNum(id, fallback = 0) {
+  const raw = byId(id)?.value;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function eaSafeDiv(a, b) {
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return 0;
+  return a / b;
+}
+
+function eaFmtNum(value) {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(value || 0);
+}
+
+function eaFmtMoney(value) {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2
+  }).format(value || 0);
+}
+
+function eaFmtSignedMoney(value) {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${eaFmtMoney(value)}`;
 }
 
 function showError(message) {
