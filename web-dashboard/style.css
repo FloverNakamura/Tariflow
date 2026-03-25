@@ -134,6 +134,28 @@ h1 {
   background: #fff2f4;
 }
 
+.tool-switch.single-tool {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tool-tab-btn {
+  text-align: left;
+  width: 100%;
+  min-height: 78px;
+}
+
+.tool-module {
+  display: block;
+}
+
+.embedded-tool-frame {
+  width: 100%;
+  min-height: 1900px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
 .api-status {
   margin-top: 0.9rem;
   display: inline-block;

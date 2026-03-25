@@ -19,23 +19,24 @@
         <img class="brand-logo" src="assets/SachsenEnergie-Logo.svg.png" alt="SachsenEnergie Logo">
       </div>
       <p class="kicker">SachsenEnergie Tooling</p>
-      <h1>Dynamischer Tarifrechner</h1>
+      <h1>Tariflow Energie-Tool</h1>
       <p class="subtitle">
-        Vergleich von statischem Tarif, dynamischem Tarif und optionalen 14a-Modulen
-        auf Basis von Lastprofilen, PV, Speicher, Wärmepumpe und E-Mobilität.
+        Ein gemeinsames Tool mit zwei Modulen: Tarifrechner und Energieanalyse Haus.
       </p>
-      <div class="tool-switch" aria-label="Tool-Auswahl">
-        <a class="tool-card active" href="index.html">
+      <div class="tool-switch single-tool" aria-label="Modul-Auswahl">
+        <button type="button" class="tool-card tool-tab-btn active" data-module-target="moduleTariff">
           <strong>Tarifrechner</strong>
           <span>PV, Speicher, E-Mobilität und Tarifempfehlung</span>
-        </a>
-        <a class="tool-card" href="energieanalyse.html">
+        </button>
+        <button type="button" class="tool-card tool-tab-btn" data-module-target="moduleEnergy">
           <strong>Energieanalyse Haus</strong>
           <span>Strom, Heizkosten, m²-Kennzahlen und Heizungsvergleich</span>
-        </a>
+        </button>
       </div>
       <div id="apiStatus" class="api-status">Backend-Status wird geprüft...</div>
     </header>
+
+    <div id="moduleTariff" class="tool-module">
 
     <section class="panel">
       <h2>Eingaben</h2>
@@ -272,6 +273,19 @@
         <h3>Daten-Transparenz <button type="button" class="info-btn" data-info="transparency">&#9432;</button></h3>
         <div id="transparencyList" class="transparency-list"></div>
       </div>
+    </section>
+    </div>
+
+    <section id="moduleEnergy" class="panel hidden tool-module">
+      <h2>Energieanalyse Haus</h2>
+      <p class="note">Das Modul ist direkt in dasselbe Tool integriert und nutzt weiterhin die bestehende Energieanalyse-Logik.</p>
+      <iframe
+        id="energyAnalysisFrame"
+        class="embedded-tool-frame"
+        title="Energieanalyse Haus"
+        loading="lazy"
+        data-src="energieanalyse.html"
+      ></iframe>
     </section>
   </main>
 
