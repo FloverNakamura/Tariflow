@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Energie Kalkulationssuite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-glow bg-glow-a"></div>
+  <div class="bg-glow bg-glow-b"></div>
+
+  <main class="page">
+    <header class="hero">
+      <div class="brand-lockup">
+        <img class="brand-logo" src="assets/SachsenEnergie-Logo.svg.png" alt="SachsenEnergie Logo">
+      </div>
+      <p class="kicker">SachsenEnergie Tooling</p>
+      <h1>Dynamischer Tarifrechner</h1>
+      <p class="subtitle">
+        Vergleich von statischem Tarif, dynamischem Tarif und optionalen 14a-Modulen
+        auf Basis von Lastprofilen, PV, Speicher, Wärmepumpe und E-Mobilität.
+      </p>
+      <div class="tool-switch" aria-label="Tool-Auswahl">
+        <a class="tool-card active" href="index.html">
+          <strong>Tarifrechner</strong>
+          <span>PV, Speicher, E-Mobilität und Tarifempfehlung</span>
+        </a>
+        <a class="tool-card" href="energieanalyse.html">
+          <strong>Energieanalyse Haus</strong>
+          <span>Strom, Heizkosten, m²-Kennzahlen und Heizungsvergleich</span>
+        </a>
+      </div>
+      <div id="apiStatus" class="api-status">Backend-Status wird geprüft...</div>
+    </header>
+
+    <section class="panel">
+      <h2>Eingaben</h2>
+      <form id="calcForm" novalidate>
+        <!-- Basis: PLZ, Personen -->
+        <div class="grid two">
+          <label class="field">
+            <span>PLZ (Pflicht) <button type="button" class="info-btn" data-info="plz">&#9432;</button></span>
+            <input id="plz" type="text" maxlength="5" placeholder="01069" required>
+          </label>
+          <label class="field">
+            <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
+            <input id="persons" type="number" min="1" max="10" step="1" value="2" placeholder="2">
+          </label>
+        </div>
+
+        <!-- Komponenten-Grid: PV, Speicher, WP, E-Auto -->
+        <div class="component-grid">
+
+        <!-- PV-Eingabe mit Conditional Enable/Disable -->
+        <fieldset class="pvSection">
+          <legend>Solaranlage (PV) <button type="button" class="info-btn" data-info="pv">&#9432;</button></legend>
+          <label class="field toggle">
+            <input id="hasPv" type="checkbox" class="component-toggle" data-target="pvFields">
+            <span>Solaranlage vorhanden <button type="button" class="info-btn" data-info="pv">&#9432;</button></span>
+          </label>
+
+          <div id="pvFields" class="pvFields disabled">
+            <div class="grid two">
+              <label class="field toggle">
+                <input type="radio" name="pvMode" id="pvModeKnown" value="known" checked>
+                <span>Ich kenne meine Leistung (kWp) <button type="button" class="info-btn" data-info="pvModeKnown">&#9432;</button></span>
+              </label>
+              <label class="field toggle">
+                <input type="radio" name="pvMode" id="pvModeCalculate" value="calculate">
+                <span>Ich berechne aus der Dachfläche <button type="button" class="info-btn" data-info="pvModeCalculate">&#9432;</button></span>
+              </label>
+            </div>
+
+            <!-- Wenn kWp bekannt -->
+            <div id="pvKnownSection" class="grid two">
+              <label class="field">
+                <span>PV-Leistung (kWp) <button type="button" class="info-btn" data-info="peakpower">&#9432;</button></span>
+                <input id="peakpower" type="number" step="0.1" min="0.1" placeholder="5">
+              </label>
+            </div>
+
+            <!-- Wenn aus Dach berechnet -->
+            <div id="pvCalcSection" class="grid four hidden">
+              <label class="field">
+                <span>Dachfläche (m²) <button type="button" class="info-btn" data-info="roofArea">&#9432;</button></span>
+                <input id="roofArea" type="number" step="0.1" min="1" placeholder="25">
+              </label>
+              <label class="field">
+                <span>Dachneigung (°) <button type="button" class="info-btn" data-info="angle">&#9432;</button></span>
+                <input id="angle" type="number" step="1" min="0" max="90" placeholder="30">
+              </label>
+              <label class="field">
+                <span>Ausrichtung (°) <button type="button" class="info-btn" data-info="aspect">&#9432;</button></span>
+                <input id="aspect" type="number" step="1" min="-180" max="180" placeholder="0">
+              </label>
+              <label class="field">
+                <span>Moduleffizienz (%) <button type="button" class="info-btn" data-info="moduleEfficiency">&#9432;</button></span>
+                <input id="moduleEfficiency" type="number" step="0.1" min="5" max="25" placeholder="18">
+              </label>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Speicher mit Conditional Enable/Disable -->
+        <fieldset class="storageSection">
+          <legend>Stromspeicher <button type="button" class="info-btn" data-info="storage">&#9432;</button></legend>
+          <label class="field toggle">
+            <input id="hasStorage" type="checkbox" class="component-toggle" data-target="storageFields">
+            <span>Speicher vorhanden <button type="button" class="info-btn" data-info="storage">&#9432;</button></span>
+          </label>
+
+          <div id="storageFields" class="storageFields disabled">
+            <div class="grid two">
+              <label class="field">
+                <span>Speicherkapazität (kWh) <button type="button" class="info-btn" data-info="storageCapacity">&#9432;</button></span>
+                <input id="storageCapacity" type="number" step="0.1" min="0" placeholder="5">
+              </label>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Wärmepumpe mit Conditional Enable/Disable -->
+        <fieldset class="heatPumpSection">
+          <legend>Wärmepumpe <button type="button" class="info-btn" data-info="heatPump">&#9432;</button></legend>
+          <label class="field toggle">
+            <input id="hasHeatPump" type="checkbox" class="component-toggle" data-target="heatPumpFields">
+            <span>Wärmepumpe vorhanden <button type="button" class="info-btn" data-info="heatPump">&#9432;</button></span>
+          </label>
+
+          <div id="heatPumpFields" class="heatPumpFields disabled">
+            <div class="grid two">
+              <label class="field">
+                <span>Jahresverbrauch (kWh/Jahr) <button type="button" class="info-btn" data-info="heatPumpConsumption">&#9432;</button></span>
+                <input id="heatPumpConsumption" type="number" min="0" placeholder="3000">
+              </label>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- E-Auto + Großverbraucher horizontal nebeneinander -->
+        <div class="grid two full-span load-pair-grid">
+          <fieldset class="evSection">
+            <legend>Elektrofahrzeug <button type="button" class="info-btn" data-info="ev">&#9432;</button></legend>
+            <label class="field toggle">
+              <input id="hasEv" type="checkbox" class="component-toggle" data-target="evFields">
+              <span>E-Autos mit Wallbox vorhanden <button type="button" class="info-btn" data-info="ev">&#9432;</button></span>
+            </label>
+
+            <div id="evFields" class="evFields disabled">
+              <div id="evVehicles" class="ev-vehicles"></div>
+              <div class="ev-toolbar">
+                <button id="addEvBtn" type="button" class="ghost">Weiteres E-Auto hinzufügen</button>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="largeLoadSection">
+            <legend>Großverbraucher <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
+            <label class="field toggle">
+              <input id="hasLargeLoad42" type="checkbox" class="component-toggle" data-target="largeLoadFields">
+              <span>Großgeräte über 4,2 kW vorhanden <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></span>
+            </label>
+            <div id="largeLoadFields" class="largeLoadFields disabled">
+              <div id="largeLoads" class="large-loads"></div>
+              <div class="ev-toolbar">
+                <button id="addLargeLoadBtn" type="button" class="ghost">Großverbraucher hinzufügen</button>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+
+        </div><!-- /component-grid -->
+
+        <div class="grid two">
+          <div class="field note-box full-span">
+            <span>Tarif- und Modulvergleich</span>
+            <small>Alle Tarife werden immer verglichen. §14a-Module werden nur berücksichtigt, wenn Großgeräte über 4,2 kW vorhanden sind.</small>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="actions">
+          <button id="calcBtn" type="submit">
+            <span id="btnLabel">Kalkulation starten</span>
+            <span id="btnLoading" class="hidden">Berechnung läuft...</span>
+          </button>
+          <button id="exportBtn" type="button" class="ghost" disabled>Ergebnis exportieren</button>
+        </div>
+
+        <!-- Fehler- und Erfolgsmeldungen -->
+        <p id="errorBox" class="error hidden"></p>
+        <p id="successBox" class="success hidden"></p>
+      </form>
+    </section>
+
+    <section id="resultsSection" class="panel hidden">
+      <h2>Ergebnis</h2>
+      <div class="cards">
+        <article class="card">
+          <h3>Empfehlung <button type="button" class="info-btn" data-info="resRecommendation">&#9432;</button></h3>
+          <p id="resRecommendation">-</p>
+        </article>
+        <article class="card">
+          <h3>Verbrauch <button type="button" class="info-btn" data-info="resConsumption">&#9432;</button></h3>
+          <p id="resConsumption">-</p>
+        </article>
+        <article class="card">
+          <h3>PV Ertrag <button type="button" class="info-btn" data-info="resYield">&#9432;</button></h3>
+          <p id="resYield">-</p>
+        </article>
+        <article class="card">
+          <h3>Ersparnis vs statisch <button type="button" class="info-btn" data-info="resSaving">&#9432;</button></h3>
+          <p id="resSaving">-</p>
+        </article>
+      </div>
+
+      <section class="market-ticker" aria-live="polite">
+        <div class="market-ticker-head">
+            <h3>Live-Marktpreis Ticker <button type="button" class="info-btn" data-info="liveTicker">&#9432;</button></h3>
+          <div class="market-ticker-controls">
+            <button type="button" id="marketTickerRefresh" class="secondary">Jetzt aktualisieren</button>
+          </div>
+        </div>
+
+        <div class="market-ticker-stats">
+            <p><span>Spotpreis aktuell (absolut) <button type="button" class="info-btn" data-info="tickerSpotPrice">&#9432;</button></span><strong id="marketTickerCurrent">-</strong></p>
+            <p><span>Dynamischer Tarifpreis aktuell (absolut) <button type="button" class="info-btn" data-info="tickerDynamicPrice">&#9432;</button></span><strong id="marketTickerDynamicCurrent">-</strong></p>
+            <p><span>Änderung zum letzten Wert <button type="button" class="info-btn" data-info="tickerChange">&#9432;</button></span><strong id="marketTickerTrend" class="trend-flat">seitwärts</strong></p>
+            <p><span>Gültiges Preisfenster <button type="button" class="info-btn" data-info="tickerWindow">&#9432;</button></span><strong id="marketTickerWindow">-</strong></p>
+
+        <p id="marketTickerStatus" class="note">Ticker wird initialisiert ...</p>
+      </section>
+
+      <div class="meta-grid">
+        <div><span>Koordinaten <button type="button" class="info-btn" data-info="resCoords">&#9432;</button></span><strong id="resCoords">-</strong></div>
+        <div><span>Gebäude <button type="button" class="info-btn" data-info="resBuilding">&#9432;</button></span><strong id="resBuilding">-</strong></div>
+        <div><span>BiDi <button type="button" class="info-btn" data-info="resBidi">&#9432;</button></span><strong id="resBidi">-</strong></div>
+        <div><span>Unsicherheit <button type="button" class="info-btn" data-info="resUncertainty">&#9432;</button></span><strong id="resUncertainty">-</strong></div>
+      </div>
+
+      <div class="table-wrap">
+        <h3>Tarifvergleich <button type="button" class="info-btn" data-info="tariffTable">&#9432;</button></h3>
+        <table id="tariffTable">
+          <thead>
+            <tr>
+              <th>Tarif</th>
+              <th>Netto EUR/Jahr</th>
+              <th>Energie</th>
+              <th>Netz und Grundpreis</th>
+              <th>Einspeisung</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="charts">
+        <article class="chart-card">
+          <h3>Monatsbilanz <button type="button" class="info-btn" data-info="monthlyChart">&#9432;</button></h3>
+          <canvas id="monthlyChart"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>Monatliche Energiebilanz <button type="button" class="info-btn" data-info="balanceChart">&#9432;</button></h3>
+          <canvas id="balanceChart"></canvas>
+        </article>
+      </div>
+
+      <div class="table-wrap">
+        <h3>Daten-Transparenz <button type="button" class="info-btn" data-info="transparency">&#9432;</button></h3>
+        <div id="transparencyList" class="transparency-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Info-Modal -->
+  <div id="infoModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="infoModalTitle">Info</h3>
+        <button id="infoModalClose" class="modal-close" aria-label="Schließen">&times;</button>
+      </div>
+      <div id="infoModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

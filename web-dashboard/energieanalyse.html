@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Energieanalyse Haus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-glow bg-glow-a"></div>
+  <div class="bg-glow bg-glow-b"></div>
+
+  <main class="page">
+    <header class="hero">
+      <div class="brand-lockup">
+        <img class="brand-logo" src="assets/SachsenEnergie-Logo.svg.png" alt="SachsenEnergie Logo">
+      </div>
+      <p class="kicker">SachsenEnergie Tooling</p>
+      <h1>Energieanalyse Haus</h1>
+      <p class="subtitle">
+        Echtzeit-Auswertung von Strom- und Heizkosten mit Vergleich alternativer Heizsysteme.
+      </p>
+      <div class="tool-switch" aria-label="Tool-Auswahl">
+        <a class="tool-card" href="index.html">
+          <strong>Tarifrechner</strong>
+          <span>PV, Speicher, E-Mobilität und Tarifempfehlung</span>
+        </a>
+        <a class="tool-card active" href="energieanalyse.html">
+          <strong>Energieanalyse Haus</strong>
+          <span>Strom, Heizkosten, m²-Kennzahlen und Heizungsvergleich</span>
+        </a>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2>Eingaben <button type="button" class="info-btn" data-info="inputsOverview">&#9432;</button></h2>
+      <p class="note">Alle Berechnungen aktualisieren sich automatisch bei jeder Eingabe.</p>
+
+      <div class="grid two">
+        <label class="field">
+          <span>Wohnfläche (m²) <button type="button" class="info-btn" data-info="areaM2">&#9432;</button></span>
+          <input id="areaM2" type="number" min="10" step="1" value="210">
+        </label>
+
+        <label class="field">
+          <span>Aktueller Stromtarif <button type="button" class="info-btn" data-info="powerTariff">&#9432;</button></span>
+          <select id="powerTariff">
+            <option value="single" selected>Einzähler-Tarif</option>
+            <option value="twoRate">Zweitarif HT/NT</option>
+            <option value="dynamic">Dynamischer Tarif</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Jährliche Stromkosten (EUR) <button type="button" class="info-btn" data-info="annualPowerCost">&#9432;</button></span>
+          <input id="annualPowerCost" type="number" min="0" step="0.01" value="5800">
+        </label>
+
+        <label class="field">
+          <span>Jährlicher Stromverbrauch (kWh) <button type="button" class="info-btn" data-info="annualPowerUse">&#9432;</button></span>
+          <input id="annualPowerUse" type="number" min="1" step="1" value="20000">
+        </label>
+      </div>
+
+      <div class="grid two">
+        <label class="field">
+          <span>Heizart <button type="button" class="info-btn" data-info="heatingType">&#9432;</button></span>
+          <select id="heatingType">
+            <option value="district" selected>Fernwärme</option>
+            <option value="gas">Gas</option>
+            <option value="oil">Öl</option>
+            <option value="wood">Holz/Pellets</option>
+            <option value="heatpump">Wärmepumpe</option>
+          </select>
+          <p id="heatingHint" class="hint"></p>
+        </label>
+
+        <label id="consumptionField" class="field hidden">
+          <span id="heatingConsumptionLabel">Jährlicher Heizverbrauch <button type="button" class="info-btn" data-info="heatingConsumption">&#9432;</button></span>
+          <input id="heatingConsumption" type="number" min="0" step="1" value="15000">
+        </label>
+
+        <label id="districtBaseField" class="field">
+          <span>Fernwärme Grundpreis (EUR/Jahr) <button type="button" class="info-btn" data-info="districtBasePrice">&#9432;</button></span>
+          <input id="districtBasePrice" type="number" min="0" step="0.01" value="420">
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Ergebnisse <button type="button" class="info-btn" data-info="resultsOverview">&#9432;</button></h2>
+      <div class="cards">
+        <article class="card">
+          <h3>Gesamtstromverbrauch/Jahr <button type="button" class="info-btn" data-info="resPowerUse">&#9432;</button></h3>
+          <p id="resPowerUse">-</p>
+        </article>
+        <article class="card">
+          <h3>Ø Strompreis <button type="button" class="info-btn" data-info="resPowerPrice">&#9432;</button></h3>
+          <p id="resPowerPrice">-</p>
+        </article>
+        <article class="card">
+          <h3>Ø Stromkosten pro m² <button type="button" class="info-btn" data-info="resPowerPerM2">&#9432;</button></h3>
+          <p id="resPowerPerM2">-</p>
+        </article>
+        <article class="card">
+          <h3>Heizkosten/Jahr <button type="button" class="info-btn" data-info="resHeatCost">&#9432;</button></h3>
+          <p id="resHeatCost">-</p>
+        </article>
+      </div>
+
+      <div class="meta-grid">
+        <div>
+          <span>Heizverbrauch pro m² <button type="button" class="info-btn" data-info="resHeatPerM2">&#9432;</button></span>
+          <strong id="resHeatPerM2">-</strong>
+        </div>
+        <div>
+          <span>Effizienzbewertung <button type="button" class="info-btn" data-info="resEfficiency">&#9432;</button></span>
+          <strong id="resEfficiency">-</strong>
+        </div>
+        <div>
+          <span>Heizkosten pro kWh <button type="button" class="info-btn" data-info="resHeatCostPerKwh">&#9432;</button></span>
+          <strong id="resHeatCostPerKwh">-</strong>
+        </div>
+        <div>
+          <span>Heizkosten pro m² <button type="button" class="info-btn" data-info="resHeatCostPerM2">&#9432;</button></span>
+          <strong id="resHeatCostPerM2">-</strong>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <h3>Vergleich alternativer Heizsysteme <button type="button" class="info-btn" data-info="heatingCompareTable">&#9432;</button></h3>
+        <table id="heatingCompareTable">
+          <thead>
+            <tr>
+              <th>Heizsystem</th>
+              <th>Geschätzter Verbrauch</th>
+              <th>Geschätzte Jahreskosten</th>
+              <th>Differenz zu aktueller Heizart</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="infoModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="infoModalTitle">Info</h3>
+        <button id="infoModalClose" class="modal-close" aria-label="Schließen">&times;</button>
+      </div>
+      <div id="infoModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="energieanalyse.js"></script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const axios_1 = __importDefault(require("axios"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+const pvService_1 = require("../services/pvService");
+const calcService_1 = require("../services/calcService");
+const geocodeService_1 = require("../services/geocodeService");
+const validateCalculationRequest_1 = require("../validation/validateCalculationRequest");
+const router = (0, express_1.Router)();
+const tariffData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/tariffData.json'), 'utf-8'));
+// ── Bestehender PVGIS-Endpunkt ────────────────────────────────────────────────
+router.post('/pv', async (req, res) => {
+    try {
+        const { plz, peakpower, angle, aspect, loss } = req.body;
+        if (!plz) {
+            return res.status(400).json({ error: 'PLZ required' });
+        }
+        const { lat, lon } = (0, geocodeService_1.getCoordsFromPlz)(plz);
+        const pvParams = {
+            lat, lon,
+            peakpower: peakpower ?? 5,
+            angle: angle ?? 30,
+            aspect: aspect ?? 0,
+            loss: loss ?? 14
+        };
+        const hourlyData = await (0, pvService_1.fetchPvData)(pvParams);
+        const annualYield = hourlyData.reduce((sum, item) => sum + item.P, 0) / 1000;
+        res.json({
+            success: true,
+            data: {
+                peakpower_kwp: pvParams.peakpower,
+                annual_yield_kwh: annualYield,
+                coordinates: { lat, lon },
+                used_params: { peakpower: pvParams.peakpower, angle: pvParams.angle, aspect: pvParams.aspect, loss: pvParams.loss }
+            }
+        });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+// ── Kalkulationstool-Endpunkt ─────────────────────────────────────────────────
+router.post('/calculate', async (req, res) => {
+    try {
+        let sanitized;
+        try {
+            sanitized = (0, validateCalculationRequest_1.validateAndSanitize)(req.body);
+        }
+        catch (validationError) {
+            return res.status(422).json({ success: false, error: validationError?.message ?? 'Ungültige Eingabedaten.' });
+        }
+        const result = await (0, calcService_1.runCalculation)(sanitized);
+        res.json(result);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error?.message ?? 'Server error' });
+    }
+});
+// ── Live-Marktpreis (aWATTar) ───────────────────────────────────────────────
+router.get('/market-live', async (_req, res) => {
+    try {
+        const now = Date.now();
+        const start = now - (48 * 60 * 60 * 1000);
+        // end=now+2h damit der aktuelle Stundenslot (start_timestamp=HH:00, end_timestamp=HH+1:00) sicher enthalten ist
+        const end = now + (2 * 60 * 60 * 1000);
+        const url = `https://api.awattar.de/v1/marketdata?start=${start}&end=${end}`;
+        const response = await axios_1.default.get(url, { timeout: 8000 });
+        const rows = response?.data?.data;
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(502).json({ success: false, error: 'Keine Marktdaten von aWATTar erhalten.' });
+        }
+        // Suche den Slot mit dem größten start_timestamp <= now (aktuell laufender Preisslot)
+        const currentRow = rows.reduce((best, row) => {
+            const from = Number(row?.start_timestamp);
+            if (!Number.isFinite(from) || from > now)
+                return best;
+            if (!best || from > Number(best.start_timestamp))
+                return row;
+            return best;
+        }, null) ?? rows[rows.length - 1];
+        const marketprice = Number(currentRow?.marketprice);
+        const startsAtMs = Number(currentRow?.start_timestamp);
+        const endsAtMs = Number(currentRow?.end_timestamp);
+        if (!Number.isFinite(marketprice) || !Number.isFinite(startsAtMs) || !Number.isFinite(endsAtMs)) {
+            return res.status(502).json({ success: false, error: 'Marktdaten unvollständig.' });
+        }
+        const currentCtPerKwh = marketprice / 10;
+        const dynamicMarkupCt = Number(tariffData?.dynamicTariff?.spotMarkup_ct_per_kwh || 0);
+        const dynamicTaxesCt = Number(tariffData?.dynamicTariff?.taxes_and_levies_ct_per_kwh || 0);
+        const dynamicCurrentCtPerKwh = currentCtPerKwh + dynamicMarkupCt + dynamicTaxesCt;
+        res.json({
+            success: true,
+            data: {
+                current_ct_per_kwh: Number(currentCtPerKwh.toFixed(3)),
+                dynamic_current_ct_per_kwh: Number(dynamicCurrentCtPerKwh.toFixed(3)),
+                dynamic_markup_plus_taxes_ct_per_kwh: Number((dynamicMarkupCt + dynamicTaxesCt).toFixed(3)),
+                marketprice_eur_per_mwh: Number(marketprice.toFixed(3)),
+                startsAt: new Date(startsAtMs).toISOString(),
+                endsAt: new Date(endsAtMs).toISOString(),
+                source: 'aWATTar API (EPEX Day-Ahead)'
+            }
+        });
+    }
+    catch {
+        res.status(502).json({ success: false, error: 'Live-Marktdaten momentan nicht erreichbar.' });
+    }
+});
+router.get('/market-history', async (req, res) => {
+    try {
+        const requestedHours = Number(req.query.hours ?? 168);
+        const hours = Number.isFinite(requestedHours)
+            ? Math.max(1, Math.min(24 * 365, Math.floor(requestedHours)))
+            : 168;
+        const now = Date.now();
+        const start = now - (hours * 60 * 60 * 1000);
+        const url = `https://api.awattar.de/v1/marketdata?start=${start}&end=${now}`;
+        const response = await axios_1.default.get(url, { timeout: 10000 });
+        const rows = response?.data?.data;
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(502).json({ success: false, error: 'Keine historischen Marktdaten verfügbar.' });
+        }
+        const series = rows
+            .map((row) => {
+            const ts = Number(row?.start_timestamp);
+            const marketprice = Number(row?.marketprice);
+            if (!Number.isFinite(ts) || !Number.isFinite(marketprice)) {
+                return null;
+            }
+            return {
+                timestamp: new Date(ts).toISOString(),
+                value_ct_per_kwh: Number((marketprice / 10).toFixed(3))
+            };
+        })
+            .filter((row) => row !== null);
+        res.json({
+            success: true,
+            data: {
+                hours,
+                series,
+                source: 'aWATTar API (EPEX Day-Ahead)'
+            }
+        });
+    }
+    catch {
+        res.status(502).json({ success: false, error: 'Historische Marktdaten momentan nicht erreichbar.' });
+    }
+});
+exports.default = router;
