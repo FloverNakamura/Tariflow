@@ -640,6 +640,11 @@ function init() {
     syncComponentToggleState(toggle);
   });
 
+  // Safety pass for browsers/cache races: enforce state once again after first paint.
+  setTimeout(() => {
+    componentToggles.forEach((toggle) => syncComponentToggleState(toggle));
+  }, 0);
+
   // PV-Mode Toggle
   const pvModeRadios = document.querySelectorAll('input[name="pvMode"]');
   pvModeRadios.forEach(radio => {
@@ -1174,6 +1179,14 @@ function optionalNumber(id) {
 
 function setSectionEnabled(targetDiv, enabled) {
   targetDiv.classList.toggle('disabled', !enabled);
+
+  const controls = targetDiv.querySelectorAll('input, select, textarea, button');
+  controls.forEach((control) => {
+    if (control.classList.contains('info-btn')) {
+      return;
+    }
+    control.disabled = !enabled;
+  });
 }
 
 function initHouseholdConsumptionPriority() {
