@@ -222,6 +222,14 @@ h1 {
   margin-bottom: 0;
 }
 
+.energy-inputs .grid.two {
+  align-items: start;
+}
+
+.energy-inputs .field > span {
+  min-height: 2.2rem;
+}
+
 .grid {
   display: grid;
   gap: 0.8rem;
@@ -234,6 +242,7 @@ h1 {
 
 .grid.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
 }
 
 .grid.four {
@@ -243,11 +252,23 @@ h1 {
 .field {
   display: grid;
   gap: 0.45rem;
+  align-content: start;
 }
 
 .field span {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.2rem;
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.grid.three .field > span {
+  min-height: 2.2rem;
+}
+
+.grid.three .field .hint {
+  min-height: 1.1rem;
 }
 
 .field input:not([type="checkbox"]):not([type="radio"]),
