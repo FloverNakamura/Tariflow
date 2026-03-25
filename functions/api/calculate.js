@@ -1,4 +1,4 @@
-const BACKEND_URL = 'https://tariflow-backend.railway.app';
+const BACKEND_URL = 'https://tariflow.up.railway.app';
 
 export async function onRequestPost({ request }) {
   try {
