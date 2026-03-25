@@ -1,4 +1,7 @@
-const LOCAL_API_BASE = 'http://localhost:3001/api';
+const LOCAL_API_BASES = [
+  'http://localhost:3001/api',
+  'http://127.0.0.1:3001/api'
+];
 const SAME_ORIGIN_API_BASE = '/api';
 
 function getApiCandidates() {
@@ -7,12 +10,14 @@ function getApiCandidates() {
   // Local Live Server should prefer the local Express backend.
   const port = window.location.port;
   const isNetlifyDev = host === 'localhost' && (port === '8888' || port === '8889');
-  if (isNetlifyDev) {
-    return [SAME_ORIGIN_API_BASE, LOCAL_API_BASE];
-  }
-  return isLocalHost
-    ? [LOCAL_API_BASE, SAME_ORIGIN_API_BASE]
-    : [SAME_ORIGIN_API_BASE, LOCAL_API_BASE];
+  const candidates = isNetlifyDev
+    ? [SAME_ORIGIN_API_BASE, ...LOCAL_API_BASES]
+    : isLocalHost
+      ? [...LOCAL_API_BASES, SAME_ORIGIN_API_BASE]
+      : [SAME_ORIGIN_API_BASE, ...LOCAL_API_BASES];
+
+  // Keep order but avoid duplicates.
+  return [...new Set(candidates)];
 }
 
 async function apiFetch(path, options = {}) {

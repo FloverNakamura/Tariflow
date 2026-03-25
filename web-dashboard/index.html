@@ -141,24 +141,8 @@
           </div>
         </fieldset>
 
-        <!-- E-Auto + Großverbraucher horizontal nebeneinander -->
-        <div class="grid two full-span load-pair-grid">
-          <fieldset class="evSection">
-            <legend>Elektrofahrzeug <button type="button" class="info-btn" data-info="ev">&#9432;</button></legend>
-            <label class="field toggle">
-              <input id="hasEv" type="checkbox" class="component-toggle" data-target="evFields">
-              <span>E-Autos mit Wallbox vorhanden <button type="button" class="info-btn" data-info="ev">&#9432;</button></span>
-            </label>
-
-            <div id="evFields" class="evFields disabled">
-              <div id="evVehicles" class="ev-vehicles"></div>
-              <div class="ev-toolbar">
-                <button id="addEvBtn" type="button" class="ghost">Weiteres E-Auto hinzufügen</button>
-              </div>
-            </div>
-          </fieldset>
-
-          <fieldset class="largeLoadSection">
+        <!-- Großverbraucher (in einer Reihe mit Wärmepumpe) -->
+        <fieldset class="largeLoadSection">
             <legend>Großverbraucher <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
             <label class="field toggle">
               <input id="hasLargeLoad42" type="checkbox" class="component-toggle" data-target="largeLoadFields">
@@ -170,8 +154,23 @@
                 <button id="addLargeLoadBtn" type="button" class="ghost">Großverbraucher hinzufügen</button>
               </div>
             </div>
-          </fieldset>
-        </div>
+        </fieldset>
+
+        <!-- E-Auto unterhalb als volle Breite -->
+        <fieldset class="evSection full-span">
+          <legend>Elektrofahrzeug <button type="button" class="info-btn" data-info="ev">&#9432;</button></legend>
+          <label class="field toggle">
+            <input id="hasEv" type="checkbox" class="component-toggle" data-target="evFields">
+            <span>E-Autos mit Wallbox vorhanden <button type="button" class="info-btn" data-info="ev">&#9432;</button></span>
+          </label>
+
+          <div id="evFields" class="evFields disabled">
+            <div id="evVehicles" class="ev-vehicles"></div>
+            <div class="ev-toolbar">
+              <button id="addEvBtn" type="button" class="ghost">Weiteres E-Auto hinzufügen</button>
+            </div>
+          </div>
+        </fieldset>
 
         </div><!-- /component-grid -->
 

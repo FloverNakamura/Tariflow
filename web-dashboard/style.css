@@ -229,11 +229,12 @@ h1 {
 }
 
 .load-pair-grid {
-  align-items: stretch;
+  align-items: start;
 }
 
 .load-pair-grid > fieldset {
-  height: 100%;
+  height: auto;
+  align-self: start;
 }
 
 /* Fieldset Styling */
