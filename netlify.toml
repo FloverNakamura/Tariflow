@@ -2,6 +2,13 @@
   base = "."
   publish = "web-dashboard"
 
+[functions]
+  node_bundler = "zisi"
+  included_files = ["backend-api/dist/data/**"]
+
+[functions.calculate]
+  included_files = ["backend-api/dist/**"]
+
 [[redirects]]
   from = "/api/calculate"
   to = "/.netlify/functions/calculate"
