@@ -1,0 +1,9 @@
+name = "tariflow"
+pages_build_output_dir = "web-dashboard"
+
+[env.production]
+name = "tariflow-prod"
+pages_build_output_dir = "web-dashboard"
+
+[env.production.vars]
+FUNCTIONS_REQUIRE_NODEJS_COMPAT = "true"
