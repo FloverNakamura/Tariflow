@@ -1,9 +1,12 @@
-const BACKEND_URL = 'https://tariflow.up.railway.app';
+function getBackendUrl(env) {
+  return env?.BACKEND_URL || 'https://tariflow.up.railway.app';
+}
 
-export async function onRequestPost({ request }) {
+export async function onRequestPost({ request, env }) {
   try {
+    const backendUrl = getBackendUrl(env);
     const body = await request.text();
-    const response = await fetch(`${BACKEND_URL}/api/calculate`, {
+    const response = await fetch(`${backendUrl}/api/calculate`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body

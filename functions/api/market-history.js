@@ -1,11 +1,14 @@
-const BACKEND_URL = 'https://tariflow.up.railway.app';
+function getBackendUrl(env) {
+  return env?.BACKEND_URL || 'https://tariflow.up.railway.app';
+}
 
-export async function onRequest({ request }) {
+export async function onRequest({ request, env }) {
   try {
+    const backendUrl = getBackendUrl(env);
     const url = new URL(request.url);
     const hours = url.searchParams.get('hours') || '168';
     
-    const response = await fetch(`${BACKEND_URL}/api/market-history?hours=${hours}`, {
+    const response = await fetch(`${backendUrl}/api/market-history?hours=${hours}`, {
       method: 'GET',
       headers: { 'accept': 'application/json' }
     });
