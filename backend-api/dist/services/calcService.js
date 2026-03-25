@@ -129,10 +129,39 @@ function getEVVehicles(req) {
         return [];
     }
     return [{
+            batteryCapacity_kwh: req.emobility.vehicles?.[0]?.batteryCapacity_kwh ?? 60,
             annualKm: req.emobility.annualKm ?? 12000,
             consumption_kwh_per_100km: req.emobility.consumption_kwh_per_100km ?? 20,
+            wallboxPower_kw: req.emobility.chargingPower_kw ?? 11,
             useBidirectional: req.emobility.useBidirectional ?? false,
         }];
+}
+function getLargeLoads(req) {
+    const loads = Array.isArray(req.tariff.largeLoads) ? req.tariff.largeLoads : [];
+    if (loads.length) {
+        return loads;
+    }
+    const count = Math.max(0, Math.round(req.tariff.largeLoadCount ?? 0));
+    const powerKw = Math.max(0, req.tariff.largeLoadPowerKw ?? 0);
+    if (count > 0 && powerKw > 0) {
+        return Array.from({ length: count }, () => ({ powerKw, startHour: 0, endHour: 0 }));
+    }
+    return [];
+}
+function buildLargeLoadDailyCurveKw(loads) {
+    const curve = Array.from({ length: 24 }, () => 0);
+    loads.forEach((load) => {
+        const powerKw = Math.max(0, load.powerKw ?? 0);
+        const start = Math.min(23, Math.max(0, Math.round(load.startHour ?? 0)));
+        const end = Math.min(23, Math.max(0, Math.round(load.endHour ?? 0)));
+        for (let h = 0; h < 24; h++) {
+            const active = start === end ? true : (start < end ? (h >= start && h < end) : (h >= start || h < end));
+            if (active) {
+                curve[h] += powerKw;
+            }
+        }
+    });
+    return curve;
 }
 function generateConsumptionHourly(req) {
     const persons = req.household.persons;
@@ -150,11 +179,20 @@ function generateConsumptionHourly(req) {
     }
     let evAnnual = 0;
     const evVehicles = getEVVehicles(req);
+    const largeLoads = getLargeLoads(req);
+    const largeLoadDailyCurveKw = buildLargeLoadDailyCurveKw(largeLoads);
     if (evVehicles.length) {
         evAnnual = evVehicles.reduce((sum, vehicle) => {
             const km = vehicle.annualKm ?? 12000;
             const cons = vehicle.consumption_kwh_per_100km ?? 20;
-            return sum + ((km / 100) * cons);
+            const battery = vehicle.batteryCapacity_kwh ?? 60;
+            const wallboxPower = vehicle.wallboxPower_kw ?? 11;
+            const traction_kwh = (km / 100) * cons;
+            // Wallbox and battery introduce charging overhead so every EV input influences annual demand.
+            const wallboxLossFactor = wallboxPower <= 4.6 ? 1.12 : wallboxPower <= 11 ? 1.1 : 1.08;
+            const batteryOverhead_kwh = battery * 3;
+            const bidiCycleOverhead_kwh = vehicle.useBidirectional ? (traction_kwh * 0.02) : 0;
+            return sum + (traction_kwh * wallboxLossFactor) + batteryOverhead_kwh + bidiCycleOverhead_kwh;
         }, 0);
     }
     const monthlyH0 = loadProfiles.monthlyFactors;
@@ -179,7 +217,8 @@ function generateConsumptionHourly(req) {
                 const h0Val = (h0Month / days) * (hourlyH0[h] / h0HourSum);
                 const hpVal = hpMonth > 0 ? (hpMonth / days) * (hourlyHP[h] / hpHourSum) : 0;
                 const evVal = evAnnual > 0 ? (evMonth / days) * (hourlyEV[h] / evHourSum) : 0;
-                hourly.push((h0Val + hpVal + evVal) * 1000); // Wh
+                const largeLoadVal = largeLoadDailyCurveKw[h] ?? 0; // kWh per hour (equivalent to kW over 1h)
+                hourly.push((h0Val + hpVal + evVal + largeLoadVal) * 1000); // Wh
             }
         }
     }
@@ -600,7 +639,11 @@ async function runCalculation(req) {
     const totalSelf_kwh = selfCons.reduce((a, b) => a + b, 0) / 1000;
     // Tarife berechnen
     const tariffs = [];
-    const canUse14a = req.tariff.largeLoadOver42kw === true;
+    const largeLoads = getLargeLoads(req);
+    const largeLoadCount = largeLoads.length;
+    const largeLoadPowerKw = largeLoads.reduce((max, load) => Math.max(max, load.powerKw ?? 0), 0);
+    const largeLoadDailyCurveKw = buildLargeLoadDailyCurveKw(largeLoads).map((value) => Math.round(value * 100) / 100);
+    const canUse14a = largeLoads.some((load) => (load.powerKw ?? 0) >= 4.2) || req.tariff.largeLoadOver42kw === true;
     const candidateModules = canUse14a ? ['none', 'modul1', 'modul2', 'modul3'] : ['none'];
     const candidateTariffs = ['static', 'twoRate', 'dynamic'];
     for (const tariffType of candidateTariffs) {
@@ -711,6 +754,10 @@ async function runCalculation(req) {
                 persons: req.household.persons,
                 buildingType,
                 storage_kwh: storageCap,
+                largeLoadCount,
+                largeLoadPowerKw,
+                largeLoadOver42kw: canUse14a,
+                largeLoadDailyCurveKw,
                 bidiEnabled,
                 bidiShifted_kwh
             }

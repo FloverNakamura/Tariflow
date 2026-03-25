@@ -56,6 +56,7 @@ function sanitizeVehicles(value, fallbackUseBidirectional) {
             batteryCapacity_kwh: clamp(toNum(vehicle.batteryCapacity_kwh, 60), 10, 200),
             annualKm: clamp(toNum(vehicle.annualKm, 12000), 100, 200000),
             consumption_kwh_per_100km: clamp(toNum(vehicle.consumption_kwh_per_100km, 20), 5, 60),
+            wallboxPower_kw: clamp(toNum(vehicle.wallboxPower_kw, 11), 1.4, 22),
             useBidirectional: toBool(vehicle.useBidirectional, fallbackUseBidirectional),
         };
     });
@@ -64,6 +65,38 @@ function toBuildingType(value) {
     if (value === 'EFH' || value === 'MFH' || value === 'Gewerbe')
         return value;
     return 'EFH';
+}
+function sanitizeLargeLoads(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .filter((entry) => entry && typeof entry === 'object')
+        .slice(0, 30)
+        .map((entry) => {
+        const load = entry;
+        return {
+            powerKw: clamp(toNum(load.powerKw, 5), 0, 500),
+            startHour: clamp(Math.round(toNum(load.startHour, 0)), 0, 23),
+            endHour: clamp(Math.round(toNum(load.endHour, 0)), 0, 23),
+        };
+    })
+        .filter((load) => (load.powerKw ?? 0) > 0);
+}
+function buildLargeLoadDailyCurveKw(loads) {
+    const curve = Array.from({ length: 24 }, () => 0);
+    loads.forEach((load) => {
+        const powerKw = load.powerKw ?? 0;
+        const start = load.startHour ?? 0;
+        const end = load.endHour ?? 0;
+        for (let h = 0; h < 24; h++) {
+            const active = start === end ? true : (start < end ? (h >= start && h < end) : (h >= start || h < end));
+            if (active) {
+                curve[h] += powerKw;
+            }
+        }
+    });
+    return curve.map((value) => Math.round(value * 100) / 100);
 }
 // PLZ: must be a 5-digit string of digits (German postal code format)
 const PLZ_RE = /^\d{5}$/;
@@ -132,6 +165,7 @@ function validateAndSanitize(body) {
                     batteryCapacity_kwh: clamp(toNum(evRaw.batteryCapacity_kwh, 60), 10, 200),
                     annualKm: legacyAnnualKm,
                     consumption_kwh_per_100km: legacyConsumption,
+                    wallboxPower_kw: clamp(toNum(evRaw.chargingPower_kw, 11), 1.4, 22),
                     useBidirectional: fallbackUseBidirectional,
                 }]
             : [];
@@ -146,11 +180,32 @@ function validateAndSanitize(body) {
     };
     // ── Tariff ─────────────────────────────────────────────────────────────────
     const taRaw = (b.tariff && typeof b.tariff === 'object') ? b.tariff : {};
+    const largeLoads = sanitizeLargeLoads(taRaw.largeLoads);
+    const legacyLargeLoadCount = clamp(Math.round(toNum(taRaw.largeLoadCount, 0)), 0, 100);
+    const legacyLargeLoadPowerKw = clamp(toNum(taRaw.largeLoadPowerKw, 0), 0, 500);
+    const normalizedLargeLoads = largeLoads.length
+        ? largeLoads
+        : (legacyLargeLoadCount > 0 && legacyLargeLoadPowerKw > 0)
+            ? Array.from({ length: legacyLargeLoadCount }, () => ({
+                powerKw: legacyLargeLoadPowerKw,
+                startHour: 0,
+                endHour: 0,
+            }))
+            : [];
+    const largeLoadCount = normalizedLargeLoads.length;
+    const largeLoadPowerKw = normalizedLargeLoads.reduce((max, load) => Math.max(max, load.powerKw ?? 0), 0);
+    const largeLoadDailyCurveKw = buildLargeLoadDailyCurveKw(normalizedLargeLoads);
+    const largeLoadOver42kw = toBool(taRaw.largeLoadOver42kw, false)
+        || normalizedLargeLoads.some((load) => (load.powerKw ?? 0) >= 4.2);
     const tariff = {
         compareStaticTariff: true, // always compare static
         compareDynamicTariff: true,
         module14a: 'none',
-        largeLoadOver42kw: toBool(taRaw.largeLoadOver42kw, false),
+        largeLoadOver42kw,
+        largeLoadCount,
+        largeLoadPowerKw,
+        largeLoads: normalizedLargeLoads,
+        largeLoadDailyCurveKw,
     };
     return {
         household: {
