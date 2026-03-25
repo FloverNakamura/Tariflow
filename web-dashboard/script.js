@@ -5,6 +5,11 @@ function getApiCandidates() {
   const host = window.location.hostname;
   const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
   // Local Live Server should prefer the local Express backend.
+  const port = window.location.port;
+  const isNetlifyDev = host === 'localhost' && (port === '8888' || port === '8889');
+  if (isNetlifyDev) {
+    return [SAME_ORIGIN_API_BASE, LOCAL_API_BASE];
+  }
   return isLocalHost
     ? [LOCAL_API_BASE, SAME_ORIGIN_API_BASE]
     : [SAME_ORIGIN_API_BASE, LOCAL_API_BASE];

@@ -1,3 +1,23 @@
 [build]
   base = "."
   publish = "web-dashboard"
+
+[[redirects]]
+  from = "/api/calculate"
+  to = "/.netlify/functions/calculate"
+  status = 200
+
+[[redirects]]
+  from = "/api/market-live"
+  to = "/.netlify/functions/market-live"
+  status = 200
+
+[[redirects]]
+  from = "/api/market-history"
+  to = "/.netlify/functions/market-history"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
