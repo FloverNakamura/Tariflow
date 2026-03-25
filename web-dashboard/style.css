@@ -201,6 +201,27 @@ h1 {
   letter-spacing: 0.02em;
 }
 
+.subsection {
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.95rem;
+  background: #ffffff;
+}
+
+.subsection h2 {
+  margin: 0 0 0.8rem;
+  font-size: 0.98rem;
+}
+
+.subsection .note {
+  margin-bottom: 0.8rem;
+}
+
+.subsection .grid:last-child {
+  margin-bottom: 0;
+}
+
 .grid {
   display: grid;
   gap: 0.8rem;
@@ -342,7 +363,7 @@ fieldset legend {
 }
 
 .actions {
-  margin-top: 0.6rem;
+  margin-top: 1rem;
   display: flex;
   gap: 0.6rem;
 }

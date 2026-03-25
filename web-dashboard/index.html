@@ -39,10 +39,12 @@
           <label class="field">
             <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
             <input id="persons" type="number" min="1" max="10" step="1" value="2" placeholder="2">
+            <small class="hint">Wird verwendet, wenn kein absoluter Haushaltsverbrauch eingetragen ist.</small>
           </label>
           <label class="field">
             <span>Haushaltsverbrauch absolut (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
             <input id="householdAnnualConsumption" type="number" min="100" step="1" placeholder="Optional, z.B. 4200">
+            <small class="hint">Wenn gesetzt, wird dieser Wert priorisiert.</small>
           </label>
         </div>
 
@@ -175,7 +177,7 @@
           </div>
         </div>
 
-        <section class="panel">
+        <section class="subsection energy-inputs">
           <h2>Energieanalyse Haus: Eingaben <button type="button" class="info-btn" data-info="inputsOverview">&#9432;</button></h2>
           <p class="note">Diese Eingaben werden zusammen mit der Tarifkalkulation berechnet und gemeinsam als Ergebnis angezeigt.</p>
 
@@ -279,6 +281,7 @@
             <p><span>Dynamischer Tarifpreis aktuell (absolut) <button type="button" class="info-btn" data-info="tickerDynamicPrice">&#9432;</button></span><strong id="marketTickerDynamicCurrent">-</strong></p>
             <p><span>Änderung zum letzten Wert <button type="button" class="info-btn" data-info="tickerChange">&#9432;</button></span><strong id="marketTickerTrend" class="trend-flat">seitwärts</strong></p>
             <p><span>Gültiges Preisfenster <button type="button" class="info-btn" data-info="tickerWindow">&#9432;</button></span><strong id="marketTickerWindow">-</strong></p>
+        </div>
 
         <p id="marketTickerStatus" class="note">Ticker wird initialisiert ...</p>
       </section>

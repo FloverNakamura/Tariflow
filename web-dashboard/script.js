@@ -600,6 +600,7 @@ function init() {
   }
 
   initEnergyAnalysisSection();
+  initHouseholdConsumptionPriority();
 
   initEvVehicles();
   initLargeLoads();
@@ -610,9 +611,12 @@ function init() {
     toggle.addEventListener('change', (e) => {
       const targetId = e.target.dataset.target;
       const targetDiv = byId(targetId);
+      if (!targetDiv) {
+        return;
+      }
       
       if (e.target.checked) {
-        targetDiv.classList.remove('disabled');
+        setSectionEnabled(targetDiv, true);
         if (targetId === 'evFields') {
           ensureAtLeastOneEvVehicle();
         }
@@ -620,7 +624,7 @@ function init() {
           ensureAtLeastOneLargeLoad();
         }
       } else {
-        targetDiv.classList.add('disabled');
+        setSectionEnabled(targetDiv, false);
         if (targetId === 'largeLoadFields') {
           if (largeLoadsContainer) {
             largeLoadsContainer.innerHTML = '';
@@ -632,12 +636,20 @@ function init() {
     // Set initial state
     const targetId = toggle.dataset.target;
     const targetDiv = byId(targetId);
+    if (!targetDiv) {
+      return;
+    }
+
     if (!toggle.checked) {
-      targetDiv.classList.add('disabled');
+      setSectionEnabled(targetDiv, false);
     } else if (targetId === 'largeLoadFields') {
+      setSectionEnabled(targetDiv, true);
       ensureAtLeastOneLargeLoad();
     } else if (targetId === 'evFields') {
+      setSectionEnabled(targetDiv, true);
       ensureAtLeastOneEvVehicle();
+    } else {
+      setSectionEnabled(targetDiv, true);
     }
   });
 
@@ -797,12 +809,14 @@ function buildPayload() {
     pvData.aspect_deg = optionalNumber('aspect');
   }
 
+  const annualHouseholdConsumption = optionalNumber('householdAnnualConsumption');
+
   return {
     household: {
       plz: byId('plz').value.trim(),
       persons: parseInt(byId('persons').value, 10),
       buildingType: 'EFH',
-      annualConsumption_kwh: optionalNumber('householdAnnualConsumption')
+      annualConsumption_kwh: annualHouseholdConsumption
     },
     pv: pvData,
     storage: {
@@ -1169,6 +1183,39 @@ function buildLargeLoadDailyCurveKw(loads) {
 function optionalNumber(id) {
   const raw = byId(id).value.trim();
   return raw === '' ? null : Number(raw);
+}
+
+function setSectionEnabled(targetDiv, enabled) {
+  targetDiv.classList.toggle('disabled', !enabled);
+
+  const controls = targetDiv.querySelectorAll('input, select, textarea, button');
+  controls.forEach((control) => {
+    if (control.classList.contains('info-btn')) {
+      return;
+    }
+    if (!enabled) {
+      control.setAttribute('disabled', 'disabled');
+    } else {
+      control.removeAttribute('disabled');
+    }
+  });
+}
+
+function initHouseholdConsumptionPriority() {
+  const personsInput = byId('persons');
+  const annualConsumptionInput = byId('householdAnnualConsumption');
+  if (!personsInput || !annualConsumptionInput) {
+    return;
+  }
+
+  const syncPriorityState = () => {
+    const hasAbsolute = annualConsumptionInput.value.trim() !== '';
+    personsInput.toggleAttribute('disabled', hasAbsolute);
+    personsInput.setAttribute('aria-disabled', hasAbsolute ? 'true' : 'false');
+  };
+
+  annualConsumptionInput.addEventListener('input', syncPriorityState);
+  syncPriorityState();
 }
 
 function setLoading(loading) {
