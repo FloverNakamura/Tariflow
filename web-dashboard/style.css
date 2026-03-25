@@ -134,6 +134,10 @@ h1 {
   background: #fff2f4;
 }
 
+.one-tool-card {
+  grid-column: 1 / -1;
+}
+
 .tool-switch.single-tool {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

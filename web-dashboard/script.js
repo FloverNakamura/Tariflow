@@ -56,10 +56,7 @@ const marketTickerDynamicCurrent = byId('marketTickerDynamicCurrent');
 const marketTickerTrend = byId('marketTickerTrend');
 const marketTickerWindow = byId('marketTickerWindow');
 const marketTickerStatus = byId('marketTickerStatus');
-const moduleTariff = byId('moduleTariff');
-const moduleEnergy = byId('moduleEnergy');
 const energyAnalysisFrame = byId('energyAnalysisFrame');
-const moduleTabButtons = Array.from(document.querySelectorAll('.tool-tab-btn[data-module-target]'));
 
 let latestData = null;
 let monthlyChart = null;
@@ -492,7 +489,9 @@ function init() {
     return;
   }
 
-  initModuleSwitch();
+  if (energyAnalysisFrame && !energyAnalysisFrame.src) {
+    energyAnalysisFrame.src = energyAnalysisFrame.dataset.src || 'energieanalyse.html';
+  }
 
   initEvVehicles();
   initLargeLoads();
@@ -612,32 +611,6 @@ function init() {
   }
 
   window.addEventListener('beforeunload', stopMarketTicker);
-}
-
-function initModuleSwitch() {
-  if (!moduleTabButtons.length || !moduleTariff || !moduleEnergy) {
-    return;
-  }
-
-  const activateModule = (moduleId) => {
-    const showTariff = moduleId === 'moduleTariff';
-    moduleTariff.classList.toggle('hidden', !showTariff);
-    moduleEnergy.classList.toggle('hidden', showTariff);
-
-    moduleTabButtons.forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.moduleTarget === moduleId);
-    });
-
-    if (!showTariff && energyAnalysisFrame && !energyAnalysisFrame.src) {
-      energyAnalysisFrame.src = energyAnalysisFrame.dataset.src || 'energieanalyse.html';
-    }
-  };
-
-  moduleTabButtons.forEach((btn) => {
-    btn.addEventListener('click', () => activateModule(btn.dataset.moduleTarget));
-  });
-
-  activateModule('moduleTariff');
 }
 
 async function checkApiReachability() {

@@ -23,15 +23,11 @@
       <p class="subtitle">
         Ein gemeinsames Tool mit zwei Modulen: Tarifrechner und Energieanalyse Haus.
       </p>
-      <div class="tool-switch single-tool" aria-label="Modul-Auswahl">
-        <button type="button" class="tool-card tool-tab-btn active" data-module-target="moduleTariff">
-          <strong>Tarifrechner</strong>
-          <span>PV, Speicher, E-Mobilität und Tarifempfehlung</span>
-        </button>
-        <button type="button" class="tool-card tool-tab-btn" data-module-target="moduleEnergy">
-          <strong>Energieanalyse Haus</strong>
-          <span>Strom, Heizkosten, m²-Kennzahlen und Heizungsvergleich</span>
-        </button>
+      <div class="tool-switch" aria-label="Tool">
+        <div class="tool-card active one-tool-card">
+          <strong>Tariflow Gesamt-Tool</strong>
+          <span>Tarifrechner und Energieanalyse in einer Oberfläche</span>
+        </div>
       </div>
       <div id="apiStatus" class="api-status">Backend-Status wird geprüft...</div>
     </header>
@@ -276,7 +272,7 @@
     </section>
     </div>
 
-    <section id="moduleEnergy" class="panel hidden tool-module">
+    <section id="moduleEnergy" class="panel tool-module">
       <h2>Energieanalyse Haus</h2>
       <p class="note">Das Modul ist direkt in dasselbe Tool integriert und nutzt weiterhin die bestehende Energieanalyse-Logik.</p>
       <iframe
