@@ -21,18 +21,48 @@ function getApiCandidates() {
 }
 
 async function apiFetch(path, options = {}) {
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? Number(options.timeoutMs) : 8000;
+  const { timeoutMs: _ignoreTimeout, ...fetchOptions } = options;
   const candidates = getApiCandidates();
   let lastError = null;
 
   for (const base of candidates) {
+    const url = `${base}${path}`;
+    const controller = new AbortController();
+    const timeoutId = timeoutMs > 0
+      ? setTimeout(() => controller.abort(new Error('timeout')), timeoutMs)
+      : null;
+
+    let externalAbortHandler = null;
+    if (fetchOptions.signal) {
+      if (fetchOptions.signal.aborted) {
+        controller.abort(fetchOptions.signal.reason);
+      } else {
+        externalAbortHandler = () => controller.abort(fetchOptions.signal.reason);
+        fetchOptions.signal.addEventListener('abort', externalAbortHandler, { once: true });
+      }
+    }
+
     try {
-      const response = await fetch(`${base}${path}`, options);
+      const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
       if (response.ok) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (externalAbortHandler) {
+          fetchOptions.signal.removeEventListener('abort', externalAbortHandler);
+        }
         return { response, base };
       }
       lastError = new Error(`HTTP ${response.status} via ${base}`);
     } catch (error) {
-      lastError = error;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (externalAbortHandler) {
+        fetchOptions.signal.removeEventListener('abort', externalAbortHandler);
+      }
+      if (error?.name === 'AbortError') {
+        lastError = new Error(`Timeout nach ${timeoutMs}ms via ${base}`);
+      } else {
+        lastError = error;
+      }
     }
   }
 
@@ -694,6 +724,11 @@ function init() {
 }
 
 async function checkApiReachability() {
+  if (!apiStatus) return;
+
+  apiStatus.textContent = 'Backend-Status wird geprüft...';
+  apiStatus.classList.remove('ok', 'fail');
+
   try {
     const payload = {
       household: { plz: '01069', persons: 2, buildingType: 'EFH' },
@@ -707,7 +742,8 @@ async function checkApiReachability() {
     const { response, base } = await apiFetch('/calculate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      timeoutMs: 5000
     });
 
     if (response.ok) {
