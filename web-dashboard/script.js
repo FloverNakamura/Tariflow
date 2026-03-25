@@ -1298,7 +1298,8 @@ function initWizard() {
   });
 
   updateWizardUi();
-  syncWizardHeight();
+  requestAnimationFrame(syncWizardHeight);
+  window.setTimeout(syncWizardHeight, 120);
 
   wizardPrev.addEventListener('click', () => {
     goToWizardStep(wizardState.currentIndex - 1, 'backward');
@@ -1392,7 +1393,10 @@ function syncWizardHeight() {
   if (!activeStep) {
     return;
   }
-  wizardStage.style.minHeight = `${activeStep.offsetHeight}px`;
+  const measuredHeight = Math.max(activeStep.offsetHeight, activeStep.scrollHeight);
+  if (measuredHeight > 40) {
+    wizardStage.style.minHeight = `${measuredHeight}px`;
+  }
 }
 
 function updateWizardUi() {
