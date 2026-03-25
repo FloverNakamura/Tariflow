@@ -222,11 +222,20 @@ h1 {
   margin-bottom: 0;
 }
 
-.energy-inputs .grid.two {
+.energy-inputs .grid.two,
+.energy-inputs .grid.three {
   align-items: start;
 }
 
 .energy-inputs .field > span {
+  min-height: 2.2rem;
+}
+
+.energy-inputs .hint {
+  min-height: 1.1rem;
+}
+
+#heatingHint {
   min-height: 2.2rem;
 }
 
