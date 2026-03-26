@@ -2933,6 +2933,19 @@ function shouldIncludeHeatPumpInHeatingSources() {
   return byId('hasHeatPump')?.checked === true;
 }
 
+function getAutoHeatPumpHeatingSource() {
+  if (!shouldIncludeHeatPumpInHeatingSources()) {
+    return null;
+  }
+
+  const wpConsumption = Math.max(0, eaNum('heatPumpConsumption', 0));
+  return {
+    type: 'heatpump',
+    consumption: wpConsumption,
+    basePrice: 0
+  };
+}
+
 function initEnergyAnalysisSection() {
   if (!heatingSourcesContainer() || !byId('addHeatingSourceBtn')) {
     return;
@@ -3002,11 +3015,12 @@ document.addEventListener('click', (event) => {
 function syncWpHeatingCard() {
   const container = heatingSourcesContainer();
   if (!container) return;
-  const includeHeatPump = shouldIncludeHeatPumpInHeatingSources();
+  const autoHeatPump = getAutoHeatPumpHeatingSource();
+  const includeHeatPump = Boolean(autoHeatPump);
   const existing = container.querySelector('.heating-source-wp-info');
 
   if (includeHeatPump && !existing) {
-    const wpConsumption = eaNum('heatPumpConsumption', 0);
+    const wpConsumption = autoHeatPump.consumption;
     const usageMode = getHeatPumpUsageMode();
     const usageLabel = usageMode === 'both'
       ? 'Warmwasser und Heizen'
@@ -3041,10 +3055,20 @@ function syncWpHeatingCard() {
     `;
     container.prepend(info);
   } else if (includeHeatPump && existing) {
-    const wpConsumption = eaNum('heatPumpConsumption', 0);
+    const wpConsumption = autoHeatPump.consumption;
+    const usageMode = getHeatPumpUsageMode();
+    const usageLabel = usageMode === 'both'
+      ? 'Warmwasser und Heizen'
+      : usageMode === 'hotWater'
+        ? 'Nur Warmwasser'
+        : 'Nur Heizen';
     const consumptionInput = existing.querySelector('input[type="number"]');
+    const usageInput = existing.querySelector('input[type="text"]');
     if (consumptionInput) {
       consumptionInput.value = String(Math.max(0, Math.round(wpConsumption)));
+    }
+    if (usageInput) {
+      usageInput.value = usageLabel;
     }
   } else if (!includeHeatPump && existing) {
     existing.remove();
@@ -3130,11 +3154,19 @@ function renumberHeatingSources() {
 function collectHeatingSources() {
   const container = heatingSourcesContainer();
   if (!container) return [];
-  return Array.from(container.querySelectorAll('.heating-source:not(.heating-source-wp-info)')).map(card => ({
+
+  const sources = Array.from(container.querySelectorAll('.heating-source:not(.heating-source-wp-info)')).map(card => ({
     type: card.querySelector('.heating-source-type')?.value || 'gas',
     consumption: Number(card.querySelector('.heating-source-consumption')?.value) || 0,
     basePrice: Number(card.querySelector('.heating-source-baseprice')?.value) || 420
   }));
+
+  const autoHeatPump = getAutoHeatPumpHeatingSource();
+  if (autoHeatPump) {
+    sources.push(autoHeatPump);
+  }
+
+  return sources;
 }
 
 function renderEnergyAnalysis() {
@@ -3150,18 +3182,9 @@ function renderEnergyAnalysis() {
 
   const avgPowerPrice = annualPowerCost > 0 ? annualPowerCost / annualPowerUse : 0.32; // Fallback 32 ct/kWh
   const hasHeatPump = byId('hasHeatPump')?.checked === true;
-  const includeHeatPump = shouldIncludeHeatPumpInHeatingSources();
 
   // Heizquellen aus Karten einsammeln
   const sources = collectHeatingSources();
-
-  // WP aus Großverbraucher als virtuelle Quelle hinzufügen (falls aktiv)
-  if (hasHeatPump && includeHeatPump) {
-    const wpConsumption = eaNum('heatPumpConsumption', 0);
-    if (wpConsumption > 0) {
-      sources.push({ type: 'heatpump', consumption: wpConsumption, basePrice: 0 });
-    }
-  }
 
   // Heizkosten über alle Quellen summieren
   let totalHeatNeedKwh = 0;
@@ -3197,7 +3220,7 @@ function renderEnergyAnalysis() {
   const heatCostPerM2 = eaSafeDiv(totalHeatingCostAbs, Math.max(areaM2, 1));
 
   // Stromkosten: WP-Anteil aus Gesamtkosten herausrechnen wenn bekannt
-  const wpConsumption = (hasHeatPump && includeHeatPump) ? eaNum('heatPumpConsumption', 0) : 0;
+  const wpConsumption = hasHeatPump ? Math.max(0, eaNum('heatPumpConsumption', 0)) : 0;
   const householdPowerCost = annualPowerCost > 0
     ? Math.max(annualPowerCost - wpConsumption * avgPowerPrice, 0)
     : (annualPowerUse - wpConsumption) * avgPowerPrice;
