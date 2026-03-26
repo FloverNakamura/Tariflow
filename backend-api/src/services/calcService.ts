@@ -143,15 +143,24 @@ function generateConsumptionHourly(req: CalculationRequest): number[] {
   const persons = req.household.persons;
   const buildingType = req.household.buildingType ?? 'EFH';
   const buildingFactor = buildingType === 'MFH' ? 3.0 : buildingType === 'Gewerbe' ? 6.0 : 1.0;
-  const rawBase = req.household.annualConsumption_kwh
+
+  // Wenn der Nutzer einen eigenen Jahresverbrauch angibt, ist dieser bereits der Gesamtverbrauch
+  // (inkl. Wärmepumpe, E-Auto, Großverbraucher). In diesem Fall nur H0-Profil verwenden.
+  const userProvidedConsumption = req.household.annualConsumption_kwh;
+  const consumptionIsUserProvided = Number.isFinite(userProvidedConsumption) && (userProvidedConsumption as number) > 0;
+
+  const rawBase = userProvidedConsumption
     ?? (getAnnualHouseholdConsumptionForPersons(persons) * buildingFactor);
   // Guard: must be a positive finite number; fall back to BDEW default for person-count
   const baseAnnual = (Number.isFinite(rawBase) && rawBase > 0)
     ? rawBase
     : (getAnnualHouseholdConsumptionForPersons(persons) * buildingFactor);
 
+  // Bei Personenanzahl-Schätzung: WP, E-Auto und Großverbraucher werden zusätzlich modelliert,
+  // da die Schätzung nur den reinen Haushaltsbedarf abbildet.
+  // Bei Nutzereingabe: alles bereits enthalten → keine Zusatzanteile.
   let hpAnnual = 0;
-  if (req.heatPump.hasHeatPump) {
+  if (!consumptionIsUserProvided && req.heatPump.hasHeatPump) {
     hpAnnual = req.heatPump.annualConsumption_kwh ?? 3000;
   }
 
@@ -159,7 +168,7 @@ function generateConsumptionHourly(req: CalculationRequest): number[] {
   const evVehicles = getEVVehicles(req);
   const largeLoads = getLargeLoads(req);
   const largeLoadDailyCurveKw = buildLargeLoadDailyCurveKw(largeLoads);
-  if (evVehicles.length) {
+  if (!consumptionIsUserProvided && evVehicles.length) {
     evAnnual = evVehicles.reduce((sum, vehicle) => {
       const km = vehicle.annualKm ?? 12000;
       const cons = vehicle.consumption_kwh_per_100km ?? 20;
@@ -198,7 +207,8 @@ function generateConsumptionHourly(req: CalculationRequest): number[] {
         const h0Val = (h0Month / days) * (hourlyH0[h] / h0HourSum);
         const hpVal = hpMonth > 0 ? (hpMonth / days) * (hourlyHP[h] / hpHourSum) : 0;
         const evVal = evAnnual > 0 ? (evMonth / days) * (hourlyEV[h] / evHourSum) : 0;
-        const largeLoadVal = largeLoadDailyCurveKw[h] ?? 0; // kWh per hour (equivalent to kW over 1h)
+        // Großverbraucher nur addieren, wenn kein eigener Jahresverbrauch angegeben
+        const largeLoadVal = consumptionIsUserProvided ? 0 : (largeLoadDailyCurveKw[h] ?? 0);
         hourly.push((h0Val + hpVal + evVal + largeLoadVal) * 1000); // Wh
       }
     }
