@@ -114,6 +114,7 @@ let marketTickerSamples = [];
 let marketTickerBusy = false;
 let marketTickerHistoryLoaded = false;
 let wpHeatingSourceManuallyRemoved = false;
+let heatingSourcesDraft = [];
 
 const MARKET_TICKER_SAMPLE_LIMIT = 120;
 const MARKET_TICKER_HISTORY_HOURS = 168;
@@ -166,8 +167,9 @@ const INFO_TEXTS = {
   },
   householdAnnualConsumption: {
     title: 'Haushaltsverbrauch absolut (kWh/Jahr)',
-    html: `<p>Optional kann der gemessene Jahresverbrauch direkt eingetragen werden.</p>
-           <p>Wenn dieser Wert gesetzt ist, wird er in der Tarifsimulation <strong>bevorzugt</strong> und die Personenzahl nur noch als Zusatzinformation genutzt.</p>`
+      html: `<p>Optional kann der gemessene Jahresverbrauch direkt eingetragen werden.</p>
+        <p>Dieser Wert wird als <strong>Gesamtwert inklusive Großverbraucher</strong> interpretiert. Die separat erfassten Großverbraucher werden für die Berechnung intern wieder getrennt behandelt, damit keine Doppelzählung entsteht.</p>
+        <p>Wenn dieser Wert gesetzt ist, wird er in der Tarifsimulation <strong>bevorzugt</strong> und die Personenzahl nur noch als Zusatzinformation genutzt.</p>`
   },
   pv: {
     title: 'Solaranlage (PV)',
@@ -1118,6 +1120,11 @@ function buildPayload() {
 
   const moduleDecision = determineModuleDecision();
   const heatPumpUsageMode = byId('heatPumpUsageMode')?.value || '';
+  const annualLargeLoadConsumption = estimateAnnualLargeLoadConsumption(largeLoads);
+
+  if (consumptionKnown && Number.isFinite(annualHouseholdConsumption)) {
+    annualHouseholdConsumption = Math.max(0, annualHouseholdConsumption - annualLargeLoadConsumption);
+  }
 
   return {
     household: {
@@ -1202,7 +1209,13 @@ function validatePayload(payload) {
       annualConsumptionEl?.classList.add('invalid');
       return 'Bitte den absoluten Haushaltsverbrauch in kWh/Jahr eingeben.';
     }
+    const annualTotal = optionalNumber('householdAnnualConsumption');
+    const annualLargeLoads = estimateAnnualLargeLoadConsumption(collectLargeLoads());
     const annual = Number(payload.household.annualConsumption_kwh);
+    if (Number.isFinite(annualTotal) && annualTotal < annualLargeLoads) {
+      annualConsumptionEl?.classList.add('invalid');
+      return 'Der absolute Gesamtverbrauch muss mindestens so hoch sein wie die Summe der Großverbraucher.';
+    }
     if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
       annualConsumptionEl?.classList.add('invalid');
       return 'Der absolute Haushaltsverbrauch muss zwischen 100 und 200000 kWh/Jahr liegen.';
@@ -1852,6 +1865,13 @@ function collectLargeLoads() {
   });
 }
 
+function estimateAnnualLargeLoadConsumption(loads) {
+  return (Array.isArray(loads) ? loads : []).reduce((sum, load) => {
+    const annual = Number(load?.annualConsumption_kwh);
+    return sum + (Number.isFinite(annual) ? annual : 0);
+  }, 0);
+}
+
 function buildLargeLoadDailyCurveKw(loads) {
   const curve = Array.from({ length: 24 }, () => 0);
   loads.forEach((load) => {
@@ -1869,6 +1889,32 @@ function buildLargeLoadDailyCurveKw(loads) {
 function optionalNumber(id) {
   const raw = byId(id).value.trim();
   return raw === '' ? null : Number(raw);
+}
+
+function saveHeatingSourcesDraft() {
+  const container = heatingSourcesContainer();
+  if (!container) return;
+
+  heatingSourcesDraft = Array.from(container.querySelectorAll('.heating-source:not(.heating-source-wp-info)')).map((card) => ({
+    type: card.querySelector('.heating-source-type')?.value || 'gas',
+    consumption: card.querySelector('.heating-source-consumption')?.value || '',
+    basePrice: card.querySelector('.heating-source-baseprice')?.value || '420'
+  }));
+}
+
+function restoreHeatingSourcesDraft() {
+  const container = heatingSourcesContainer();
+  if (!container || !heatingSourcesDraft.length) return false;
+
+  container.innerHTML = '';
+  heatingSourcesDraft.forEach((source) => {
+    addHeatingSource({
+      type: source.type,
+      consumption: source.consumption,
+      basePrice: source.basePrice
+    });
+  });
+  return true;
 }
 
 function initNumericInputs(root = document) {
@@ -3191,6 +3237,7 @@ function initHeatingSources() {
           wpHeatingSourceManuallyRemoved = true;
         }
         card.remove();
+        saveHeatingSourcesDraft();
         renumberHeatingSources();
         scheduleWizardHeightSync();
       }
@@ -3200,7 +3247,9 @@ function initHeatingSources() {
 
   // Standard: eine Heizquelle (Gas) vorbelegen
   if (!container.children.length) {
-    addHeatingSource({ type: 'gas' });
+    if (!restoreHeatingSourcesDraft()) {
+      addHeatingSource({ type: 'gas' });
+    }
   }
 
   syncWpHeatingCard();
@@ -3326,10 +3375,16 @@ function addHeatingSource(source = {}) {
   card.querySelector('.heating-source-type').value = type;
   syncHeatingSourceCard(card);
 
-  card.querySelector('.heating-source-type').addEventListener('change', () => syncHeatingSourceCard(card));
+  card.querySelector('.heating-source-type').addEventListener('change', () => {
+    syncHeatingSourceCard(card);
+    saveHeatingSourcesDraft();
+  });
+  card.querySelector('.heating-source-consumption')?.addEventListener('input', saveHeatingSourcesDraft);
+  card.querySelector('.heating-source-baseprice')?.addEventListener('input', saveHeatingSourcesDraft);
 
   container.appendChild(card);
   initNumericInputs(card);
+  saveHeatingSourcesDraft();
   renumberHeatingSources();
   scheduleWizardHeightSync();
 }
