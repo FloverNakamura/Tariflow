@@ -343,15 +343,9 @@ const INFO_TEXTS = {
   },
   evChargingEnd: {
     title: 'Ladestundenplan - End',
-    html: `<p>Uhrzeit, wann das Auto normalerweise zu laden ends (0-23 Uhr).</p>
+    html: `<p>Uhrzeit, wann das Auto normalerweise zu laden endet (0-23 Uhr).</p>
            <p>Beispiel: Laden endet um 6:00 Uhr (6).</p>
            <p>Falls das Laden über Mitternacht läuft (z.B. 22-06), werden die teuren Morgen-/Tagstunden (35-50 ct/kWh) vermieden.</p>`
-  },
-  evChargingDays: {
-    title: 'Ladetage pro Woche',
-    html: `<p>An wieviel Tagen pro Woche wird das Auto normalerweise geladen? (1-7 Tage).</p>
-           <p>Typische Werte: 5 Tage (Wochentage nur), 7 Tage (täglich).</p>
-           <p>Häufigeres Laden auf teuren Tageszeiten → höhere Jahreskosten!</p>`
   },
   bidi: {
     title: 'Bidirektionales Laden (V2H)',
@@ -731,10 +725,15 @@ function init() {
 
       if (isEnabled && targetId === 'evFields') {
         ensureAtLeastOneEvVehicle();
+        updateEvVehicleProfiles();
       }
       if (isEnabled && targetId === 'largeLoadFields') {
         ensureAtLeastOneLargeLoad();
         updateLargeLoadProfiles();
+      }
+      if (!isEnabled && targetId === 'evFields' && evVehiclesContainer) {
+        evVehiclesContainer.innerHTML = '';
+        evProfileSection?.classList.add('hidden');
       }
       if (!isEnabled && targetId === 'largeLoadFields' && largeLoadsContainer) {
         largeLoadsContainer.innerHTML = '';
@@ -1080,20 +1079,17 @@ function validatePayload(payload) {
       const wallboxEl = vehicleNode.querySelector('.ev-vehicle-wallbox');
       const chargeStartEl = vehicleNode.querySelector('.ev-vehicle-charging-start');
       const chargeEndEl = vehicleNode.querySelector('.ev-vehicle-charging-end');
-      const chargeDaysEl = vehicleNode.querySelector('.ev-vehicle-charging-days');
       capacityEl.classList.remove('invalid');
       annualKmEl.classList.remove('invalid');
       wallboxEl.classList.remove('invalid');
       chargeStartEl?.classList.remove('invalid');
       chargeEndEl?.classList.remove('invalid');
-      chargeDaysEl?.classList.remove('invalid');
 
       const capacity = Number(capacityEl.value);
       const annualKm = Number(annualKmEl.value);
       const wallbox = Number(wallboxEl.value);
       const chargeStart = Number(chargeStartEl?.value);
       const chargeEnd = Number(chargeEndEl?.value);
-      const chargeDays = Number(chargeDaysEl?.value);
       
       if (!Number.isFinite(capacity) || capacity < 10 || capacity > 200) {
         capacityEl.classList.add('invalid');
@@ -1114,10 +1110,6 @@ function validatePayload(payload) {
       if (!Number.isInteger(chargeEnd) || chargeEnd < 0 || chargeEnd > 23) {
         chargeEndEl?.classList.add('invalid');
         return `Ladestunden-End von E-Auto ${index + 1} muss zwischen 0 und 23 liegen.`;
-      }
-      if (!Number.isInteger(chargeDays) || chargeDays < 1 || chargeDays > 7) {
-        chargeDaysEl?.classList.add('invalid');
-        return `Ladetage von E-Auto ${index + 1} müssen zwischen 1 und 7 liegen.`;
       }
     }
   }
@@ -1241,10 +1233,6 @@ function addEvVehicle(vehicle = {}) {
         <span>Ladestundenplan - End (0-23) <button type="button" class="info-btn" data-info="evChargingEnd">&#9432;</button></span>
         <input class="ev-vehicle-charging-end" type="number" step="1" min="0" max="23" value="${vehicle.chargingEndHour ?? 6}" data-update="true">
       </label>
-      <label class="field">
-        <span>Ladetage pro Woche (1-7) <button type="button" class="info-btn" data-info="evChargingDays">&#9432;</button></span>
-        <input class="ev-vehicle-charging-days" type="number" step="1" min="1" max="7" value="${vehicle.chargingDays_perWeek ?? 5}" data-update="true">
-      </label>
     </div>
   `;
   evVehiclesContainer.appendChild(card);
@@ -1329,7 +1317,9 @@ function updateLargeLoadProfiles() {
     profileDiv.className = 'large-load-profile-card';
     profileDiv.innerHTML = `
       <h3 style="margin:0.5rem 0; font-size:1rem">Großverbraucher ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr (${usageDays}x/Woche)</h3>
-      <table style="width:100%; border-collapse:collapse; font-size:0.85rem">
+      <button type="button" class="ghost profile-toggle-btn" data-toggle-table="true" aria-expanded="false">Tabelle anzeigen</button>
+      <div class="profile-table-wrap hidden">
+      <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.5rem">
         <thead>
           <tr style="border-bottom:1px solid #ccc; background:#f9f9f9">
             <th style="text-align:center; padding:0.4rem; width:10%">Stunde</th>
@@ -1356,6 +1346,7 @@ function updateLargeLoadProfiles() {
           }).join('')}
         </tbody>
       </table>
+      </div>
       <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
         <strong>📊 Tägliche Kosten:</strong> €${dailyCost.toFixed(2)} | 
         <strong>📅 Wöchentlich:</strong> €${weeklyCost.toFixed(2)} | 
@@ -1363,6 +1354,18 @@ function updateLargeLoadProfiles() {
       </div>
     `;
     largeLoadProfilesContainer.appendChild(profileDiv);
+  });
+
+  largeLoadProfilesContainer.querySelectorAll('[data-toggle-table="true"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wrap = btn.nextElementSibling;
+      if (!wrap) {
+        return;
+      }
+      const nowHidden = wrap.classList.toggle('hidden');
+      btn.setAttribute('aria-expanded', String(!nowHidden));
+      btn.textContent = nowHidden ? 'Tabelle anzeigen' : 'Tabelle ausblenden';
+    });
   });
 }
 
@@ -1393,7 +1396,8 @@ function updateEvVehicleProfiles() {
     const battery = vehicle.batteryCapacity_kwh || 60;
     const startHour = vehicle.chargingStartHour || 22;
     const endHour = vehicle.chargingEndHour || 6;
-    const chargingDays = vehicle.chargingDays_perWeek || 5;
+    const annualKm = vehicle.annualKm || 12000;
+    const annualConsumptionKwh = (annualKm / 100) * 20;
     
     // Ladedauer in Stunden bei typischem Laden (z.B. 60 kWh / 11 kW = ~5.5h)
     const chargeTimeHours = battery / wallboxPower;
@@ -1412,20 +1416,18 @@ function updateEvVehicleProfiles() {
       cost: (wallboxPower * HOURLY_PRICES[hour] / 100)
     }));
     
-    // Tageskosten
-    const dailyCost = hourlyData.reduce((sum, h) => sum + h.cost, 0);
-    const weeklyCost = dailyCost * chargingDays;
-    const yearlyCost = weeklyCost * 52;
-    
-    // Geschätzte Jahresladungen
-    const annualChargingEvents = (vehicle.annualKm || 12000) / 300; // ~300 km Reichweite
-    const estimatedAnnualChargingCost = yearlyCost > 0 ? (yearlyCost / chargingDays * annualChargingEvents).toFixed(0) : '—';
+    const sessionCost = hourlyData.reduce((sum, h) => sum + h.cost, 0);
+    const sessionEnergyKwh = hourlyData.reduce((sum, h) => sum + h.energyKwh, 0);
+    const weightedPriceCtPerKwh = sessionEnergyKwh > 0 ? (sessionCost / sessionEnergyKwh) * 100 : 0;
+    const estimatedAnnualChargingCost = (annualConsumptionKwh * weightedPriceCtPerKwh) / 100;
     
     const profileDiv = document.createElement('div');
     profileDiv.className = 'large-load-profile-card';
     profileDiv.innerHTML = `
-      <h3 style="margin:0.5rem 0; font-size:1rem">E-Auto ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr (${chargingDays}x/Woche)</h3>
-      <p style="margin:0.3rem 0; font-size:0.85rem; color:#666">Batterie: ${battery} kWh | Wallbox: ${wallboxPower} kW | Ladedauer: ~${chargeTimeHours.toFixed(1)}h</p>
+      <h3 style="margin:0.5rem 0; font-size:1rem">E-Auto ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr</h3>
+      <p style="margin:0.3rem 0; font-size:0.85rem; color:#666">Batterie: ${battery} kWh | Wallbox: ${wallboxPower} kW | Laufleistung: ${annualKm.toFixed(0)} km/Jahr | Ladedauer: ~${chargeTimeHours.toFixed(1)}h</p>
+      <button type="button" class="ghost profile-toggle-btn" data-toggle-table="true" aria-expanded="false">Tabelle anzeigen</button>
+      <div class="profile-table-wrap hidden">
       <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.5rem">
         <thead>
           <tr style="border-bottom:1px solid #ccc; background:#f9f9f9">
@@ -1453,13 +1455,26 @@ function updateEvVehicleProfiles() {
           }).join('')}
         </tbody>
       </table>
+      </div>
       <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
-        <strong>🔋 Kosten pro Ladesession:</strong> €${dailyCost.toFixed(2)} | 
-        <strong>📅 Pro Woche (${chargingDays}x):</strong> €${weeklyCost.toFixed(2)} | 
-        <strong>📈 Jährlich (ca. ${annualChargingEvents.toFixed(0)} Ladevorgänge):</strong> <span style="color:#2196f3; font-weight:bold">€${estimatedAnnualChargingCost}</span>
+        <strong>🔋 Kosten pro Ladesession:</strong> €${sessionCost.toFixed(2)} | 
+        <strong>⚡ Ø Strompreis im Ladefenster:</strong> ${weightedPriceCtPerKwh.toFixed(1)} ct/kWh | 
+        <strong>📈 Jährlich (aus Laufleistung):</strong> <span style="color:#2196f3; font-weight:bold">€${estimatedAnnualChargingCost.toFixed(0)}</span>
       </div>
     `;
     evProfilesContainer.appendChild(profileDiv);
+  });
+
+  evProfilesContainer.querySelectorAll('[data-toggle-table="true"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wrap = btn.nextElementSibling;
+      if (!wrap) {
+        return;
+      }
+      const nowHidden = wrap.classList.toggle('hidden');
+      btn.setAttribute('aria-expanded', String(!nowHidden));
+      btn.textContent = nowHidden ? 'Tabelle anzeigen' : 'Tabelle ausblenden';
+    });
   });
 }
 
@@ -1482,8 +1497,7 @@ function collectEvVehicles() {
     consumption_kwh_per_100km: 20,
     useBidirectional: Boolean(vehicleNode.querySelector('.ev-vehicle-bidi')?.checked),
     chargingStartHour: Number(vehicleNode.querySelector('.ev-vehicle-charging-start')?.value) || 22,
-    chargingEndHour: Number(vehicleNode.querySelector('.ev-vehicle-charging-end')?.value) || 6,
-    chargingDays_perWeek: Number(vehicleNode.querySelector('.ev-vehicle-charging-days')?.value) || 5
+    chargingEndHour: Number(vehicleNode.querySelector('.ev-vehicle-charging-end')?.value) || 6
   }));
 }
 
