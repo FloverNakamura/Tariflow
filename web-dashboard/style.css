@@ -402,6 +402,49 @@ h1 {
   margin-bottom: 0;
 }
 
+/* Großverbraucher combined step */
+.gross-step-heading {
+  margin: 0 0 0.3rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.gross-step-intro {
+  margin: 0 0 1rem;
+  font-size: 0.87rem;
+  color: var(--muted, #6b7280);
+}
+
+.gross-subsection {
+  margin-top: 0.8rem;
+}
+
+.gross-subsection:first-of-type {
+  margin-top: 0;
+}
+
+.gross-sub-heading {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gross-subsection fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.gross-subsection fieldset legend {
+  font-size: 0.82rem;
+  color: var(--muted, #6b7280);
+  margin-bottom: 0.4rem;
+  padding: 0;
+}
+
 .energy-inputs .grid.two,
 .energy-inputs .grid.three {
   align-items: start;

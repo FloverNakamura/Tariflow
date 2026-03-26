@@ -195,62 +195,68 @@
             </fieldset>
           </section>
 
-          <section class="wizard-step" data-step-title="Wärmepumpe">
-            <fieldset class="heatPumpSection">
-              <legend>Ist eine Wärmepumpe vorhanden? <button type="button" class="info-btn" data-info="heatPump">&#9432;</button></legend>
-              <input id="hasHeatPump" type="checkbox" class="component-toggle decision-state-input" data-target="heatPumpFields" hidden>
-              <div class="decision-toggle" data-toggle-id="hasHeatPump">
-                <button type="button" class="decision-btn" data-value="true">Ja, Wärmepumpe ist vorhanden</button>
-                <button type="button" class="decision-btn active" data-value="false">Nein, keine Wärmepumpe</button>
-              </div>
+          <section class="wizard-step" data-step-title="Großverbraucher">
+            <h2 class="gross-step-heading">Großverbraucher</h2>
+            <p class="gross-step-intro">Erfassen Sie alle Geräte und Fahrzeuge mit hohem Strombedarf. Diese fließen direkt in die Tarif- und §14a-Berechnung ein.</p>
 
-              <div id="heatPumpFields" class="heatPumpFields">
-                <div class="grid two">
-                  <label class="field">
-                    <span>Jahresverbrauch (kWh/Jahr) <button type="button" class="info-btn" data-info="heatPumpConsumption">&#9432;</button></span>
-                    <input id="heatPumpConsumption" type="number" min="0">
-                  </label>
+            <div class="subsection gross-subsection">
+              <h3 class="gross-sub-heading">Wärmepumpe</h3>
+              <fieldset class="heatPumpSection">
+                <legend>Ist eine Wärmepumpe vorhanden? <button type="button" class="info-btn" data-info="heatPump">&#9432;</button></legend>
+                <input id="hasHeatPump" type="checkbox" class="component-toggle decision-state-input" data-target="heatPumpFields" hidden>
+                <div class="decision-toggle" data-toggle-id="hasHeatPump">
+                  <button type="button" class="decision-btn" data-value="true">Ja, Wärmepumpe ist vorhanden</button>
+                  <button type="button" class="decision-btn active" data-value="false">Nein, keine Wärmepumpe</button>
                 </div>
-              </div>
-            </fieldset>
-          </section>
 
-          <section class="wizard-step" data-step-title="Großverbraucher Details">
-            <fieldset class="largeLoadSection">
-              <legend>Großverbraucher erfassen <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
-              <p id="largeLoadDetailsHint" class="hint">Wenn Geräte über 4,2 kW vorhanden sind, tragen Sie hier die Details ein.</p>
-
-              <div id="largeLoadFields" class="largeLoadFields">
-                <div id="largeLoads" class="large-loads"></div>
-                <div class="ev-toolbar">
-                  <button id="addLargeLoadBtn" type="button" class="ghost">Großverbraucher hinzufügen</button>
+                <div id="heatPumpFields" class="heatPumpFields">
+                  <div class="grid two">
+                    <label class="field">
+                      <span>Jahresverbrauch (kWh/Jahr) <button type="button" class="info-btn" data-info="heatPumpConsumption">&#9432;</button></span>
+                      <input id="heatPumpConsumption" type="number" min="0">
+                    </label>
+                  </div>
                 </div>
-              </div>
-            </fieldset>
-          </section>
+              </fieldset>
+            </div>
 
-          <section class="wizard-step" data-step-title="Elektrofahrzeug">
-            <fieldset class="evSection">
-              <legend>Sind E-Autos mit Wallbox vorhanden? <button type="button" class="info-btn" data-info="ev">&#9432;</button></legend>
-              <input id="hasEv" type="checkbox" class="component-toggle decision-state-input" data-target="evFields" hidden>
-              <div class="decision-toggle" data-toggle-id="hasEv">
-                <button type="button" class="decision-btn" data-value="true">Ja, E-Auto vorhanden</button>
-                <button type="button" class="decision-btn active" data-value="false">Nein, kein E-Auto</button>
-              </div>
-
-              <div id="evFields" class="evFields">
-                <div id="evVehicles" class="ev-vehicles"></div>
-                <div class="ev-toolbar">
-                  <button id="addEvBtn" type="button" class="ghost">Weiteres E-Auto hinzufügen</button>
+            <div class="subsection gross-subsection">
+              <h3 class="gross-sub-heading">Elektrofahrzeuge</h3>
+              <fieldset class="evSection">
+                <legend>Sind E-Autos mit Wallbox vorhanden? <button type="button" class="info-btn" data-info="ev">&#9432;</button></legend>
+                <input id="hasEv" type="checkbox" class="component-toggle decision-state-input" data-target="evFields" hidden>
+                <div class="decision-toggle" data-toggle-id="hasEv">
+                  <button type="button" class="decision-btn" data-value="true">Ja, E-Auto vorhanden</button>
+                  <button type="button" class="decision-btn active" data-value="false">Nein, kein E-Auto</button>
                 </div>
-              </div>
-            </fieldset>
 
-            <div class="grid two">
-              <div class="field note-box full-span">
-                <span>Tarif- und Modulvergleich</span>
-                <small>Alle Tarife werden immer verglichen. §14a-Module werden nur berücksichtigt, wenn Großgeräte über 4,2 kW vorhanden sind.</small>
-              </div>
+                <div id="evFields" class="evFields">
+                  <div id="evVehicles" class="ev-vehicles"></div>
+                  <div class="ev-toolbar">
+                    <button id="addEvBtn" type="button" class="ghost">Weiteres E-Auto hinzufügen</button>
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+
+            <div class="subsection gross-subsection">
+              <h3 class="gross-sub-heading">Sonstige Geräte über 2,4 kW</h3>
+              <fieldset class="largeLoadSection">
+                <legend>Einzelne Geräte erfassen <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
+                <p class="hint">Geräte wie Sauna, Klimaanlage, Durchlauferhitzer, Wäschetrockner usw. mit einer Leistung über 2,4 kW.</p>
+
+                <div id="largeLoadFields" class="largeLoadFields">
+                  <div id="largeLoads" class="large-loads"></div>
+                  <div class="ev-toolbar">
+                    <button id="addLargeLoadBtn" type="button" class="ghost">Gerät hinzufügen</button>
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+
+            <div class="field note-box" style="margin-top:0.8rem">
+              <span>Tarif- und Modulvergleich</span>
+              <small>Alle Tarife werden immer verglichen. §14a-Module werden nur berücksichtigt, wenn Großgeräte über 4,2 kW vorhanden sind.</small>
             </div>
           </section>
 
