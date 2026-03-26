@@ -1373,6 +1373,33 @@ function ensureAtLeastOneLargeLoad() {
   }
 }
 
+function normalizeHour(value, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(23, Math.trunc(numeric)));
+}
+
+function getActiveHours(startHour, endHour) {
+  const start = normalizeHour(startHour, 0);
+  const end = normalizeHour(endHour, 0);
+  if (start === end) {
+    return Array.from({ length: 24 }, (_, i) => i);
+  }
+  const hours = [];
+  let h = start;
+  while (h !== end) {
+    hours.push(h);
+    h = (h + 1) % 24;
+  }
+  return hours;
+}
+
+function getDurationHours(startHour, endHour) {
+  return getActiveHours(startHour, endHour).length;
+}
+
 function updateLargeLoadProfiles() {
   if (!largeLoadProfileSection || !largeLoadProfilesContainer) {
     return;
@@ -1397,14 +1424,10 @@ function updateLargeLoadProfiles() {
   
   loads.forEach((load, idx) => {
     const power = load.powerKw || 0;
-    const startHour = load.startHour || 0;
-    const endHour = load.endHour || 23;
+    const startHour = normalizeHour(load.startHour, 0);
+    const endHour = normalizeHour(load.endHour, 23);
     const usageDays = load.usageDays_perWeek || 5;
-    
-    // Prüfe ob über Mitternacht
-    const hoursArray = startHour <= endHour
-      ? Array.from({length: endHour - startHour}, (_, i) => startHour + i)
-      : [...Array.from({length: 24 - startHour}, (_, i) => startHour + i), ...Array.from({length: endHour}, (_, i) => i)];
+    const hoursArray = getActiveHours(startHour, endHour);
     
     // Berechne Kosten pro Stunde
     const hourlyData = hoursArray.map(hour => ({
@@ -1488,8 +1511,8 @@ function updateEvVehicleProfiles() {
   vehicles.forEach((vehicle, idx) => {
     const wallboxPower = vehicle.wallboxPower_kw || 11;
     const battery = vehicle.batteryCapacity_kwh || 60;
-    const startHour = vehicle.chargingStartHour || 22;
-    const endHour = vehicle.chargingEndHour || 6;
+    const startHour = normalizeHour(vehicle.chargingStartHour, 22);
+    const endHour = normalizeHour(vehicle.chargingEndHour, 6);
     
     // Ladedauer in Stunden bei typischem Laden (z.B. 60 kWh / 11 kW = ~5.5h)
     const chargeTimeHours = battery / Math.max(wallboxPower, 0.1);
@@ -1497,10 +1520,7 @@ function updateEvVehicleProfiles() {
     // Jahresladezyklen aus Laufleistung: ~300 km Reichweite pro Vollladung
     const annualChargingEvents = Math.round((vehicle.annualKm || 12000) / 300);
     
-    // Prüfe ob über Mitternacht
-    const hoursArray = startHour <= endHour
-      ? Array.from({length: endHour - startHour}, (_, i) => startHour + i)
-      : [...Array.from({length: 24 - startHour}, (_, i) => startHour + i), ...Array.from({length: endHour}, (_, i) => i)];
+    const hoursArray = getActiveHours(startHour, endHour);
     
     // Berechne Kosten pro Stunde
     const hourlyData = hoursArray.map(hour => ({
@@ -1578,8 +1598,8 @@ function collectEvVehicles() {
     wallboxPower_kw: Number(vehicleNode.querySelector('.ev-vehicle-wallbox')?.value),
     consumption_kwh_per_100km: 20,
     useBidirectional: Boolean(vehicleNode.querySelector('.ev-vehicle-bidi')?.checked),
-    chargingStartHour: Number(vehicleNode.querySelector('.ev-vehicle-charging-start')?.value) || 22,
-    chargingEndHour: Number(vehicleNode.querySelector('.ev-vehicle-charging-end')?.value) || 6
+    chargingStartHour: normalizeHour(vehicleNode.querySelector('.ev-vehicle-charging-start')?.value, 22),
+    chargingEndHour: normalizeHour(vehicleNode.querySelector('.ev-vehicle-charging-end')?.value, 6)
   }));
 }
 
@@ -1621,10 +1641,8 @@ function addLargeLoad(load = {}) {
   const startHour = load.startHour ?? 22;
   const endHour = load.endHour ?? 6;
   const usageDays = load.usageDays_perWeek ?? 5;
-  
-  const durationHours = startHour <= endHour 
-    ? (endHour - startHour) 
-    : (24 - startHour + endHour);
+
+  const durationHours = getDurationHours(startHour, endHour);
   const estimatedAnnualKwh = (power && durationHours > 0) ? (power * durationHours * usageDays * 52).toFixed(0) : '—';
   
   const card = document.createElement('div');
@@ -1665,12 +1683,10 @@ function addLargeLoad(load = {}) {
   card.querySelectorAll('[data-update="true"]').forEach(input => {
     input.addEventListener('input', () => {
       const power = Number(card.querySelector('.large-load-power')?.value) || 0;
-      const startHour = Number(card.querySelector('.large-load-start')?.value) || 0;
-      const endHour = Number(card.querySelector('.large-load-end')?.value) || 23;
+      const startHour = normalizeHour(card.querySelector('.large-load-start')?.value, 0);
+      const endHour = normalizeHour(card.querySelector('.large-load-end')?.value, 23);
       const usageDays = Number(card.querySelector('.large-load-usage-days')?.value) || 5;
-      const durationHours = startHour <= endHour 
-        ? (endHour - startHour) 
-        : (24 - startHour + endHour);
+      const durationHours = getDurationHours(startHour, endHour);
       const annual = (power && durationHours > 0) ? (power * durationHours * usageDays * 52).toFixed(0) : '—';
       card.querySelector('.large-load-annual-kwh').textContent = annual;
       updateLargeLoadProfiles();
@@ -1694,12 +1710,10 @@ function renumberLargeLoads() {
 function collectLargeLoads() {
   return Array.from(document.querySelectorAll('.large-load')).map((loadNode) => {
     const power = Number(loadNode.querySelector('.large-load-power')?.value) || 0;
-    const startHour = Number(loadNode.querySelector('.large-load-start')?.value) || 0;
-    const endHour = Number(loadNode.querySelector('.large-load-end')?.value) || 23;
+    const startHour = normalizeHour(loadNode.querySelector('.large-load-start')?.value, 0);
+    const endHour = normalizeHour(loadNode.querySelector('.large-load-end')?.value, 23);
     const usageDays = Number(loadNode.querySelector('.large-load-usage-days')?.value) || 5;
-    const durationHours = startHour <= endHour 
-      ? (endHour - startHour) 
-      : (24 - startHour + endHour);
+    const durationHours = getDurationHours(startHour, endHour);
     return {
       powerKw: power,
       startHour,
@@ -1716,14 +1730,10 @@ function buildLargeLoadDailyCurveKw(loads) {
     if (!Number.isFinite(load.powerKw) || load.powerKw <= 0) {
       return;
     }
-    const start = Number.isInteger(load.startHour) ? load.startHour : 0;
-    const end = Number.isInteger(load.endHour) ? load.endHour : start;
-    for (let h = 0; h < 24; h++) {
-      const active = start === end ? true : (start < end ? (h >= start && h < end) : (h >= start || h < end));
-      if (active) {
-        curve[h] += load.powerKw;
-      }
-    }
+    const activeHours = getActiveHours(load.startHour, load.endHour);
+    activeHours.forEach((hour) => {
+      curve[hour] += load.powerKw;
+    });
   });
   return curve.map((value) => Math.round(value * 100) / 100);
 }
