@@ -74,17 +74,16 @@ body {
 }
 
 .brand-logo {
-  width: auto;
+  width: 220px;
   height: 72px;
-  max-width: 100%;
+  max-width: 46vw;
+  object-fit: contain;
   display: block;
 }
 
 .brand-logo-secondary {
-  width: auto;
+  width: 220px;
   height: 72px;
-  max-width: 100%;
-  display: block;
 }
 
 .kicker {
