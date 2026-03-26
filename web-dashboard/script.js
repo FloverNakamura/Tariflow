@@ -95,9 +95,6 @@ const wizardNext = byId('wizardNext');
 const wizardStepLabel = byId('wizardStepLabel');
 const wizardStepTitle = byId('wizardStepTitle');
 const wizardProgressFill = byId('wizardProgressFill');
-const knowsHouseholdConsumption = byId('knowsHouseholdConsumption');
-const householdKnownBlock = byId('householdKnownBlock');
-const householdUnknownBlock = byId('householdUnknownBlock');
 const installedBefore2024 = byId('installedBefore2024');
 const allowsGridControl = byId('allowsGridControl');
 const moduleConditionBlock = byId('moduleConditionBlock');
@@ -836,7 +833,6 @@ async function checkApiReachability() {
 
 function buildPayload() {
   const pvMode = document.querySelector('input[name="pvMode"]:checked').value;
-  const hasKnownHouseholdConsumption = knowsHouseholdConsumption?.checked === true;
   const hasPv = byId('hasPv').checked;
   const hasStorage = byId('hasStorage').checked;
   const hasHeatPump = byId('hasHeatPump').checked;
@@ -874,7 +870,7 @@ function buildPayload() {
     pvData.aspect_deg = optionalNumber('aspect');
   }
 
-  const annualHouseholdConsumption = hasKnownHouseholdConsumption ? optionalNumber('householdAnnualConsumption') : null;
+  const annualHouseholdConsumption = optionalNumber('householdAnnualConsumption');
   const personsRaw = parseInt(byId('persons').value, 10);
   const persons = Number.isInteger(personsRaw) ? personsRaw : 1;
 
@@ -925,7 +921,6 @@ function validatePayload(payload) {
   const plzEl = byId('plz');
   const personsEl = byId('persons');
   const annualConsumptionEl = byId('householdAnnualConsumption');
-  const hasKnownHouseholdConsumption = knowsHouseholdConsumption?.checked === true;
   plzEl.classList.remove('invalid');
   personsEl.classList.remove('invalid');
   annualConsumptionEl?.classList.remove('invalid');
@@ -935,24 +930,20 @@ function validatePayload(payload) {
     return 'Bitte eine gültige 5-stellige PLZ eingeben.';
   }
 
-  if (!hasKnownHouseholdConsumption) {
-    if (!Number.isInteger(payload.household.persons) || payload.household.persons < 1 || payload.household.persons > 10) {
-      personsEl.classList.add('invalid');
-      return 'Bitte eine Personenzahl zwischen 1 und 10 eingeben.';
-    }
+  if (!Number.isInteger(payload.household.persons) || payload.household.persons < 1 || payload.household.persons > 10) {
+    personsEl.classList.add('invalid');
+    return 'Bitte eine Personenzahl zwischen 1 und 10 eingeben.';
   }
 
-  if (hasKnownHouseholdConsumption) {
-    if (payload.household.annualConsumption_kwh == null) {
-      annualConsumptionEl?.classList.add('invalid');
-      return 'Bitte den bekannten Haushaltsverbrauch in kWh/Jahr eingeben.';
-    }
+  if (payload.household.annualConsumption_kwh == null) {
+    annualConsumptionEl?.classList.add('invalid');
+    return 'Bitte den absoluten Haushaltsverbrauch in kWh/Jahr eingeben.';
+  }
 
-    const annual = Number(payload.household.annualConsumption_kwh);
-    if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
-      annualConsumptionEl?.classList.add('invalid');
-      return 'Der absolute Haushaltsverbrauch muss zwischen 100 und 200000 kWh/Jahr liegen.';
-    }
+  const annual = Number(payload.household.annualConsumption_kwh);
+  if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
+    annualConsumptionEl?.classList.add('invalid');
+    return 'Der absolute Haushaltsverbrauch muss zwischen 100 und 200000 kWh/Jahr liegen.';
   }
 
   const moduleDecision = determineModuleDecision();
@@ -1302,34 +1293,14 @@ function unlockAllFormInputs() {
 function initHouseholdConsumptionMode() {
   const personsInput = byId('persons');
   const annualConsumptionInput = byId('householdAnnualConsumption');
-  if (!personsInput || !annualConsumptionInput || !knowsHouseholdConsumption || !householdKnownBlock || !householdUnknownBlock) {
+  if (!personsInput || !annualConsumptionInput) {
     return;
   }
 
-  const syncMode = () => {
-    const known = knowsHouseholdConsumption.checked;
-
-    householdKnownBlock.classList.toggle('hidden', !known);
-    householdUnknownBlock.classList.toggle('hidden', known);
-
-    setSectionEnabled(householdKnownBlock, known);
-    setSectionEnabled(householdUnknownBlock, !known);
-
-    annualConsumptionInput.required = known;
-    personsInput.required = !known;
-
-    if (known) {
-      personsInput.classList.remove('invalid');
-    } else {
-      annualConsumptionInput.classList.remove('invalid');
-    }
-
-    scheduleWizardHeightSync();
-  };
-
-  knowsHouseholdConsumption.addEventListener('change', syncMode);
-  syncDecisionButtons('knowsHouseholdConsumption', knowsHouseholdConsumption.checked);
-  syncMode();
+  // Both fields are mandatory in the household step.
+  personsInput.required = true;
+  annualConsumptionInput.required = true;
+  scheduleWizardHeightSync();
 }
 
 function initModuleDecisionFlow() {
@@ -1588,7 +1559,20 @@ function goToWizardStep(targetIndex, direction = 'forward') {
   }
 
   const maxIndex = wizardState.steps.length - 1;
-  const clampedTarget = Math.max(0, Math.min(targetIndex, maxIndex));
+  let clampedTarget = Math.max(0, Math.min(targetIndex, maxIndex));
+
+  // Skip the "Großverbraucher" step unless §14a large-load question is answered with yes.
+  const hasLargeLoad = byId('hasLargeLoad42')?.checked === true;
+  while (
+    clampedTarget > 0
+    && clampedTarget < maxIndex
+    && wizardState.steps[clampedTarget]?.dataset?.stepTitle === 'Großverbraucher'
+    && !hasLargeLoad
+  ) {
+    clampedTarget += direction === 'backward' ? -1 : 1;
+  }
+
+  clampedTarget = Math.max(0, Math.min(clampedTarget, maxIndex));
   if (clampedTarget === wizardState.currentIndex) {
     return false;
   }
