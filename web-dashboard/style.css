@@ -259,6 +259,7 @@ h1 {
   position: relative;
   min-height: 120px;
   overflow: hidden;
+  padding-bottom: 0.25rem;
 }
 
 .wizard-step {
@@ -305,10 +306,12 @@ h1 {
 }
 
 .wizard-nav {
-  margin-top: 0.95rem;
+  margin-top: clamp(1rem, 2.8vh, 1.45rem);
   display: flex;
   justify-content: space-between;
   gap: 0.65rem;
+  position: relative;
+  z-index: 4;
 }
 
 .wizard-nav button {

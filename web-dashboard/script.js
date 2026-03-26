@@ -125,6 +125,9 @@ const wizardState = {
   currentIndex: 0
 };
 
+let wizardResizeObserver = null;
+let wizardMutationObserver = null;
+
 // ─── Info-Texte ─────────────────────────────────────────────────────────────
 const INFO_TEXTS = {
   plz: {
@@ -1274,6 +1277,8 @@ function setSectionEnabled(targetDiv, enabled) {
     }
     control.disabled = !enabled;
   });
+
+  scheduleWizardHeightSync();
 }
 
 function setFieldsetActiveState(toggleEl, enabled) {
@@ -1318,6 +1323,8 @@ function initHouseholdConsumptionMode() {
     } else {
       annualConsumptionInput.classList.remove('invalid');
     }
+
+    scheduleWizardHeightSync();
   };
 
   knowsHouseholdConsumption.addEventListener('change', syncMode);
@@ -1379,6 +1386,7 @@ function syncModuleDecisionFlow() {
     return;
   }
   moduleDecisionResult.textContent = decision.message;
+  scheduleWizardHeightSync();
 }
 
 function syncModuleConsumptionButtons(pattern) {
@@ -1505,8 +1513,8 @@ function initWizard() {
   });
 
   updateWizardUi();
-  requestAnimationFrame(syncWizardHeight);
-  window.setTimeout(syncWizardHeight, 120);
+  startWizardLayoutObservers();
+  scheduleWizardHeightSync();
 
   wizardPrev.addEventListener('click', () => {
     goToWizardStep(wizardState.currentIndex - 1, 'backward');
@@ -1517,6 +1525,48 @@ function initWizard() {
   });
 
   window.addEventListener('resize', syncWizardHeight);
+}
+
+function startWizardLayoutObservers() {
+  if (!wizardStage) {
+    return;
+  }
+
+  if (wizardResizeObserver) {
+    wizardResizeObserver.disconnect();
+  }
+
+  if (typeof ResizeObserver !== 'undefined') {
+    wizardResizeObserver = new ResizeObserver(() => {
+      syncWizardHeight();
+    });
+
+    wizardState.steps.forEach((step) => {
+      wizardResizeObserver.observe(step);
+    });
+  }
+
+  if (wizardMutationObserver) {
+    wizardMutationObserver.disconnect();
+  }
+
+  if (typeof MutationObserver !== 'undefined') {
+    wizardMutationObserver = new MutationObserver(() => {
+      syncWizardHeight();
+    });
+
+    wizardMutationObserver.observe(wizardStage, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ['class', 'style']
+    });
+  }
+}
+
+function scheduleWizardHeightSync() {
+  requestAnimationFrame(syncWizardHeight);
+  window.setTimeout(syncWizardHeight, 140);
 }
 
 function isWizardOnLastStep() {
@@ -1602,6 +1652,7 @@ function syncWizardHeight() {
   }
   const measuredHeight = Math.max(activeStep.offsetHeight, activeStep.scrollHeight);
   if (measuredHeight > 40) {
+    wizardStage.style.height = `${measuredHeight}px`;
     wizardStage.style.minHeight = `${measuredHeight}px`;
   }
 }
