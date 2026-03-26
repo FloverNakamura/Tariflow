@@ -2830,6 +2830,7 @@ function initHeatingSources() {
       if (card) {
         card.remove();
         renumberHeatingSources();
+        scheduleWizardHeightSync();
       }
     });
     container.dataset.bound = 'true';
@@ -2903,7 +2904,9 @@ function addHeatingSource(source = {}) {
   card.querySelector('.heating-source-type').addEventListener('change', () => syncHeatingSourceCard(card));
 
   container.appendChild(card);
+  initNumericInputs(card);
   renumberHeatingSources();
+  scheduleWizardHeightSync();
 }
 
 function syncHeatingSourceCard(card) {
