@@ -120,10 +120,10 @@ const WIZARD_ANIMATION_MS = 360;
 // Referenz-Tagesprofil (ct/kWh) fuer EPEX-typische Day-Ahead-Verlaeufe in DE:
 // Nacht guenstig, mittags oft guenstiger (PV), abends klarer Peak.
 const REFERENCE_HOURLY_SPOT_CT = [
-  14, 13, 12, 11, 11, 13,
-  18, 23, 27, 24, 20, 17,
-  14, 13, 14, 17, 22, 29,
-  34, 31, 26, 22, 18, 16
+  12.0, 11.8, 11.6, 11.5, 11.8, 13.5,
+  17.0, 18.0, 15.0, 12.0, 9.0, 7.5,
+  6.5, 6.0, 7.5, 4.0, 8.0, 12.0,
+  16.0, 17.0, 15.5, 13.0, 12.3, 11.7
 ];
 
 const wizardState = {
