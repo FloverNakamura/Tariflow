@@ -846,9 +846,10 @@ function buildPayload() {
   const hasStorage = byId('hasStorage').checked;
   const hasHeatPump = byId('hasHeatPump').checked;
   const hasEv = byId('hasEv').checked;
+  const hasOtherLargeLoad = byId('hasOtherLargeLoad')?.checked === true;
   const hasLargeLoad42 = byId('hasLargeLoad42')?.checked === true;
   const evVehicles = hasEv ? collectEvVehicles() : [];
-  const largeLoads = hasLargeLoad42 ? collectLargeLoads() : [];
+  const largeLoads = hasLargeLoad42 && hasOtherLargeLoad ? collectLargeLoads() : [];
   const largeLoadDailyCurveKw = buildLargeLoadDailyCurveKw(largeLoads);
   const largeLoadCount = largeLoads.length;
   const largeLoadPowerKw = largeLoads.reduce((max, load) => Math.max(max, load.powerKw || 0), 0);
@@ -1053,13 +1054,18 @@ function validatePayload(payload) {
 
   if (byId('hasLargeLoad42')?.checked) {
     const loads = Array.from(document.querySelectorAll('.large-load'));
-    const hasAnyGrossConsumer = payload.heatPump.hasHeatPump || payload.emobility.hasEV || loads.length > 0;
+    const hasOtherLargeLoad = byId('hasOtherLargeLoad')?.checked === true;
+    const hasAnyGrossConsumer = payload.heatPump.hasHeatPump || payload.emobility.hasEV || hasOtherLargeLoad;
     if (!hasAnyGrossConsumer) {
       return 'Bitte geben Sie mindestens einen Großverbraucher an: entweder Wärmepumpe, E-Auto oder ein anderes Gerät über 4,2 kW.';
     }
 
-    if (!loads.length) {
+    if (!hasOtherLargeLoad) {
       return '';
+    }
+
+    if (!loads.length) {
+      return 'Bitte mindestens ein weiteres Gerät über 4,2 kW hinzufügen oder die Auswahl auf "Nein" stellen.';
     }
 
     for (let index = 0; index < loads.length; index++) {
@@ -1638,6 +1644,8 @@ function goToWizardStep(targetIndex, direction = 'forward') {
 
   wizardState.currentIndex = clampedTarget;
   updateWizardUi();
+  clearError();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   return true;
 }
 
@@ -1657,6 +1665,28 @@ function validateWizardStep(index) {
   for (const field of fields) {
     if (field.willValidate && !field.checkValidity()) {
       field.reportValidity();
+      return false;
+    }
+  }
+
+  const stepTitle = step.dataset.stepTitle || '';
+  if (stepTitle === 'Großverbraucher' && byId('hasLargeLoad42')?.checked) {
+    const hasHeatPump = byId('hasHeatPump')?.checked === true;
+    const hasEv = byId('hasEv')?.checked === true;
+    const hasOtherLargeLoad = byId('hasOtherLargeLoad')?.checked === true;
+
+    if (!hasHeatPump && !hasEv && !hasOtherLargeLoad) {
+      showError('Bitte mindestens einen Großverbraucher auswählen: Wärmepumpe, E-Auto oder ein weiteres Gerät über 4,2 kW.');
+      return false;
+    }
+
+    if (hasEv && !collectEvVehicles().length) {
+      showError('Bitte mindestens ein E-Auto erfassen oder E-Auto auf "Nein" stellen.');
+      return false;
+    }
+
+    if (hasOtherLargeLoad && !collectLargeLoads().length) {
+      showError('Bitte mindestens ein weiteres Gerät über 4,2 kW erfassen oder die Auswahl auf "Nein" stellen.');
       return false;
     }
   }

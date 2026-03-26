@@ -19,12 +19,6 @@
         <img class="brand-logo" src="assets/SachsenEnergie-Logo.svg.png" alt="SachsenEnergie Logo">
         <img class="brand-logo brand-logo-secondary" src="assets/design-ohne-titel.svg" alt="Zusatzlogo">
       </div>
-      <p class="kicker">SachsenEnergie Tooling</p>
-      <h1>Tariflow Energie-Tool</h1>
-      <p class="subtitle">
-        Tarifanalyse und Energieanalyse kombiniert in einer einzigen Oberfläche.
-      </p>
-      <div id="apiStatus" class="api-status">Backend-Status wird geprüft...</div>
     </header>
 
     <section class="panel">
@@ -54,7 +48,7 @@
           <section class="wizard-step" data-step-title="§14a Modulprüfung">
             <fieldset class="moduleDecisionSection">
               <legend>Gibt es Geräte im Haushalt über 4,2 kW Leistung?</legend>
-              <input id="hasLargeLoad42" type="checkbox" class="component-toggle decision-state-input" data-target="largeLoadFields" hidden>
+              <input id="hasLargeLoad42" type="checkbox" class="decision-state-input" hidden>
               <div class="decision-toggle" data-toggle-id="hasLargeLoad42">
                 <button type="button" class="decision-btn" data-value="true">Ja, es gibt Geräte über 4,2 kW</button>
                 <button type="button" class="decision-btn active" data-value="false">Nein, keine Geräte über 4,2 kW</button>
@@ -156,10 +150,16 @@
             </div>
 
             <div class="subsection gross-subsection">
-              <h3 class="gross-sub-heading">Sonstige Geräte über 2,4 kW</h3>
+              <h3 class="gross-sub-heading">Sonstige Geräte über 4,2 kW</h3>
               <fieldset class="largeLoadSection">
                 <legend>Einzelne Geräte erfassen <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
-                <p class="hint">Geräte wie Sauna, Klimaanlage, Durchlauferhitzer, Wäschetrockner usw. mit einer Leistung über 2,4 kW.</p>
+                <input id="hasOtherLargeLoad" type="checkbox" class="component-toggle decision-state-input" data-target="largeLoadFields" hidden>
+                <div class="decision-toggle" data-toggle-id="hasOtherLargeLoad">
+                  <button type="button" class="decision-btn" data-value="true">Ja, weitere Geräte über 4,2 kW vorhanden</button>
+                  <button type="button" class="decision-btn active" data-value="false">Nein, keine weiteren Geräte</button>
+                </div>
+
+                <p class="hint">Geräte wie Sauna, Klimaanlage, Durchlauferhitzer, Wäschetrockner usw. mit einer Leistung über 4,2 kW.</p>
 
                 <div id="largeLoadFields" class="largeLoadFields">
                   <div id="largeLoads" class="large-loads"></div>
