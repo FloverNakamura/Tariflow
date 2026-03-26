@@ -122,6 +122,33 @@ export interface ScenarioResult {
   savingVsStatic_eur: number;
 }
 
+export interface EligibilityCheck {
+  id: string;
+  name: string;
+  section: 'requirements' | 'technical' | 'exclusions' | 'economic';
+  satisfied: boolean;
+  importance: 'critical' | 'required' | 'recommended';
+  reason: string;
+  value?: number | boolean | string;
+}
+
+export interface DynamicTarifEligibilityReport {
+  recommendedTariff: 'static' | 'dynamic';
+  isEligibleForDynamic: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  checks: EligibilityCheck[];
+  requirementsMet: boolean;
+  technicalMet: boolean;
+  exclusionsOk: boolean;
+  economicMet: boolean;
+  estimatedStaticCost_eur: number;
+  estimatedDynamicCost_eur: number;
+  estimatedSavings_eur: number;
+  estimatedSavings_pct: number;
+  mainReason: string;
+  detailedReasons: string[];
+}
+
 export interface CalculationResponse {
   success: boolean;
   data: {
@@ -141,6 +168,7 @@ export interface CalculationResponse {
       source: string;
       note: string;
     }[];
+    eligibilityReport?: DynamicTarifEligibilityReport;
     summary: {
       pvYield_kwh: number;
       totalConsumption_kwh: number;

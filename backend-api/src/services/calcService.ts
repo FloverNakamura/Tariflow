@@ -7,6 +7,10 @@ import {
   CalculationRequest, CalculationResponse,
   MonthlyEnergy, TariffResult, ScenarioResult, TarifModul14a, LargeLoadConfig
 } from '../types/pvTypes';
+import {
+  assessDynamicTarifEligibility, deriveMetrics,
+  UserInputMetrics, estimateEconomicComparison
+} from './dynamicTarifEligibility';
 
 // ── JSON-Daten laden ─────────────────────────────────────────────────────────
 const loadProfiles  = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/loadProfiles.json'),  'utf-8'));
@@ -718,6 +722,45 @@ export async function runCalculation(req: CalculationRequest): Promise<Calculati
   const dynamicMarkupPlusTaxesCt = dynamicMarkupCt + dynamicTaxesCt;
   const dynamicTariffPriceHourlyCt = spotLive.hourlyAvgCt.map((spotCt) => spotCt + dynamicMarkupPlusTaxesCt);
 
+  // ── Eligibility-Bericht für dynamischen Tarif ──────────────────────────────
+  const userInputMetrics: UserInputMetrics = {
+    plz: req.household.plz,
+    livingArea_m2: req.household.livingArea_m2 ?? 150,
+    annualConsumption_kwh: totalCons_kwh,
+    largeLoadCount,
+    largeLoadPowerKw,
+    largeLoadControllable: largeLoads.some((load) => (load.controllable ?? false)),
+    hasHeatPump: req.heatPump.hasHeatPump,
+    hpConsumption_kwh: req.heatPump.hasHeatPump ? (req.heatPump.consumption_kwh ?? 3000) : 0,
+    hpCop: req.heatPump.hasHeatPump ? (req.heatPump.cop ?? 3.5) : 0,
+    hasEV: req.emobility.hasEV,
+    evBatteryKwh: req.emobility.hasEV ? (evVehicles[0]?.batteryCapacity_kwh ?? 60) : 0,
+    evWallboxPowerKw: req.emobility.hasEV ? (req.emobility.chargingPower_kw ?? 11) : 0,
+    evChargingWindowHours: req.emobility.hasEV ? (req.emobility.chargingWindowHours ?? 0) : 0,
+    evControllable: req.emobility.hasEV,
+    pvPowerKwp: peakpower,
+    storageCapacityKwh: storageCap,
+    hasHeating: req.heating.hasHeating,
+    heatingConsumption_kwh: req.heating.hasHeating ? (req.heating.consumption_kwh ?? 5000) : 0,
+    hasSmartMeter: req.tariff.module14a !== 'none' || false,  // Annahme: mit Modul = mit iMS
+    hasControllableDevices: largeLoads.length > 0 || req.emobility.hasEV || req.heatPump.hasHeatPump,
+    userAcceptsVariableCosts: true,  // Standard: akzeptieren
+  };
+
+  const economicComparison = estimateEconomicComparison(
+    userInputMetrics,
+    avg(spotLive.hourlyAvgCt),
+    tariffData.staticTariff.workingPrice_ct_per_kwh,
+    dynamicMarkupPlusTaxesCt
+  );
+
+  const eligibilityReport = assessDynamicTarifEligibility(
+    userInputMetrics,
+    economicComparison,
+    staticResult.netCost_eur,
+    tariffs.find((t) => t.tariffType === 'dynamic' && t.module14a === 'none')?.netCost_eur ?? staticResult.netCost_eur
+  );
+
   return {
     success: true,
     data: {
@@ -771,6 +814,7 @@ export async function runCalculation(req: CalculationRequest): Promise<Calculati
           note: 'Ohne Messdaten werden typische Lastgänge verwendet.'
         }
       ],
+      eligibilityReport,
       summary: {
         pvYield_kwh:         Math.round(totalPv_kwh  * 10)/10,
         totalConsumption_kwh: Math.round(totalCons_kwh * 10)/10,

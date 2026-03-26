@@ -2473,6 +2473,9 @@ function renderResults(data) {
 
   renderTariffTable(visibleTariffs);
   renderTransparency(data.dataTransparency || []);
+  if (data.eligibilityReport) {
+    renderEligibilityReport(data.eligibilityReport);
+  }
   renderCharts(data);
   renderMarketDailyCurveChart();
   startMarketTicker();
@@ -2832,6 +2835,129 @@ function renderTariffTable(tariffs) {
 
     tbody.appendChild(tr);
   });
+}
+
+function renderEligibilityReport(report) {
+  const container = byId('eligibilityReportContainer');
+  if (!container) return;
+  
+  container.innerHTML = '';
+
+  // ── Header mit Empfehlung ──────────────────────────────────────────────────
+  const header = document.createElement('div');
+  header.className = 'eligibility-header';
+  header.style.cssText = `
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    background: ${report.recommendedTariff === 'dynamic' ? '#E8F5E9' : '#FFF3E0'};
+    border-left: 4px solid ${report.recommendedTariff === 'dynamic' ? '#4CAF50' : '#FF9800'};
+  `;
+  
+  const icon = report.recommendedTariff === 'dynamic' ? '✅' : 'ℹ️';
+  const recommendation = report.recommendedTariff === 'dynamic'
+    ? 'Dynamischer Tarif empfohlen'
+    : 'Statischer Tarif empfohlen';
+  
+  header.innerHTML = `
+    <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem;">
+      ${icon} ${recommendation}
+    </div>
+    <div style="font-size: 0.95rem; margin-bottom: 0.5rem;">
+      <strong>${escapeHtml(report.mainReason)}</strong>
+    </div>
+    <div style="font-size: 0.9rem; color: #555;">
+      <strong>Geschätzte Jahreskosten:</strong><br/>
+      Statisch: <strong>${formatEuro(report.estimatedStaticCost_eur)}</strong> | 
+      Dynamisch: <strong>${formatEuro(report.estimatedDynamicCost_eur)}</strong> | 
+      Ersparnis: <strong>${formatEuro(report.estimatedSavings_eur)} (${Math.round(report.estimatedSavings_pct * 10) / 10}%)</strong>
+    </div>
+  `;
+  container.appendChild(header);
+
+  // ── Bedingungen nach Kategorie ──────────────────────────────────────────────
+  const categories = [
+    { key: 'requirements', label: '📋 Mindestvoraussetzungen', color: '#1976D2' },
+    { key: 'technical', label: '⚙️ Technische Voraussetzungen', color: '#388E3C' },
+    { key: 'exclusions', label: '🚫 Ausschlussregeln', color: '#D32F2F' },
+    { key: 'economic', label: '💰 Wirtschaftliche Rentabilität', color: '#F57C00' }
+  ];
+
+  categories.forEach(({ key, label, color }) => {
+    const checks = report.checks.filter((c) => c.section === key);
+    if (!checks.length) return;
+
+    const section = document.createElement('section');
+    section.style.cssText = `
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #F9FAFB;
+      border-radius: 8px;
+      border-top: 3px solid ${color};
+    `;
+
+    const title = document.createElement('h4');
+    title.style.cssText = `margin: 0 0 1rem 0; color: ${color}; font-size: 1rem;`;
+    title.textContent = label;
+    section.appendChild(title);
+
+    const list = document.createElement('ul');
+    list.style.cssText = `margin: 0; padding-left: 1.5rem;`;
+
+    checks.forEach((check) => {
+      const li = document.createElement('li');
+      li.style.cssText = `
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+        color: ${check.satisfied ? '#2E7D32' : '#C62828'};
+        ${check.importance === 'critical' ? 'font-weight: bold;' : ''}
+      `;
+
+      const icon = check.satisfied ? '✓' : '✗';
+      const valueStr = check.value
+        ? ` <span style="color: #555; font-weight: 500;">[${check.value}]</span>`
+        : '';
+
+      li.innerHTML = `
+        <strong>${icon}</strong> ${escapeHtml(check.name)}${valueStr}
+        <div style="font-size: 0.88rem; color: #666; margin-top: 0.25rem; margin-left: 1.5rem;">
+          ${escapeHtml(check.reason)}
+        </div>
+      `;
+      list.appendChild(li);
+    });
+
+    section.appendChild(list);
+    container.appendChild(section);
+  });
+
+  // ── Zusammenfassung der Status ─────────────────────────────────────────────
+  const summary = document.createElement('div');
+  summary.style.cssText = `
+    padding: 1rem;
+    background: #E3F2FD;
+    border-left: 4px solid #1976D2;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    margin-top: 1rem;
+  `;
+
+  const statusLines = [
+    ['Mindestvoraussetzungen', report.requirementsMet],
+    ['Technische Voraussetzungen', report.technicalMet],
+    ['Ausschlussregeln', report.exclusionsOk],
+    ['Wirtschaftlichkeit', report.economicMet]
+  ];
+
+  let statusHtml = '<strong>Status der Prüfungen:</strong><br/>';
+  statusLines.forEach(([name, met]) => {
+    const icon = met ? '✓' : '✗';
+    const color = met ? '#2E7D32' : '#C62828';
+    statusHtml += `<div style="color: ${color}; margin: 0.25rem 0;"><strong>${icon}</strong> ${name}</div>`;
+  });
+
+  summary.innerHTML = statusHtml;
+  container.appendChild(summary);
 }
 
 function renderTransparency(entries) {
