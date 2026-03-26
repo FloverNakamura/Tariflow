@@ -856,6 +856,23 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Stabilize details/summary toggles in result windows across browsers.
+document.addEventListener('click', (e) => {
+  const summary = e.target.closest('.result-disclosure > summary, .eligibility-group > summary');
+  if (!summary) {
+    return;
+  }
+  if (e.target.closest('.info-btn')) {
+    return;
+  }
+  const details = summary.parentElement;
+  if (!(details instanceof HTMLDetailsElement)) {
+    return;
+  }
+  e.preventDefault();
+  details.open = !details.open;
+});
+
 // Close via × button
 infoModalClose?.addEventListener('click', closeInfoModal);
 
