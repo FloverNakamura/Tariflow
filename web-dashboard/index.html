@@ -323,7 +323,7 @@
           <section class="wizard-step" data-step-title="Heizung">
             <section class="subsection energy-inputs">
               <h2>Heizquellen <button type="button" class="info-btn" data-info="heatingSourcesInfo">&#9432;</button></h2>
-              <p class="gross-step-intro">Erfassen Sie alle Heizquellen des Haushalts. Gas, Öl und Fernwärme fließen nicht in den Stromverbrauch ein. Die Wärmepumpe wird automatisch aus dem Großverbraucher-Schritt übernommen, wenn sie für Heizen oder für Heizen und Warmwasser genutzt wird.</p>
+              <p class="gross-step-intro">Erfassen Sie alle Heizquellen des Haushalts. Gas, Öl und Fernwärme fließen nicht in den Stromverbrauch ein. Die Wärmepumpe wird aus dem Großverbraucher-Schritt vorgeschlagen und kann bei Bedarf entfernt werden.</p>
               <div id="heatingSources" class="heating-sources"></div>
               <div class="ev-toolbar" style="margin-top:0.75rem">
                 <button id="addHeatingSourceBtn" type="button" class="ghost">Heizquelle hinzufügen</button>
@@ -390,6 +390,12 @@
 
         <p id="marketTickerStatus" class="note">Ticker wird initialisiert ...</p>
       </section>
+
+      <article class="chart-card market-daily-curve-card">
+        <h3>Tageslastkurve Strompreis (online)</h3>
+        <p id="marketDailyCurveInfo" class="chart-note">Tageslastkurve wird geladen ...</p>
+        <canvas id="marketDailyCurveChart"></canvas>
+      </article>
 
       <div class="meta-grid">
         <div><span>Koordinaten <button type="button" class="info-btn" data-info="resCoords">&#9432;</button></span><strong id="resCoords">-</strong></div>

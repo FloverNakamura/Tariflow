@@ -1211,6 +1211,16 @@ td.bad {
   color: #2f3a4c;
 }
 
+.chart-note {
+  margin: 0 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.market-daily-curve-card {
+  margin-top: 1rem;
+}
+
 .chart-card canvas {
   display: block;
   width: 100% !important;

@@ -89,6 +89,8 @@ const marketTickerDynamicCurrent = byId('marketTickerDynamicCurrent');
 const marketTickerTrend = byId('marketTickerTrend');
 const marketTickerWindow = byId('marketTickerWindow');
 const marketTickerStatus = byId('marketTickerStatus');
+const marketDailyCurveCanvas = byId('marketDailyCurveChart');
+const marketDailyCurveInfo = byId('marketDailyCurveInfo');
 const wizardStage = byId('wizardStage');
 const wizardPrev = byId('wizardPrev');
 const wizardNext = byId('wizardNext');
@@ -106,10 +108,12 @@ const moduleDecisionResult = byId('moduleDecisionResult');
 let latestData = null;
 let monthlyChart = null;
 let balanceChart = null;
+let marketDailyCurveChart = null;
 let marketTickerTimer = null;
 let marketTickerSamples = [];
 let marketTickerBusy = false;
 let marketTickerHistoryLoaded = false;
+let wpHeatingSourceManuallyRemoved = false;
 
 const MARKET_TICKER_SAMPLE_LIMIT = 120;
 const MARKET_TICKER_HISTORY_HOURS = 168;
@@ -125,6 +129,8 @@ const REFERENCE_HOURLY_SPOT_CT = [
   6.5, 6.0, 7.5, 4.0, 8.0, 12.0,
   16.0, 17.0, 15.5, 13.0, 12.3, 11.7
 ];
+
+let dailySpotCurveCt = [...REFERENCE_HOURLY_SPOT_CT];
 
 const wizardState = {
   steps: [],
@@ -287,11 +293,11 @@ const INFO_TEXTS = {
     title: 'Nutzung der Wärmepumpe',
     html: `<p>Hier legen Sie fest, wofür die Wärmepumpe genutzt wird:</p>
            <ul>
-             <li><strong>1. Nur Warmwasser:</strong> Kein automatischer Eintrag als Heizquelle in der Heizmethoden-Auswertung.</li>
-             <li><strong>2. Nur Heizen:</strong> Wird automatisch als Heizquelle übernommen.</li>
-             <li><strong>3. Warmwasser und Heizen:</strong> Wird automatisch als Heizquelle übernommen.</li>
+             <li><strong>1. Nur Warmwasser:</strong> Kein automatischer Vorschlag als Heizquelle in der Heizmethoden-Auswertung.</li>
+             <li><strong>2. Nur Heizen:</strong> Wird als Heizquelle vorgeschlagen.</li>
+             <li><strong>3. Warmwasser und Heizen:</strong> Wird als Heizquelle vorgeschlagen.</li>
            </ul>
-           <p>Nur bei den Optionen 2 und 3 wird die Wärmepumpe in der Heizquellen-Logik berücksichtigt.</p>`
+           <p>Nur bei den Optionen 2 und 3 wird die Wärmepumpe in der Heizquellen-Logik vorgeschlagen und kann im Schritt Heizung entfernt werden.</p>`
   },
   ev: {
       title: 'Elektrofahrzeug',
@@ -1521,7 +1527,8 @@ function updateLargeLoadProfiles() {
   largeLoadProfilesContainer.innerHTML = '';
 
   if (includeHeatPumpConsumer) {
-    const avgSpotCt = REFERENCE_HOURLY_SPOT_CT.reduce((sum, value) => sum + value, 0) / REFERENCE_HOURLY_SPOT_CT.length;
+    const currentCurve = getCurrentDailySpotCurveCt();
+    const avgSpotCt = currentCurve.reduce((sum, value) => sum + value, 0) / currentCurve.length;
     const estimatedAnnualCost = (heatPumpAnnualKwh * avgSpotCt) / 100;
     const avgDailyKwh = heatPumpAnnualKwh / 365;
 
@@ -1546,12 +1553,14 @@ function updateLargeLoadProfiles() {
     const usageDays = load.usageDays_perWeek || 5;
     const hoursArray = getActiveHours(startHour, endHour);
     
+    const currentCurve = getCurrentDailySpotCurveCt();
+
     // Berechne Kosten pro Stunde
     const hourlyData = hoursArray.map(hour => ({
       hour,
-      price: REFERENCE_HOURLY_SPOT_CT[hour] || 20,
+      price: currentCurve[hour] || 20,
       consumption: power,
-      cost: (power * REFERENCE_HOURLY_SPOT_CT[hour] / 100)
+      cost: (power * (currentCurve[hour] || 20) / 100)
     }));
     
     // Tageskosten
@@ -1632,13 +1641,15 @@ function updateEvVehicleProfiles() {
     
     const hoursArray = getActiveHours(startHour, endHour);
     
+    const currentCurve = getCurrentDailySpotCurveCt();
+
     // Berechne Kosten pro Stunde
     const hourlyData = hoursArray.map(hour => ({
       hour,
-      price: REFERENCE_HOURLY_SPOT_CT[hour] || 20,
+      price: currentCurve[hour] || 20,
       power: wallboxPower,
       energyKwh: wallboxPower,
-      cost: (wallboxPower * REFERENCE_HOURLY_SPOT_CT[hour] / 100)
+      cost: (wallboxPower * (currentCurve[hour] || 20) / 100)
     }));
     
     // Kosten pro Ladesession (Vollladung)
@@ -2463,6 +2474,7 @@ function renderResults(data) {
   renderTariffTable(visibleTariffs);
   renderTransparency(data.dataTransparency || []);
   renderCharts(data);
+  renderMarketDailyCurveChart();
   startMarketTicker();
 }
 
@@ -2658,8 +2670,11 @@ async function loadMarketTickerHistory() {
     marketTickerSamples = incoming
       .sort((a, b) => a.at.getTime() - b.at.getTime())
       .slice(-MARKET_TICKER_SAMPLE_LIMIT);
+
+    updateDailySpotCurveFromSamples();
   } catch {
     // History is optional; ticker can still operate with live values only.
+    renderMarketDailyCurveChart();
   }
 }
 
@@ -2676,6 +2691,88 @@ function addTickerSample(sample) {
   marketTickerSamples.sort((a, b) => a.at.getTime() - b.at.getTime());
   if (marketTickerSamples.length > MARKET_TICKER_SAMPLE_LIMIT) {
     marketTickerSamples = marketTickerSamples.slice(-MARKET_TICKER_SAMPLE_LIMIT);
+  }
+
+  updateDailySpotCurveFromSamples();
+}
+
+function getCurrentDailySpotCurveCt() {
+  if (!Array.isArray(dailySpotCurveCt) || dailySpotCurveCt.length !== 24) {
+    return [...REFERENCE_HOURLY_SPOT_CT];
+  }
+  return dailySpotCurveCt;
+}
+
+function updateDailySpotCurveFromSamples() {
+  dailySpotCurveCt = buildDailySpotCurveFromSamples(marketTickerSamples);
+  renderMarketDailyCurveChart();
+  updateLargeLoadProfiles();
+  updateEvVehicleProfiles();
+}
+
+function buildDailySpotCurveFromSamples(samples) {
+  const buckets = Array.from({ length: 24 }, () => []);
+  for (const sample of samples) {
+    const ts = sample?.at instanceof Date ? sample.at : new Date(sample?.at);
+    const valueCt = Number(sample?.valueCt);
+    if (!Number.isFinite(ts.getTime()) || !Number.isFinite(valueCt)) {
+      continue;
+    }
+    buckets[ts.getHours()].push(valueCt);
+  }
+
+  return buckets.map((values, hour) => {
+    if (!values.length) {
+      return REFERENCE_HOURLY_SPOT_CT[hour];
+    }
+    const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+    return Number(avg.toFixed(2));
+  });
+}
+
+function renderMarketDailyCurveChart() {
+  if (typeof Chart === 'undefined' || !marketDailyCurveCanvas) {
+    return;
+  }
+
+  const curve = getCurrentDailySpotCurveCt();
+  const labels = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
+
+  if (marketDailyCurveChart) {
+    marketDailyCurveChart.destroy();
+  }
+
+  marketDailyCurveChart = new Chart(marketDailyCurveCanvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Ø Spotpreis je Stunde (ct/kWh)',
+        data: curve,
+        borderColor: '#1c6dd0',
+        backgroundColor: 'rgba(28,109,208,0.15)',
+        fill: true,
+        tension: 0.25,
+        pointRadius: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#334155' } }
+      },
+      scales: {
+        x: { ticks: { color: '#334155', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#E4E9F0' } },
+        y: { ticks: { color: '#334155' }, grid: { color: '#E4E9F0' } }
+      }
+    }
+  });
+
+  if (marketDailyCurveInfo) {
+    const sourceLabel = marketTickerSamples.length
+      ? `Online-Daten aus ${marketTickerSamples.length} Marktwerten (aWATTar/EPEX, wie bei Vattenfall ausgewiesen).`
+      : 'Fallback-Profil aktiv, bis Online-Marktdaten geladen sind.';
+    marketDailyCurveInfo.textContent = `Tageslastkurve nach aktuellem Börsenprofil. ${sourceLabel}`;
   }
 }
 
@@ -2955,6 +3052,9 @@ function initEnergyAnalysisSection() {
 
   // Wenn WP in Großverbraucher aktiviert/deaktiviert wird → WP-Karte aktualisieren
   byId('hasHeatPump')?.addEventListener('change', () => {
+    if (!byId('hasHeatPump')?.checked) {
+      wpHeatingSourceManuallyRemoved = false;
+    }
     syncWpHeatingCard();
   });
   byId('heatPumpUsageMode')?.addEventListener('change', () => {
@@ -2984,6 +3084,9 @@ function initHeatingSources() {
       if (!removeBtn) return;
       const card = removeBtn.closest('.heating-source');
       if (card) {
+        if (card.classList.contains('heating-source-wp-info')) {
+          wpHeatingSourceManuallyRemoved = true;
+        }
         card.remove();
         renumberHeatingSources();
         scheduleWizardHeightSync();
@@ -3016,7 +3119,10 @@ function syncWpHeatingCard() {
   const container = heatingSourcesContainer();
   if (!container) return;
   const autoHeatPump = getAutoHeatPumpHeatingSource();
-  const includeHeatPump = Boolean(autoHeatPump);
+  if (!autoHeatPump) {
+    wpHeatingSourceManuallyRemoved = false;
+  }
+  const includeHeatPump = Boolean(autoHeatPump) && !wpHeatingSourceManuallyRemoved;
   const existing = container.querySelector('.heating-source-wp-info');
 
   if (includeHeatPump && !existing) {
@@ -3033,7 +3139,8 @@ function syncWpHeatingCard() {
     info.style.cssText = 'border:1px dashed #0B8F6A; background:#f0faf7; padding:0.75rem 1rem; border-radius:8px;';
     info.innerHTML = `
       <div class="ev-vehicle-head">
-        <strong class="heating-source-title">Heizquelle (fix)</strong>
+        <strong class="heating-source-title">Heizquelle (Wärmepumpe)</strong>
+        <button type="button" class="ghost heating-source-remove-btn">Entfernen</button>
       </div>
       <div class="grid three">
         <label class="field">
@@ -3051,7 +3158,7 @@ function syncWpHeatingCard() {
           <input type="text" value="${usageLabel}" disabled>
         </label>
       </div>
-      <small class="hint">Diese Heizquelle wird automatisch aus der Wärmepumpen-Auswahl übernommen und kann hier nicht entfernt werden.</small>
+      <small class="hint">Diese Heizquelle wird aus der Wärmepumpen-Auswahl vorgeschlagen und kann entfernt werden.</small>
     `;
     container.prepend(info);
   } else if (includeHeatPump && existing) {
@@ -3162,7 +3269,8 @@ function collectHeatingSources() {
   }));
 
   const autoHeatPump = getAutoHeatPumpHeatingSource();
-  if (autoHeatPump) {
+  const wpCardExists = Boolean(container.querySelector('.heating-source-wp-info'));
+  if (autoHeatPump && wpCardExists && !wpHeatingSourceManuallyRemoved) {
     sources.push(autoHeatPump);
   }
 
