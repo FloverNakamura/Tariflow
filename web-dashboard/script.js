@@ -2843,7 +2843,10 @@ function initHeatingSources() {
   if (!container || !addBtn) return;
 
   if (!addBtn.dataset.bound) {
-    addBtn.addEventListener('click', () => addHeatingSource());
+    addBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      addHeatingSource();
+    });
     addBtn.dataset.bound = 'true';
   }
 
@@ -2868,6 +2871,18 @@ function initHeatingSources() {
 
   syncWpHeatingCard();
 }
+
+document.addEventListener('click', (event) => {
+  const addHeatingBtn = event.target.closest('#addHeatingSourceBtn');
+  if (!addHeatingBtn) {
+    return;
+  }
+  if (addHeatingBtn.dataset.bound === 'true') {
+    return;
+  }
+  event.preventDefault();
+  addHeatingSource();
+});
 
 function syncWpHeatingCard() {
   const container = heatingSourcesContainer();
