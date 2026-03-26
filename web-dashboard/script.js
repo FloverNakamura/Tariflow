@@ -510,8 +510,8 @@ const INFO_TEXTS = {
 
 Object.assign(INFO_TEXTS, {
   inputsOverview: {
-    title: 'Energieanalyse: Eingaben',
-    html: '<p>Hier werden Wohnflaeche, Stromdaten und Heizart fuer die Energieanalyse erfasst.</p>'
+    title: 'Heizung',
+    html: '<p>Hier wird die Heizart und der Heizverbrauch fuer die Energieanalyse erfasst.</p>'
   },
   areaM2: {
     title: 'Wohnflaeche',
@@ -880,9 +880,17 @@ function buildPayload() {
     pvData.aspect_deg = optionalNumber('aspect');
   }
 
-  const annualHouseholdConsumption = optionalNumber('householdAnnualConsumption');
+  const consumptionKnown = byId('consumptionKnown')?.checked === true;
   const personsRaw = parseInt(byId('persons').value, 10);
-  const persons = Number.isInteger(personsRaw) ? personsRaw : 1;
+  const persons = Number.isInteger(personsRaw) ? personsRaw : 2;
+
+  let annualHouseholdConsumption;
+  if (consumptionKnown) {
+    annualHouseholdConsumption = optionalNumber('householdAnnualConsumption');
+  } else {
+    const AVG_KWH = [0, 1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500];
+    annualHouseholdConsumption = AVG_KWH[persons] ?? persons * 1000 + 500;
+  }
 
   const moduleDecision = determineModuleDecision();
 
@@ -932,8 +940,9 @@ function validatePayload(payload) {
   const plzEl = byId('plz');
   const personsEl = byId('persons');
   const annualConsumptionEl = byId('householdAnnualConsumption');
+  const consumptionKnown = byId('consumptionKnown')?.checked === true;
   plzEl.classList.remove('invalid');
-  personsEl.classList.remove('invalid');
+  personsEl?.classList.remove('invalid');
   annualConsumptionEl?.classList.remove('invalid');
 
   if (!/^\d{5}$/.test(payload.household.plz)) {
@@ -941,20 +950,21 @@ function validatePayload(payload) {
     return 'Bitte eine gültige 5-stellige PLZ eingeben.';
   }
 
-  if (!Number.isInteger(payload.household.persons) || payload.household.persons < 1 || payload.household.persons > 10) {
-    personsEl.classList.add('invalid');
-    return 'Bitte eine Personenzahl zwischen 1 und 10 eingeben.';
-  }
-
-  if (payload.household.annualConsumption_kwh == null) {
-    annualConsumptionEl?.classList.add('invalid');
-    return 'Bitte den absoluten Haushaltsverbrauch in kWh/Jahr eingeben.';
-  }
-
-  const annual = Number(payload.household.annualConsumption_kwh);
-  if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
-    annualConsumptionEl?.classList.add('invalid');
-    return 'Der absolute Haushaltsverbrauch muss zwischen 100 und 200000 kWh/Jahr liegen.';
+  if (!consumptionKnown) {
+    if (!Number.isInteger(payload.household.persons) || payload.household.persons < 1 || payload.household.persons > 10) {
+      personsEl?.classList.add('invalid');
+      return 'Bitte eine Personenzahl zwischen 1 und 10 eingeben.';
+    }
+  } else {
+    if (payload.household.annualConsumption_kwh == null) {
+      annualConsumptionEl?.classList.add('invalid');
+      return 'Bitte den absoluten Haushaltsverbrauch in kWh/Jahr eingeben.';
+    }
+    const annual = Number(payload.household.annualConsumption_kwh);
+    if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
+      annualConsumptionEl?.classList.add('invalid');
+      return 'Der absolute Haushaltsverbrauch muss zwischen 100 und 200000 kWh/Jahr liegen.';
+    }
   }
 
   const moduleDecision = determineModuleDecision();
@@ -1319,16 +1329,26 @@ function unlockAllFormInputs() {
 }
 
 function initHouseholdConsumptionMode() {
+  const consumptionKnownEl = byId('consumptionKnown');
   const personsInput = byId('persons');
   const annualConsumptionInput = byId('householdAnnualConsumption');
-  if (!personsInput || !annualConsumptionInput) {
+  const consumptionKnownFields = byId('consumptionKnownFields');
+  const personsFieldsEl = byId('personsFields');
+  if (!consumptionKnownEl || !personsInput || !annualConsumptionInput) {
     return;
   }
 
-  // Both fields are mandatory in the household step.
-  personsInput.required = true;
-  annualConsumptionInput.required = true;
-  scheduleWizardHeightSync();
+  const sync = () => {
+    const known = consumptionKnownEl.checked;
+    consumptionKnownFields?.classList.toggle('hidden', !known);
+    personsFieldsEl?.classList.toggle('hidden', known);
+    personsInput.required = !known;
+    annualConsumptionInput.required = known;
+    scheduleWizardHeightSync();
+  };
+
+  consumptionKnownEl.addEventListener('change', sync);
+  sync();
 }
 
 function initModuleDecisionFlow() {

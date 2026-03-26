@@ -36,11 +36,15 @@
 
         <div id="wizardStage" class="wizard-stage">
           <section class="wizard-step is-mounted is-active" data-step-title="Standort">
-            <div class="grid one">
+            <div class="grid two">
               <label class="field">
                 <span>PLZ (Pflicht) <button type="button" class="info-btn" data-info="plz">&#9432;</button></span>
                 <input id="plz" type="text" maxlength="5" pattern="\d{5}" inputmode="numeric" required>
                 <small class="hint">Bitte 5-stellig eingeben.</small>
+              </label>
+              <label class="field">
+                <span>Wohnfläche (m²) <button type="button" class="info-btn" data-info="areaM2">&#9432;</button></span>
+                <input id="areaM2" type="number" min="10" step="1">
               </label>
             </div>
           </section>
@@ -178,18 +182,48 @@
 
           <section class="wizard-step" data-step-title="Haushalt">
             <fieldset>
-              <legend>Haushalt (Pflichtfelder)</legend>
+              <legend>Jahresverbrauch</legend>
+              <label class="field">
+                <span>Kennen Sie Ihren genauen Jahresverbrauch?</span>
+                <input id="consumptionKnown" type="checkbox" class="decision-state-input" hidden>
+                <div class="decision-toggle" data-toggle-id="consumptionKnown">
+                  <button type="button" class="decision-btn" data-value="true">Ja, Verbrauch bekannt</button>
+                  <button type="button" class="decision-btn active" data-value="false">Nein, über Personenzahl schätzen</button>
+                </div>
+              </label>
+
+              <div id="consumptionKnownFields" class="conditional-block hidden">
+                <label class="field">
+                  <span>Jahresverbrauch (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
+                  <input id="householdAnnualConsumption" type="number" min="100" step="1">
+                  <small class="hint">Entnehmen Sie den Wert Ihrer letzten Jahresabrechnung.</small>
+                </label>
+              </div>
+
+              <div id="personsFields">
+                <label class="field">
+                  <span>Anzahl Personen im Haushalt <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
+                  <input id="persons" type="number" min="1" max="10" step="1" required>
+                  <small class="hint">1 Person ≈ 1 500 kWh/Jahr, 2 Personen ≈ 2 500 kWh/Jahr usw.</small>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset style="margin-top:1rem">
+              <legend>Aktueller Stromvertrag</legend>
               <div class="grid two">
                 <label class="field">
-                  <span>Personen <button type="button" class="info-btn" data-info="persons">&#9432;</button></span>
-                  <input id="persons" type="number" min="1" max="10" step="1" required>
-                  <small class="hint">Wird für Plausibilitätsprüfung und Lastprofil verwendet.</small>
+                  <span>Aktueller Stromtarif <button type="button" class="info-btn" data-info="powerTariff">&#9432;</button></span>
+                  <select id="powerTariff">
+                    <option value="single" selected>Einzähler-Tarif</option>
+                    <option value="twoRate">Zweitarif HT/NT</option>
+                    <option value="dynamic">Dynamischer Tarif</option>
+                  </select>
                 </label>
 
                 <label class="field">
-                  <span>Haushaltsverbrauch absolut (kWh/Jahr) <button type="button" class="info-btn" data-info="householdAnnualConsumption">&#9432;</button></span>
-                  <input id="householdAnnualConsumption" type="number" min="100" step="1" required>
-                  <small class="hint">Pflichtfeld: Bitte immer den bekannten Jahresverbrauch angeben.</small>
+                  <span>Jährliche Stromkosten (EUR) <button type="button" class="info-btn" data-info="annualPowerCost">&#9432;</button></span>
+                  <input id="annualPowerCost" type="number" min="0" step="0.01">
                 </label>
               </div>
             </fieldset>
@@ -265,36 +299,9 @@
             </fieldset>
           </section>
 
-          <section class="wizard-step" data-step-title="Energieanalyse">
+          <section class="wizard-step" data-step-title="Heizung">
             <section class="subsection energy-inputs">
-              <h2>Energieanalyse Haus: Eingaben <button type="button" class="info-btn" data-info="inputsOverview">&#9432;</button></h2>
-              <p class="note">Diese Eingaben werden zusammen mit der Tarifkalkulation berechnet und gemeinsam als Ergebnis angezeigt.</p>
-
-              <div class="grid two">
-                <label class="field">
-                  <span>Wohnfläche (m²) <button type="button" class="info-btn" data-info="areaM2">&#9432;</button></span>
-                  <input id="areaM2" type="number" min="10" step="1">
-                </label>
-
-                <label class="field">
-                  <span>Aktueller Stromtarif <button type="button" class="info-btn" data-info="powerTariff">&#9432;</button></span>
-                  <select id="powerTariff">
-                    <option value="single" selected>Einzähler-Tarif</option>
-                    <option value="twoRate">Zweitarif HT/NT</option>
-                    <option value="dynamic">Dynamischer Tarif</option>
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span>Jährliche Stromkosten (EUR) <button type="button" class="info-btn" data-info="annualPowerCost">&#9432;</button></span>
-                  <input id="annualPowerCost" type="number" min="0" step="0.01">
-                </label>
-
-                <div class="field note-box">
-                  <span>Jährlicher Stromverbrauch</span>
-                  <small>Wird automatisch aus den vorherigen Eingaben (Haushalt, Wärmepumpe, E-Auto) übernommen.</small>
-                </div>
-              </div>
+              <h2>Heizung <button type="button" class="info-btn" data-info="inputsOverview">&#9432;</button></h2>
 
               <div class="grid three">
                 <label class="field" id="heatingTypeField">
