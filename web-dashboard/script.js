@@ -2808,12 +2808,7 @@ function getHeatPumpUsageMode() {
 }
 
 function shouldIncludeHeatPumpInHeatingSources() {
-  const hasHeatPump = byId('hasHeatPump')?.checked === true;
-  if (!hasHeatPump) {
-    return false;
-  }
-  const usageMode = getHeatPumpUsageMode();
-  return usageMode === 'heating' || usageMode === 'both';
+  return byId('hasHeatPump')?.checked === true;
 }
 
 function initEnergyAnalysisSection() {
@@ -2828,6 +2823,9 @@ function initEnergyAnalysisSection() {
     syncWpHeatingCard();
   });
   byId('heatPumpUsageMode')?.addEventListener('change', () => {
+    syncWpHeatingCard();
+  });
+  byId('heatPumpConsumption')?.addEventListener('input', () => {
     syncWpHeatingCard();
   });
 }
@@ -2886,15 +2884,51 @@ function syncWpHeatingCard() {
   const existing = container.querySelector('.heating-source-wp-info');
 
   if (includeHeatPump && !existing) {
+    const wpConsumption = eaNum('heatPumpConsumption', 0);
+    const usageMode = getHeatPumpUsageMode();
+    const usageLabel = usageMode === 'both'
+      ? 'Warmwasser und Heizen'
+      : usageMode === 'hotWater'
+        ? 'Nur Warmwasser'
+        : 'Nur Heizen';
+
     const info = document.createElement('div');
     info.className = 'heating-source heating-source-wp-info';
-    info.style.cssText = 'border:1px dashed #0B8F6A; background:#f0faf7; padding:0.75rem 1rem; border-radius:8px; font-size:0.9rem; color:#0B8F6A;';
-    info.innerHTML = `<strong>Wärmepumpe</strong> – wird automatisch aus dem Großverbraucher-Schritt als Heizquelle übernommen (Modus: Heizen). Hier keine weitere Eingabe nötig.`;
+    info.style.cssText = 'border:1px dashed #0B8F6A; background:#f0faf7; padding:0.75rem 1rem; border-radius:8px;';
+    info.innerHTML = `
+      <div class="ev-vehicle-head">
+        <strong class="heating-source-title">Heizquelle (fix)</strong>
+      </div>
+      <div class="grid three">
+        <label class="field">
+          <span>Heizart</span>
+          <select disabled>
+            <option>Wärmepumpe (automatisch)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Verbrauch aus Großverbraucher (kWh/Jahr)</span>
+          <input type="number" value="${Math.max(0, Math.round(wpConsumption))}" disabled>
+        </label>
+        <label class="field">
+          <span>Nutzung</span>
+          <input type="text" value="${usageLabel}" disabled>
+        </label>
+      </div>
+      <small class="hint">Diese Heizquelle wird automatisch aus der Wärmepumpen-Auswahl übernommen und kann hier nicht entfernt werden.</small>
+    `;
     container.prepend(info);
+  } else if (includeHeatPump && existing) {
+    const wpConsumption = eaNum('heatPumpConsumption', 0);
+    const consumptionInput = existing.querySelector('input[type="number"]');
+    if (consumptionInput) {
+      consumptionInput.value = String(Math.max(0, Math.round(wpConsumption)));
+    }
   } else if (!includeHeatPump && existing) {
     existing.remove();
   }
   renumberHeatingSources();
+  scheduleWizardHeightSync();
 }
 
 function addHeatingSource(source = {}) {
