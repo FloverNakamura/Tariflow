@@ -1488,7 +1488,11 @@ function updateLargeLoadProfiles() {
   }
 
   const loads = collectLargeLoads();
-  if (!loads.length) {
+  const hasHeatPump = byId('hasHeatPump')?.checked === true;
+  const heatPumpAnnualKwh = hasHeatPump ? eaNum('heatPumpConsumption', 0) : 0;
+  const includeHeatPumpConsumer = hasHeatPump && heatPumpAnnualKwh > 0;
+
+  if (!loads.length && !includeHeatPumpConsumer) {
     largeLoadProfileSection.classList.add('hidden');
     return;
   }
@@ -1496,6 +1500,25 @@ function updateLargeLoadProfiles() {
   largeLoadProfileSection.classList.remove('hidden');
   
   largeLoadProfilesContainer.innerHTML = '';
+
+  if (includeHeatPumpConsumer) {
+    const avgSpotCt = REFERENCE_HOURLY_SPOT_CT.reduce((sum, value) => sum + value, 0) / REFERENCE_HOURLY_SPOT_CT.length;
+    const estimatedAnnualCost = (heatPumpAnnualKwh * avgSpotCt) / 100;
+    const avgDailyKwh = heatPumpAnnualKwh / 365;
+
+    const wpProfile = document.createElement('div');
+    wpProfile.className = 'large-load-profile-card';
+    wpProfile.innerHTML = `
+      <h3 style="margin:0.5rem 0; font-size:1rem">Großverbraucher (automatisch): Wärmepumpe</h3>
+      <p style="margin:0.3rem 0; font-size:0.85rem; color:#666">Diese Position wird automatisch aus Ihren Wärmepumpen-Angaben übernommen.</p>
+      <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
+        <strong>Jahresverbrauch:</strong> ${Math.round(heatPumpAnnualKwh)} kWh | 
+        <strong>Ø pro Tag:</strong> ${avgDailyKwh.toFixed(1)} kWh | 
+        <strong>Grobe Jahreskosten (Börsenanteil):</strong> <span style="color:#0b8f6a; font-weight:bold">€${estimatedAnnualCost.toFixed(0)}</span>
+      </div>
+    `;
+    largeLoadProfilesContainer.appendChild(wpProfile);
+  }
   
   loads.forEach((load, idx) => {
     const power = load.powerKw || 0;
@@ -1696,6 +1719,13 @@ function initLargeLoads() {
   });
 
   largeLoadsContainer.addEventListener('input', () => {
+    updateLargeLoadProfiles();
+  });
+
+  byId('hasHeatPump')?.addEventListener('change', () => {
+    updateLargeLoadProfiles();
+  });
+  byId('heatPumpConsumption')?.addEventListener('input', () => {
     updateLargeLoadProfiles();
   });
 }
