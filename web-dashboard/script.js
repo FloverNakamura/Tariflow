@@ -343,7 +343,7 @@ const INFO_TEXTS = {
   },
   evChargingEnd: {
     title: 'Ladestundenplan - End',
-    html: `<p>Uhrzeit, wann das Auto normalerweise zu laden endet (0-23 Uhr).</p>
+    html: `<p>Uhrzeit, wann das Auto normalerweise zu laden ends (0-23 Uhr).</p>
            <p>Beispiel: Laden endet um 6:00 Uhr (6).</p>
            <p>Falls das Laden über Mitternacht läuft (z.B. 22-06), werden die teuren Morgen-/Tagstunden (35-50 ct/kWh) vermieden.</p>`
   },
@@ -725,15 +725,10 @@ function init() {
 
       if (isEnabled && targetId === 'evFields') {
         ensureAtLeastOneEvVehicle();
-        updateEvVehicleProfiles();
       }
       if (isEnabled && targetId === 'largeLoadFields') {
         ensureAtLeastOneLargeLoad();
         updateLargeLoadProfiles();
-      }
-      if (!isEnabled && targetId === 'evFields' && evVehiclesContainer) {
-        evVehiclesContainer.innerHTML = '';
-        evProfileSection?.classList.add('hidden');
       }
       if (!isEnabled && targetId === 'largeLoadFields' && largeLoadsContainer) {
         largeLoadsContainer.innerHTML = '';
@@ -1224,7 +1219,7 @@ function addEvVehicle(vehicle = {}) {
         <input class="ev-vehicle-bidi" type="checkbox" ${vehicle.useBidirectional ? 'checked' : ''}>
       </label>
     </div>
-    <div class="grid four">
+    <div class="grid two">
       <label class="field">
         <span>Ladestundenplan - Start (0-23) <button type="button" class="info-btn" data-info="evChargingStart">&#9432;</button></span>
         <input class="ev-vehicle-charging-start" type="number" step="1" min="0" max="23" value="${vehicle.chargingStartHour ?? 22}" data-update="true">
@@ -1317,36 +1312,36 @@ function updateLargeLoadProfiles() {
     profileDiv.className = 'large-load-profile-card';
     profileDiv.innerHTML = `
       <h3 style="margin:0.5rem 0; font-size:1rem">Großverbraucher ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr (${usageDays}x/Woche)</h3>
-      <button type="button" class="ghost profile-toggle-btn" data-toggle-table="true" aria-expanded="false">Tabelle anzeigen</button>
-      <div class="profile-table-wrap hidden">
-      <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.5rem">
-        <thead>
-          <tr style="border-bottom:1px solid #ccc; background:#f9f9f9">
-            <th style="text-align:center; padding:0.4rem; width:10%">Stunde</th>
-            <th style="text-align:right; padding:0.4rem; width:20%">Preis (ct/kWh)</th>
-            <th style="text-align:right; padding:0.4rem; width:20%">Verbrauch</th>
-            <th style="text-align:right; padding:0.4rem; width:20%">Kosten/Stunde</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${hourlyData.map(h => {
-            const isExpensive = h.price > 40;
-            const isCheap = h.price < 25;
-            let rowStyle = 'background:#fff';
-            if (isCheap) rowStyle = 'background:#e8f5e9';
-            if (isExpensive) rowStyle = 'background:#ffebee';
-            return `
-              <tr style="border-bottom:1px solid #eee; ${rowStyle}">
-                <td style="text-align:center; padding:0.4rem;">${h.hour.toString().padStart(2, '0')}:00</td>
-                <td style="text-align:right; padding:0.4rem;">${h.price}</td>
-                <td style="text-align:right; padding:0.4rem;">${h.consumption.toFixed(1)} kW</td>
-                <td style="text-align:right; padding:0.4rem; font-weight:bold">€${h.cost.toFixed(2)}</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-      </div>
+      <details style="margin-top:0.5rem">
+        <summary style="cursor:pointer; padding:0.4rem 0.6rem; background:#f0f0f0; border-radius:4px; font-size:0.85rem; user-select:none">Stundenprofil anzeigen ▾</summary>
+        <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.4rem">
+          <thead>
+            <tr style="border-bottom:1px solid #ccc; background:#f9f9f9">
+              <th style="text-align:center; padding:0.4rem; width:10%">Stunde</th>
+              <th style="text-align:right; padding:0.4rem; width:20%">Preis (ct/kWh)</th>
+              <th style="text-align:right; padding:0.4rem; width:20%">Verbrauch</th>
+              <th style="text-align:right; padding:0.4rem; width:20%">Kosten/Stunde</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${hourlyData.map(h => {
+              const isExpensive = h.price > 40;
+              const isCheap = h.price < 25;
+              let rowStyle = 'background:#fff';
+              if (isCheap) rowStyle = 'background:#e8f5e9';
+              if (isExpensive) rowStyle = 'background:#ffebee';
+              return `
+                <tr style="border-bottom:1px solid #eee; ${rowStyle}">
+                  <td style="text-align:center; padding:0.4rem;">${h.hour.toString().padStart(2, '0')}:00</td>
+                  <td style="text-align:right; padding:0.4rem;">${h.price}</td>
+                  <td style="text-align:right; padding:0.4rem;">${h.consumption.toFixed(1)} kW</td>
+                  <td style="text-align:right; padding:0.4rem; font-weight:bold">€${h.cost.toFixed(2)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </details>
       <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
         <strong>📊 Tägliche Kosten:</strong> €${dailyCost.toFixed(2)} | 
         <strong>📅 Wöchentlich:</strong> €${weeklyCost.toFixed(2)} | 
@@ -1354,18 +1349,6 @@ function updateLargeLoadProfiles() {
       </div>
     `;
     largeLoadProfilesContainer.appendChild(profileDiv);
-  });
-
-  largeLoadProfilesContainer.querySelectorAll('[data-toggle-table="true"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const wrap = btn.nextElementSibling;
-      if (!wrap) {
-        return;
-      }
-      const nowHidden = wrap.classList.toggle('hidden');
-      btn.setAttribute('aria-expanded', String(!nowHidden));
-      btn.textContent = nowHidden ? 'Tabelle anzeigen' : 'Tabelle ausblenden';
-    });
   });
 }
 
@@ -1396,11 +1379,12 @@ function updateEvVehicleProfiles() {
     const battery = vehicle.batteryCapacity_kwh || 60;
     const startHour = vehicle.chargingStartHour || 22;
     const endHour = vehicle.chargingEndHour || 6;
-    const annualKm = vehicle.annualKm || 12000;
-    const annualConsumptionKwh = (annualKm / 100) * 20;
     
     // Ladedauer in Stunden bei typischem Laden (z.B. 60 kWh / 11 kW = ~5.5h)
     const chargeTimeHours = battery / wallboxPower;
+    
+    // Jahresladezyklen aus Laufleistung: ~300 km Reichweite pro Vollladung
+    const annualChargingEvents = Math.round((vehicle.annualKm || 12000) / 300);
     
     // Prüfe ob über Mitternacht
     const hoursArray = startHour <= endHour
@@ -1416,65 +1400,52 @@ function updateEvVehicleProfiles() {
       cost: (wallboxPower * HOURLY_PRICES[hour] / 100)
     }));
     
-    const sessionCost = hourlyData.reduce((sum, h) => sum + h.cost, 0);
-    const sessionEnergyKwh = hourlyData.reduce((sum, h) => sum + h.energyKwh, 0);
-    const weightedPriceCtPerKwh = sessionEnergyKwh > 0 ? (sessionCost / sessionEnergyKwh) * 100 : 0;
-    const estimatedAnnualChargingCost = (annualConsumptionKwh * weightedPriceCtPerKwh) / 100;
+    // Kosten pro Ladesession (Vollladung)
+    const costPerSession = hourlyData.reduce((sum, h) => sum + h.cost, 0);
+    // Jahreskosten rein aus km-basierter Anzahl Ladevorgänge
+    const yearlyCost = costPerSession * annualChargingEvents;
     
     const profileDiv = document.createElement('div');
     profileDiv.className = 'large-load-profile-card';
     profileDiv.innerHTML = `
-      <h3 style="margin:0.5rem 0; font-size:1rem">E-Auto ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr</h3>
-      <p style="margin:0.3rem 0; font-size:0.85rem; color:#666">Batterie: ${battery} kWh | Wallbox: ${wallboxPower} kW | Laufleistung: ${annualKm.toFixed(0)} km/Jahr | Ladedauer: ~${chargeTimeHours.toFixed(1)}h</p>
-      <button type="button" class="ghost profile-toggle-btn" data-toggle-table="true" aria-expanded="false">Tabelle anzeigen</button>
-      <div class="profile-table-wrap hidden">
-      <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.5rem">
-        <thead>
-          <tr style="border-bottom:1px solid #ccc; background:#f9f9f9">
-            <th style="text-align:center; padding:0.4rem; width:10%">Stunde</th>
-            <th style="text-align:right; padding:0.4rem; width:20%">Preis (ct/kWh)</th>
-            <th style="text-align:right; padding:0.4rem; width:20%">Leistung</th>
-            <th style="text-align:right; padding:0.4rem; width:20%">Kosten/Stunde</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${hourlyData.map(h => {
-            const isExpensive = h.price > 40;
-            const isCheap = h.price < 25;
-            let rowStyle = 'background:#fff';
-            if (isCheap) rowStyle = 'background:#e8f5e9';
-            if (isExpensive) rowStyle = 'background:#ffebee';
-            return `
-              <tr style="border-bottom:1px solid #eee; ${rowStyle}">
-                <td style="text-align:center; padding:0.4rem;">${h.hour.toString().padStart(2, '0')}:00</td>
-                <td style="text-align:right; padding:0.4rem;">${h.price}</td>
-                <td style="text-align:right; padding:0.4rem;">${h.power.toFixed(1)} kW</td>
-                <td style="text-align:right; padding:0.4rem; font-weight:bold">€${h.cost.toFixed(2)}</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-      </div>
+      <h3 style="margin:0.5rem 0; font-size:1rem">E-Auto ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr | ca. ${annualChargingEvents} Ladevorgänge/Jahr</h3>
+      <p style="margin:0.3rem 0; font-size:0.85rem; color:#666">Batterie: ${battery} kWh | Wallbox: ${wallboxPower} kW | Ladedauer: ~${chargeTimeHours.toFixed(1)}h | Laufleistung: ${vehicle.annualKm || 12000} km/Jahr</p>
+      <details style="margin-top:0.5rem">
+        <summary style="cursor:pointer; padding:0.4rem 0.6rem; background:#f0f0f0; border-radius:4px; font-size:0.85rem; user-select:none">Stundenprofil anzeigen ▾</summary>
+        <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.4rem">
+          <thead>
+            <tr style="border-bottom:1px solid #ccc; background:#f9f9f9">
+              <th style="text-align:center; padding:0.4rem; width:10%">Stunde</th>
+              <th style="text-align:right; padding:0.4rem; width:20%">Preis (ct/kWh)</th>
+              <th style="text-align:right; padding:0.4rem; width:20%">Leistung</th>
+              <th style="text-align:right; padding:0.4rem; width:20%">Kosten/Stunde</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${hourlyData.map(h => {
+              const isExpensive = h.price > 40;
+              const isCheap = h.price < 25;
+              let rowStyle = 'background:#fff';
+              if (isCheap) rowStyle = 'background:#e8f5e9';
+              if (isExpensive) rowStyle = 'background:#ffebee';
+              return `
+                <tr style="border-bottom:1px solid #eee; ${rowStyle}">
+                  <td style="text-align:center; padding:0.4rem;">${h.hour.toString().padStart(2, '0')}:00</td>
+                  <td style="text-align:right; padding:0.4rem;">${h.price}</td>
+                  <td style="text-align:right; padding:0.4rem;">${h.power.toFixed(1)} kW</td>
+                  <td style="text-align:right; padding:0.4rem; font-weight:bold">€${h.cost.toFixed(2)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </details>
       <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
-        <strong>🔋 Kosten pro Ladesession:</strong> €${sessionCost.toFixed(2)} | 
-        <strong>⚡ Ø Strompreis im Ladefenster:</strong> ${weightedPriceCtPerKwh.toFixed(1)} ct/kWh | 
-        <strong>📈 Jährlich (aus Laufleistung):</strong> <span style="color:#2196f3; font-weight:bold">€${estimatedAnnualChargingCost.toFixed(0)}</span>
+        <strong>🔋 Kosten pro Ladesession:</strong> €${costPerSession.toFixed(2)} | 
+        <strong>📈 Jährlich (${annualChargingEvents} Ladevorgänge):</strong> <span style="color:#2196f3; font-weight:bold">€${yearlyCost.toFixed(0)}</span>
       </div>
     `;
     evProfilesContainer.appendChild(profileDiv);
-  });
-
-  evProfilesContainer.querySelectorAll('[data-toggle-table="true"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const wrap = btn.nextElementSibling;
-      if (!wrap) {
-        return;
-      }
-      const nowHidden = wrap.classList.toggle('hidden');
-      btn.setAttribute('aria-expanded', String(!nowHidden));
-      btn.textContent = nowHidden ? 'Tabelle anzeigen' : 'Tabelle ausblenden';
-    });
   });
 }
 
