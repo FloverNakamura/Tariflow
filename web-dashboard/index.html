@@ -32,10 +32,10 @@
       <form id="calcForm" novalidate>
         <div class="wizard-header" aria-live="polite">
           <div class="wizard-header-row">
-            <p id="wizardStepLabel" class="wizard-step-label">Schritt 1 von 9</p>
+            <p id="wizardStepLabel" class="wizard-step-label">Schritt 1 von 10</p>
             <p id="wizardStepTitle" class="wizard-step-title">Standort</p>
           </div>
-          <div class="wizard-progress" role="progressbar" aria-valuemin="1" aria-valuemax="9" aria-valuenow="1" aria-label="Fortschritt im Formular">
+          <div class="wizard-progress" role="progressbar" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1" aria-label="Fortschritt im Formular">
             <div id="wizardProgressFill" class="wizard-progress-fill"></div>
           </div>
         </div>
@@ -49,6 +49,53 @@
                 <small class="hint">Bitte 5-stellig eingeben.</small>
               </label>
             </div>
+          </section>
+
+          <section class="wizard-step" data-step-title="§14a Modulprüfung">
+            <fieldset class="moduleDecisionSection">
+              <legend>Gibt es Geräte im Haushalt über 4,2 kW Leistung?</legend>
+              <input id="hasLargeLoad42" type="checkbox" class="component-toggle decision-state-input" data-target="largeLoadFields" hidden>
+              <div class="decision-toggle" data-toggle-id="hasLargeLoad42">
+                <button type="button" class="decision-btn" data-value="true">Ja, es gibt Geräte über 4,2 kW</button>
+                <button type="button" class="decision-btn active" data-value="false">Nein, keine Geräte über 4,2 kW</button>
+              </div>
+
+              <div id="moduleConditionBlock" class="conditional-block hidden">
+                <label class="field">
+                  <span>Wurden diese Verbraucher vor 2024 installiert?</span>
+                  <input id="installedBefore2024" type="checkbox" class="decision-state-input" hidden>
+                  <div class="decision-toggle" data-toggle-id="installedBefore2024">
+                    <button type="button" class="decision-btn" data-value="true">Ja, vor 2024 installiert</button>
+                    <button type="button" class="decision-btn active" data-value="false">Nein, ab 2024 oder später</button>
+                  </div>
+                </label>
+
+                <div id="controlConsentBlock" class="conditional-block hidden">
+                  <label class="field">
+                    <span>Sind Sie bereit, dass der Netzbetreiber bei Netzknappheit steuert?</span>
+                    <input id="allowsGridControl" type="checkbox" class="decision-state-input" hidden>
+                    <div class="decision-toggle" data-toggle-id="allowsGridControl">
+                      <button type="button" class="decision-btn" data-value="true">Ja, Steuerung ist erlaubt</button>
+                      <button type="button" class="decision-btn active" data-value="false">Nein, nicht erlaubt</button>
+                    </div>
+                  </label>
+                </div>
+
+                <div id="consumptionChoiceBlock" class="conditional-block hidden">
+                  <label class="field">
+                    <span>Wie ist der Verbrauch Ihres Hauses?</span>
+                    <input id="moduleConsumptionPattern" type="hidden" value="">
+                    <div class="decision-toggle decision-toggle-three" id="consumptionPatternButtons">
+                      <button type="button" class="decision-btn module-choice-btn" data-pattern="low">Sehr gering</button>
+                      <button type="button" class="decision-btn module-choice-btn" data-pattern="high">Sehr hoch</button>
+                      <button type="button" class="decision-btn module-choice-btn" data-pattern="shiftable">Zeitlich gut verschiebbar</button>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <p id="moduleDecisionResult" class="hint"></p>
+            </fieldset>
           </section>
 
           <section class="wizard-step" data-step-title="Haushalt">
@@ -168,14 +215,10 @@
             </fieldset>
           </section>
 
-          <section class="wizard-step" data-step-title="Großverbraucher">
+          <section class="wizard-step" data-step-title="Großverbraucher Details">
             <fieldset class="largeLoadSection">
-              <legend>Gibt es Großverbraucher über 4,2 kW? <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
-              <input id="hasLargeLoad42" type="checkbox" class="component-toggle decision-state-input" data-target="largeLoadFields" hidden>
-              <div class="decision-toggle" data-toggle-id="hasLargeLoad42">
-                <button type="button" class="decision-btn" data-value="true">Ja, Großverbraucher vorhanden</button>
-                <button type="button" class="decision-btn active" data-value="false">Nein, keine Großverbraucher</button>
-              </div>
+              <legend>Großverbraucher erfassen <button type="button" class="info-btn" data-info="largeLoad">&#9432;</button></legend>
+              <p id="largeLoadDetailsHint" class="hint">Wenn Geräte über 4,2 kW vorhanden sind, tragen Sie hier die Details ein.</p>
 
               <div id="largeLoadFields" class="largeLoadFields">
                 <div id="largeLoads" class="large-loads"></div>

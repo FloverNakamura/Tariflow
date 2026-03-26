@@ -339,6 +339,10 @@ h1 {
   margin: 0.2rem 0 0.9rem;
 }
 
+.decision-toggle-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .decision-btn {
   min-height: 56px;
   border-radius: 14px;
@@ -358,6 +362,14 @@ h1 {
 
 .conditional-block {
   margin-top: 0.45rem;
+}
+
+.moduleDecisionSection .hint {
+  margin-top: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #e1e6ef;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .subsection {
@@ -1179,6 +1191,10 @@ td.bad {
   }
 
   .decision-toggle {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-toggle-three {
     grid-template-columns: 1fr;
   }
 

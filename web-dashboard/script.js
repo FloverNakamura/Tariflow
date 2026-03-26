@@ -98,6 +98,13 @@ const wizardProgressFill = byId('wizardProgressFill');
 const knowsHouseholdConsumption = byId('knowsHouseholdConsumption');
 const householdKnownBlock = byId('householdKnownBlock');
 const householdUnknownBlock = byId('householdUnknownBlock');
+const installedBefore2024 = byId('installedBefore2024');
+const allowsGridControl = byId('allowsGridControl');
+const moduleConditionBlock = byId('moduleConditionBlock');
+const controlConsentBlock = byId('controlConsentBlock');
+const consumptionChoiceBlock = byId('consumptionChoiceBlock');
+const moduleConsumptionPattern = byId('moduleConsumptionPattern');
+const moduleDecisionResult = byId('moduleDecisionResult');
 
 let latestData = null;
 let monthlyChart = null;
@@ -643,6 +650,7 @@ function init() {
   runInitStep('Formular freischalten', unlockAllFormInputs);
   runInitStep('Formular-Wizard', initWizard);
   runInitStep('Entscheidungsbuttons', initDecisionButtons);
+  runInitStep('14a-Modulfluss', initModuleDecisionFlow);
   runInitStep('Energieanalyse', initEnergyAnalysisSection);
   runInitStep('Haushaltsverbrauch', initHouseholdConsumptionMode);
   runInitStep('E-Autos', initEvVehicles);
@@ -867,6 +875,8 @@ function buildPayload() {
   const personsRaw = parseInt(byId('persons').value, 10);
   const persons = Number.isInteger(personsRaw) ? personsRaw : 1;
 
+  const moduleDecision = determineModuleDecision();
+
   return {
     household: {
       plz: byId('plz').value.trim(),
@@ -898,7 +908,7 @@ function buildPayload() {
     tariff: {
       compareStaticTariff: true,
       compareDynamicTariff: true,
-      module14a: 'none',
+      module14a: moduleDecision.module,
       largeLoadOver42kw: hasLargeLoad42,
       largeLoadCount,
       largeLoadPowerKw,
@@ -940,6 +950,11 @@ function validatePayload(payload) {
       annualConsumptionEl?.classList.add('invalid');
       return 'Der absolute Haushaltsverbrauch muss zwischen 100 und 200000 kWh/Jahr liegen.';
     }
+  }
+
+  const moduleDecision = determineModuleDecision();
+  if (payload.tariff.largeLoadOver42kw && moduleDecision.requiresConsumptionChoice && !moduleDecision.hasConsumptionChoice) {
+    return 'Bitte wählen Sie in der §14a-Abfrage aus, ob der Verbrauch sehr gering, sehr hoch oder zeitlich gut verschiebbar ist.';
   }
 
   const pvMode = document.querySelector('input[name="pvMode"]:checked').value;
@@ -1310,6 +1325,128 @@ function initHouseholdConsumptionMode() {
   syncMode();
 }
 
+function initModuleDecisionFlow() {
+  const largeLoadToggle = byId('hasLargeLoad42');
+  if (!largeLoadToggle || !moduleConditionBlock || !moduleDecisionResult || !installedBefore2024 || !allowsGridControl || !controlConsentBlock || !consumptionChoiceBlock || !moduleConsumptionPattern) {
+    return;
+  }
+
+  const consumptionButtons = Array.from(document.querySelectorAll('.module-choice-btn'));
+  consumptionButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const pattern = button.dataset.pattern || '';
+      moduleConsumptionPattern.value = pattern;
+      syncModuleConsumptionButtons(pattern);
+      syncModuleDecisionFlow();
+    });
+  });
+
+  [largeLoadToggle, installedBefore2024, allowsGridControl].forEach((el) => {
+    el.addEventListener('change', syncModuleDecisionFlow);
+  });
+
+  syncModuleDecisionFlow();
+}
+
+function syncModuleDecisionFlow() {
+  const largeLoadToggle = byId('hasLargeLoad42');
+  const hasLargeLoad = largeLoadToggle?.checked === true;
+  const isBefore2024 = installedBefore2024?.checked === true;
+  const allowsControl = allowsGridControl?.checked === true;
+
+  moduleConditionBlock?.classList.toggle('hidden', !hasLargeLoad);
+  if (!hasLargeLoad) {
+    if (installedBefore2024) installedBefore2024.checked = false;
+    if (allowsGridControl) allowsGridControl.checked = false;
+    if (moduleConsumptionPattern) moduleConsumptionPattern.value = '';
+    syncModuleConsumptionButtons('');
+    syncDecisionButtons('installedBefore2024', false);
+    syncDecisionButtons('allowsGridControl', false);
+  }
+
+  const needsConsent = hasLargeLoad && !isBefore2024;
+  controlConsentBlock?.classList.toggle('hidden', !needsConsent);
+
+  const canProceedToConsumption = hasLargeLoad && (isBefore2024 || allowsControl);
+  consumptionChoiceBlock?.classList.toggle('hidden', !canProceedToConsumption);
+  if (!canProceedToConsumption && moduleConsumptionPattern) {
+    moduleConsumptionPattern.value = '';
+    syncModuleConsumptionButtons('');
+  }
+
+  const decision = determineModuleDecision();
+  if (!moduleDecisionResult) {
+    return;
+  }
+  moduleDecisionResult.textContent = decision.message;
+}
+
+function syncModuleConsumptionButtons(pattern) {
+  const buttons = Array.from(document.querySelectorAll('.module-choice-btn'));
+  buttons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.pattern === pattern);
+  });
+}
+
+function determineModuleDecision() {
+  const hasLargeLoad = byId('hasLargeLoad42')?.checked === true;
+  const isBefore2024 = installedBefore2024?.checked === true;
+  const allowsControl = allowsGridControl?.checked === true;
+  const pattern = moduleConsumptionPattern?.value || '';
+
+  if (!hasLargeLoad) {
+    return {
+      module: 'none',
+      requiresConsumptionChoice: false,
+      hasConsumptionChoice: false,
+      message: 'Module nicht relevant: Keine Geräte über 4,2 kW im Haushalt.'
+    };
+  }
+
+  if (!isBefore2024 && !allowsControl) {
+    return {
+      module: 'none',
+      requiresConsumptionChoice: false,
+      hasConsumptionChoice: false,
+      message: 'Module nicht relevant: Steuerung durch Netzbetreiber wurde abgelehnt.'
+    };
+  }
+
+  if (pattern === 'low') {
+    return {
+      module: 'modul1',
+      requiresConsumptionChoice: true,
+      hasConsumptionChoice: true,
+      message: 'Empfohlen: Modul 1 (Pauschalrabatt für Bereitschaft bei Netzknappheit zu drosseln).'
+    };
+  }
+
+  if (pattern === 'high') {
+    return {
+      module: 'modul2',
+      requiresConsumptionChoice: true,
+      hasConsumptionChoice: true,
+      message: 'Empfohlen: Modul 2 (günstiger Arbeitspreis für Großgeräte, 2 Zähler benötigt).'
+    };
+  }
+
+  if (pattern === 'shiftable') {
+    return {
+      module: 'modul3',
+      requiresConsumptionChoice: true,
+      hasConsumptionChoice: true,
+      message: 'Empfohlen: Modul 3 (variables Netzentgelt, Smart Meter erforderlich).'
+    };
+  }
+
+  return {
+    module: 'none',
+    requiresConsumptionChoice: true,
+    hasConsumptionChoice: false,
+    message: 'Bitte wählen Sie die Verbrauchscharakteristik (sehr gering, sehr hoch oder zeitlich gut verschiebbar).'
+  };
+}
+
 function initDecisionButtons() {
   const groups = document.querySelectorAll('.decision-toggle[data-toggle-id]');
   groups.forEach((group) => {
@@ -1332,6 +1469,8 @@ function initDecisionButtons() {
         toggle.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
+
+    syncDecisionButtons(toggleId, toggle.checked);
   });
 }
 
