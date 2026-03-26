@@ -1702,11 +1702,13 @@ function setLoading(loading) {
 }
 
 function renderResults(data) {
-  const best = (data.tariffs || []).find((tariff) => tariff.recommended) || data.tariffs?.[0];
+  const visibleTariffs = getVisibleTariffsForSelectedModule(data.tariffs || []);
+  const best = pickBestTariff(visibleTariffs);
   const summary = data.summary || {};
   const used = data.usedParams || {};
-  const recommendedTariff = summary.recommendedTariff || best?.label || '-';
-  const recommendedModule = summary.recommendedModuleLabel || 'Kein §14a-Modul';
+  const moduleDecision = determineModuleDecision();
+  const recommendedTariff = best?.label || summary.recommendedTariff || '-';
+  const recommendedModule = formatSelectedModuleLabel(moduleDecision.module);
 
   byId('resRecommendation').innerHTML = `Tarif: <strong>${escapeHtml(recommendedTariff)}</strong><br>Modul: <strong>${escapeHtml(recommendedModule)}</strong>`;
   byId('resConsumption').textContent = `${formatNumber(summary.totalConsumption_kwh)} kWh`;
@@ -1721,10 +1723,76 @@ function renderResults(data) {
   const ub = summary.uncertaintyBand_eur || {};
   byId('resUncertainty').textContent = `${formatEuro(ub.bestCase)} / ${formatEuro(ub.expected)} / ${formatEuro(ub.worstCase)}`;
 
-  renderTariffTable(data.tariffs || []);
+  renderTariffTable(visibleTariffs);
   renderTransparency(data.dataTransparency || []);
   renderCharts(data);
   startMarketTicker();
+}
+
+function getVisibleTariffsForSelectedModule(tariffs) {
+  const decision = determineModuleDecision();
+  const selectedModule = decision.module;
+  const hasLargeLoad = byId('hasLargeLoad42')?.checked === true;
+  const normalized = Array.isArray(tariffs) ? tariffs : [];
+
+  // If no module applies, show only non-14a variants.
+  if (!hasLargeLoad || selectedModule === 'none') {
+    return normalized.filter((tariff) => !String(tariff?.label || '').includes('§14a Modul'));
+  }
+
+  const selectedNeedle = selectedModule === 'modul1'
+    ? 'Modul 1'
+    : selectedModule === 'modul2'
+      ? 'Modul 2'
+      : 'Modul 3';
+
+  // Keep baseline variants plus the explicitly selected module.
+  const filtered = normalized.filter((tariff) => {
+    const label = String(tariff?.label || '');
+    if (!label.includes('§14a Modul')) {
+      return true;
+    }
+    return label.includes(selectedNeedle);
+  });
+
+  return filtered.length ? filtered : normalized;
+}
+
+function pickBestTariff(tariffs) {
+  if (!Array.isArray(tariffs) || !tariffs.length) {
+    return null;
+  }
+
+  const flagged = tariffs.find((tariff) => tariff.recommended);
+  if (flagged) {
+    return flagged;
+  }
+
+  return tariffs.reduce((best, current) => {
+    if (!best) return current;
+    const bestCost = Number(best.netCost_eur);
+    const currentCost = Number(current.netCost_eur);
+    if (!Number.isFinite(currentCost)) {
+      return best;
+    }
+    if (!Number.isFinite(bestCost) || currentCost < bestCost) {
+      return current;
+    }
+    return best;
+  }, null);
+}
+
+function formatSelectedModuleLabel(moduleKey) {
+  if (moduleKey === 'modul1') {
+    return '§14a Modul 1';
+  }
+  if (moduleKey === 'modul2') {
+    return '§14a Modul 2';
+  }
+  if (moduleKey === 'modul3') {
+    return '§14a Modul 3';
+  }
+  return 'Kein §14a-Modul';
 }
 
 async function startMarketTicker() {
@@ -2361,8 +2429,10 @@ function clearSuccess() {
 
 function buildSuccessMessage(data) {
   const summary = data.summary || {};
-  const recommendedTariff = summary.recommendedTariff || 'kein Tarif';
-  const recommendedModule = summary.recommendedModuleLabel || 'Kein §14a-Modul';
+  const visibleTariffs = getVisibleTariffsForSelectedModule(data.tariffs || []);
+  const best = pickBestTariff(visibleTariffs);
+  const recommendedTariff = best?.label || summary.recommendedTariff || 'kein Tarif';
+  const recommendedModule = formatSelectedModuleLabel(determineModuleDecision().module);
   return `Berechnung erfolgreich. Empfohlen: ${recommendedTariff} mit ${recommendedModule}. Jahresverbrauch: ${formatNumber(summary.totalConsumption_kwh)} kWh.`;
 }
 
