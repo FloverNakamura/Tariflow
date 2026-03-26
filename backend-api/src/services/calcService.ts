@@ -143,24 +143,15 @@ function generateConsumptionHourly(req: CalculationRequest): number[] {
   const persons = req.household.persons;
   const buildingType = req.household.buildingType ?? 'EFH';
   const buildingFactor = buildingType === 'MFH' ? 3.0 : buildingType === 'Gewerbe' ? 6.0 : 1.0;
-
-  // Wenn der Nutzer einen eigenen Jahresverbrauch angibt, ist dieser bereits der Gesamtverbrauch
-  // (inkl. Wärmepumpe, E-Auto, Großverbraucher). In diesem Fall nur H0-Profil verwenden.
-  const userProvidedConsumption = req.household.annualConsumption_kwh;
-  const consumptionIsUserProvided = Number.isFinite(userProvidedConsumption) && (userProvidedConsumption as number) > 0;
-
-  const rawBase = userProvidedConsumption
+  const rawBase = req.household.annualConsumption_kwh
     ?? (getAnnualHouseholdConsumptionForPersons(persons) * buildingFactor);
   // Guard: must be a positive finite number; fall back to BDEW default for person-count
   const baseAnnual = (Number.isFinite(rawBase) && rawBase > 0)
     ? rawBase
     : (getAnnualHouseholdConsumptionForPersons(persons) * buildingFactor);
 
-  // Bei Personenanzahl-Schätzung: WP, E-Auto und Großverbraucher werden zusätzlich modelliert,
-  // da die Schätzung nur den reinen Haushaltsbedarf abbildet.
-  // Bei Nutzereingabe: alles bereits enthalten → keine Zusatzanteile.
   let hpAnnual = 0;
-  if (!consumptionIsUserProvided && req.heatPump.hasHeatPump) {
+  if (req.heatPump.hasHeatPump) {
     hpAnnual = req.heatPump.annualConsumption_kwh ?? 3000;
   }
 
@@ -168,7 +159,7 @@ function generateConsumptionHourly(req: CalculationRequest): number[] {
   const evVehicles = getEVVehicles(req);
   const largeLoads = getLargeLoads(req);
   const largeLoadDailyCurveKw = buildLargeLoadDailyCurveKw(largeLoads);
-  if (!consumptionIsUserProvided && evVehicles.length) {
+  if (evVehicles.length) {
     evAnnual = evVehicles.reduce((sum, vehicle) => {
       const km = vehicle.annualKm ?? 12000;
       const cons = vehicle.consumption_kwh_per_100km ?? 20;
@@ -207,8 +198,7 @@ function generateConsumptionHourly(req: CalculationRequest): number[] {
         const h0Val = (h0Month / days) * (hourlyH0[h] / h0HourSum);
         const hpVal = hpMonth > 0 ? (hpMonth / days) * (hourlyHP[h] / hpHourSum) : 0;
         const evVal = evAnnual > 0 ? (evMonth / days) * (hourlyEV[h] / evHourSum) : 0;
-        // Großverbraucher nur addieren, wenn kein eigener Jahresverbrauch angegeben
-        const largeLoadVal = consumptionIsUserProvided ? 0 : (largeLoadDailyCurveKw[h] ?? 0);
+        const largeLoadVal = largeLoadDailyCurveKw[h] ?? 0; // kWh per hour (equivalent to kW over 1h)
         hourly.push((h0Val + hpVal + evVal + largeLoadVal) * 1000); // Wh
       }
     }
@@ -380,8 +370,14 @@ function getNetworkCost_ct(hour: number, module14a: string): number {
 // Wird für den dynamischen Tarif genutzt, weil die Umlagen bereits in taxes_and_levies enthalten sind.
 function getNetworkTariffOnly_ct(hour: number, module14a: string): number {
   const base = tariffData.networkCosts;
+  const dynamicDefault = Number(tariffData.dynamicTariff?.networkCost_ct_per_kwh);
+  const fallbackDefault = Number(base.networkTariff_ct_per_kwh);
+  const defaultNetworkTariffCt = Number.isFinite(dynamicDefault) && dynamicDefault > 0
+    ? dynamicDefault
+    : fallbackDefault;
   const h = hour % 24;
-  if (module14a === 'modul1') return base.networkTariff_ct_per_kwh; // kein Per-Unit-Rabatt bei Modul 1
+  if (module14a === 'none') return defaultNetworkTariffCt;
+  if (module14a === 'modul1') return defaultNetworkTariffCt; // kein Per-Unit-Rabatt bei Modul 1
   if (module14a === 'modul2') {
     const peak = tariffData.module14a.modul2.peakHours.includes(h);
     return peak ? tariffData.module14a.modul2.peakNetworkTariff_ct_per_kwh : tariffData.module14a.modul2.offpeakNetworkTariff_ct_per_kwh;
@@ -735,23 +731,23 @@ export async function runCalculation(req: CalculationRequest): Promise<Calculati
   // ── Eligibility-Bericht für dynamischen Tarif ──────────────────────────────
   const userInputMetrics: UserInputMetrics = {
     plz: req.household.plz,
-    livingArea_m2: req.household.livingArea_m2 ?? 150,
+    livingArea_m2: Math.max(35, req.household.persons * 35),
     annualConsumption_kwh: totalCons_kwh,
     largeLoadCount,
     largeLoadPowerKw,
-    largeLoadControllable: largeLoads.some((load) => (load.controllable ?? false)),
+    largeLoadControllable: largeLoads.length > 0,
     hasHeatPump: req.heatPump.hasHeatPump,
-    hpConsumption_kwh: req.heatPump.hasHeatPump ? (req.heatPump.consumption_kwh ?? 3000) : 0,
+    hpConsumption_kwh: req.heatPump.hasHeatPump ? (req.heatPump.annualConsumption_kwh ?? 3000) : 0,
     hpCop: req.heatPump.hasHeatPump ? (req.heatPump.cop ?? 3.5) : 0,
     hasEV: req.emobility.hasEV,
     evBatteryKwh: req.emobility.hasEV ? (evVehicles[0]?.batteryCapacity_kwh ?? 60) : 0,
     evWallboxPowerKw: req.emobility.hasEV ? (req.emobility.chargingPower_kw ?? 11) : 0,
-    evChargingWindowHours: req.emobility.hasEV ? (req.emobility.chargingWindowHours ?? 0) : 0,
+    evChargingWindowHours: req.emobility.hasEV ? (req.emobility.preferNightCharging !== false ? 8 : 0) : 0,
     evControllable: req.emobility.hasEV,
     pvPowerKwp: peakpower,
     storageCapacityKwh: storageCap,
-    hasHeating: req.heating.hasHeating,
-    heatingConsumption_kwh: req.heating.hasHeating ? (req.heating.consumption_kwh ?? 5000) : 0,
+    hasHeating: req.heatPump.hasHeatPump,
+    heatingConsumption_kwh: req.heatPump.hasHeatPump ? (req.heatPump.annualConsumption_kwh ?? 5000) : 0,
     hasSmartMeter: req.tariff.module14a !== 'none' || false,  // Annahme: mit Modul = mit iMS
     hasControllableDevices: largeLoads.length > 0 || req.emobility.hasEV || req.heatPump.hasHeatPump,
     userAcceptsVariableCosts: true,  // Standard: akzeptieren
