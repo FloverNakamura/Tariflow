@@ -74,16 +74,19 @@ body {
 }
 
 .brand-logo {
-  width: 220px;
+  width: auto;
   height: 72px;
-  max-width: 46vw;
+  max-width: min(46vw, 320px);
   object-fit: contain;
   display: block;
 }
 
 .brand-logo-secondary {
-  width: 220px;
+  width: auto;
   height: 72px;
+  max-width: min(28vw, 160px);
+  object-fit: contain;
+  filter: contrast(1.04) saturate(1.03);
 }
 
 .kicker {
@@ -265,7 +268,9 @@ h1 {
   display: none;
   opacity: 0;
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   pointer-events: none;
   z-index: 1;

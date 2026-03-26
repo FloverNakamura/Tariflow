@@ -274,6 +274,16 @@ const INFO_TEXTS = {
            <p>Beispiel: COP 3,5 bedeutet, dass aus 1 kWh Strom etwa 3,5 kWh Wärme bereitgestellt werden.</p>
            <p>Typische Werte liegen meist zwischen 2,5 und 5, je nach System und Außentemperatur.</p>`
   },
+  heatPumpUsageMode: {
+    title: 'Nutzung der Wärmepumpe',
+    html: `<p>Hier legen Sie fest, wofür die Wärmepumpe genutzt wird:</p>
+           <ul>
+             <li><strong>1. Nur Warmwasser:</strong> Kein automatischer Eintrag als Heizquelle in der Heizmethoden-Auswertung.</li>
+             <li><strong>2. Nur Heizen:</strong> Wird automatisch als Heizquelle übernommen.</li>
+             <li><strong>3. Warmwasser und Heizen:</strong> Wird automatisch als Heizquelle übernommen.</li>
+           </ul>
+           <p>Nur bei den Optionen 2 und 3 wird die Wärmepumpe in der Heizquellen-Logik berücksichtigt.</p>`
+  },
   ev: {
       title: 'Elektrofahrzeug',
       html: `<p>Es können mehrere Elektrofahrzeuge erfasst werden. Für jedes Fahrzeug werden Batteriekapazität,
@@ -778,6 +788,7 @@ function init() {
   }
 
   runInitStep('Formular freischalten', unlockAllFormInputs);
+  runInitStep('Zahlfelder härten', initNumericInputs);
   runInitStep('Formular-Wizard', initWizard);
   runInitStep('Entscheidungsbuttons', initDecisionButtons);
   runInitStep('14a-Modulfluss', initModuleDecisionFlow);
@@ -1016,6 +1027,7 @@ function buildPayload() {
   }
 
   const moduleDecision = determineModuleDecision();
+  const heatPumpUsageMode = byId('heatPumpUsageMode')?.value || '';
 
   return {
     household: {
@@ -1035,7 +1047,8 @@ function buildPayload() {
     heatPump: {
       hasHeatPump,
       annualConsumption_kwh: hasHeatPump ? optionalNumber('heatPumpConsumption') : null,
-      cop: hasHeatPump ? optionalNumber('heatPumpCop') : null
+      cop: hasHeatPump ? optionalNumber('heatPumpCop') : null,
+      usageMode: hasHeatPump ? heatPumpUsageMode : null
     },
     emobility: {
       hasEV: hasEv && evVehicles.length > 0,
@@ -1098,8 +1111,10 @@ function validatePayload(payload) {
   if (payload.heatPump.hasHeatPump) {
     const hpConsumptionEl = byId('heatPumpConsumption');
     const hpCopEl = byId('heatPumpCop');
+    const hpUsageModeEl = byId('heatPumpUsageMode');
     hpConsumptionEl?.classList.remove('invalid');
     hpCopEl?.classList.remove('invalid');
+    hpUsageModeEl?.classList.remove('invalid');
 
     if (payload.heatPump.annualConsumption_kwh == null) {
       hpConsumptionEl?.classList.add('invalid');
@@ -1108,6 +1123,10 @@ function validatePayload(payload) {
     if (payload.heatPump.cop == null) {
       hpCopEl?.classList.add('invalid');
       return 'Bitte den COP der Wärmepumpe eingeben.';
+    }
+    if (!['hotWater', 'heating', 'both'].includes(payload.heatPump.usageMode || '')) {
+      hpUsageModeEl?.classList.add('invalid');
+      return 'Bitte wählen Sie die Nutzung der Wärmepumpe (Warmwasser, Heizen oder beides).';
     }
   }
 
@@ -1322,6 +1341,7 @@ function addEvVehicle(vehicle = {}) {
     </div>
   `;
   evVehiclesContainer.appendChild(card);
+  initNumericInputs(card);
   
   // Add live update listener for EV profiles
   card.querySelectorAll('[data-update="true"]').forEach(input => {
@@ -1434,9 +1454,9 @@ function updateLargeLoadProfiles() {
         </table>
       </details>
       <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
-        <strong>📊 Tägliche Kosten:</strong> €${dailyCost.toFixed(2)} | 
-        <strong>📅 Wöchentlich:</strong> €${weeklyCost.toFixed(2)} | 
-        <strong>📈 Jährlich (ca.):</strong> <span style="color:#d32f2f; font-weight:bold">€${yearlyCost.toFixed(0)}</span>
+        <strong>Tägliche Kosten:</strong> €${dailyCost.toFixed(2)} | 
+        <strong>Wöchentlich:</strong> €${weeklyCost.toFixed(2)} | 
+        <strong>Jährlich (ca.):</strong> <span style="color:#d32f2f; font-weight:bold">€${yearlyCost.toFixed(0)}</span>
       </div>
     `;
     largeLoadProfilesContainer.appendChild(profileDiv);
@@ -1472,7 +1492,7 @@ function updateEvVehicleProfiles() {
     const endHour = vehicle.chargingEndHour || 6;
     
     // Ladedauer in Stunden bei typischem Laden (z.B. 60 kWh / 11 kW = ~5.5h)
-    const chargeTimeHours = battery / wallboxPower;
+    const chargeTimeHours = battery / Math.max(wallboxPower, 0.1);
     
     // Jahresladezyklen aus Laufleistung: ~300 km Reichweite pro Vollladung
     const annualChargingEvents = Math.round((vehicle.annualKm || 12000) / 300);
@@ -1532,8 +1552,8 @@ function updateEvVehicleProfiles() {
         </table>
       </details>
       <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
-        <strong>🔋 Kosten pro Ladesession:</strong> €${costPerSession.toFixed(2)} | 
-        <strong>📈 Jährlich (${annualChargingEvents} Ladevorgänge):</strong> <span style="color:#2196f3; font-weight:bold">€${yearlyCost.toFixed(0)}</span>
+        <strong>Kosten pro Ladesession:</strong> €${costPerSession.toFixed(2)} | 
+        <strong>Jährlich (${annualChargingEvents} Ladevorgänge):</strong> <span style="color:#2196f3; font-weight:bold">€${yearlyCost.toFixed(0)}</span>
       </div>
     `;
     evProfilesContainer.appendChild(profileDiv);
@@ -1639,6 +1659,7 @@ function addLargeLoad(load = {}) {
   `;
 
   largeLoadsContainer.appendChild(card);
+  initNumericInputs(card);
   
   // Add live update listener
   card.querySelectorAll('[data-update="true"]').forEach(input => {
@@ -1710,6 +1731,94 @@ function buildLargeLoadDailyCurveKw(loads) {
 function optionalNumber(id) {
   const raw = byId(id).value.trim();
   return raw === '' ? null : Number(raw);
+}
+
+function initNumericInputs(root = document) {
+  const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+  const inputs = scope.querySelectorAll('input[type="number"]');
+  inputs.forEach((input) => hardenNumberInput(input));
+}
+
+function hardenNumberInput(input) {
+  if (!input || input.dataset.numericHardened === 'true') {
+    return;
+  }
+
+  const minNum = Number(input.min);
+  const maxNum = Number(input.max);
+  const stepAttr = input.getAttribute('step');
+  const stepNum = stepAttr == null ? NaN : Number(stepAttr);
+
+  const allowNegative = Number.isFinite(minNum) && minNum < 0;
+  const allowDecimal = (stepAttr != null && stepAttr !== '1')
+    || (Number.isFinite(minNum) && !Number.isInteger(minNum))
+    || (Number.isFinite(maxNum) && !Number.isInteger(maxNum));
+
+  input.setAttribute('inputmode', allowDecimal ? 'decimal' : 'numeric');
+  input.setAttribute('pattern', allowDecimal
+    ? (allowNegative ? '-?[0-9]*[.,]?[0-9]*' : '[0-9]*[.,]?[0-9]*')
+    : (allowNegative ? '-?[0-9]*' : '[0-9]*'));
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'e' || event.key === 'E' || event.key === '+') {
+      event.preventDefault();
+      return;
+    }
+    if (event.key === '-' && !allowNegative) {
+      event.preventDefault();
+    }
+  });
+
+  input.addEventListener('input', () => {
+    const original = input.value;
+    let value = original.replace(/,/g, '.');
+    if (allowDecimal) {
+      value = value.replace(/[^0-9.\-]/g, '');
+      const sign = value.startsWith('-') && allowNegative ? '-' : '';
+      value = sign + value.replace(/-/g, '').replace(/^\./, '0.');
+      const firstDot = value.indexOf('.');
+      if (firstDot !== -1) {
+        value = value.slice(0, firstDot + 1) + value.slice(firstDot + 1).replace(/\./g, '');
+      }
+    } else {
+      value = value.replace(/[^0-9\-]/g, '');
+      if (allowNegative) {
+        const sign = value.startsWith('-') ? '-' : '';
+        value = sign + value.replace(/-/g, '');
+      } else {
+        value = value.replace(/-/g, '');
+      }
+    }
+    if (value !== original) {
+      input.value = value;
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    if (input.value === '') {
+      return;
+    }
+    let value = Number(input.value.replace(',', '.'));
+    if (!Number.isFinite(value)) {
+      input.value = '';
+      return;
+    }
+    if (Number.isFinite(minNum)) {
+      value = Math.max(value, minNum);
+    }
+    if (Number.isFinite(maxNum)) {
+      value = Math.min(value, maxNum);
+    }
+    if (!allowDecimal) {
+      value = Math.round(value);
+    } else if (Number.isFinite(stepNum) && stepNum > 0) {
+      const minBase = Number.isFinite(minNum) ? minNum : 0;
+      value = Math.round((value - minBase) / stepNum) * stepNum + minBase;
+    }
+    input.value = String(value);
+  });
+
+  input.dataset.numericHardened = 'true';
 }
 
 function setSectionEnabled(targetDiv, enabled) {
@@ -2138,11 +2247,9 @@ function syncWizardHeight() {
   if (!activeStep) {
     return;
   }
-  const measuredHeight = Math.max(activeStep.offsetHeight, activeStep.scrollHeight);
-  if (measuredHeight > 40) {
-    wizardStage.style.height = `${measuredHeight}px`;
-    wizardStage.style.minHeight = `${measuredHeight}px`;
-  }
+  const measuredHeight = Math.max(120, Math.ceil(activeStep.scrollHeight));
+  wizardStage.style.height = `${measuredHeight}px`;
+  wizardStage.style.minHeight = '120px';
 }
 
 function updateWizardUi() {
@@ -2675,8 +2782,22 @@ const EA_ALTERNATIVES = [
 // ── Heizquellen-Karten-System ────────────────────────────────────────────────
 const heatingSourcesContainer = () => byId('heatingSources');
 
+function getHeatPumpUsageMode() {
+  const value = byId('heatPumpUsageMode')?.value;
+  return ['hotWater', 'heating', 'both'].includes(value) ? value : '';
+}
+
+function shouldIncludeHeatPumpInHeatingSources() {
+  const hasHeatPump = byId('hasHeatPump')?.checked === true;
+  if (!hasHeatPump) {
+    return false;
+  }
+  const usageMode = getHeatPumpUsageMode();
+  return usageMode === 'heating' || usageMode === 'both';
+}
+
 function initEnergyAnalysisSection() {
-  if (!byId('areaM2')) {
+  if (!heatingSourcesContainer() || !byId('addHeatingSourceBtn')) {
     return;
   }
 
@@ -2686,6 +2807,9 @@ function initEnergyAnalysisSection() {
   byId('hasHeatPump')?.addEventListener('change', () => {
     syncWpHeatingCard();
   });
+  byId('heatPumpUsageMode')?.addEventListener('change', () => {
+    syncWpHeatingCard();
+  });
 }
 
 function initHeatingSources() {
@@ -2693,17 +2817,23 @@ function initHeatingSources() {
   const addBtn = byId('addHeatingSourceBtn');
   if (!container || !addBtn) return;
 
-  addBtn.addEventListener('click', () => addHeatingSource());
+  if (!addBtn.dataset.bound) {
+    addBtn.addEventListener('click', () => addHeatingSource());
+    addBtn.dataset.bound = 'true';
+  }
 
-  container.addEventListener('click', (e) => {
-    const removeBtn = e.target.closest('.heating-source-remove-btn');
-    if (!removeBtn) return;
-    const card = removeBtn.closest('.heating-source');
-    if (card) {
-      card.remove();
-      renumberHeatingSources();
-    }
-  });
+  if (!container.dataset.bound) {
+    container.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('.heating-source-remove-btn');
+      if (!removeBtn) return;
+      const card = removeBtn.closest('.heating-source');
+      if (card) {
+        card.remove();
+        renumberHeatingSources();
+      }
+    });
+    container.dataset.bound = 'true';
+  }
 
   // Standard: eine Heizquelle (Gas) vorbelegen
   if (!container.children.length) {
@@ -2716,16 +2846,16 @@ function initHeatingSources() {
 function syncWpHeatingCard() {
   const container = heatingSourcesContainer();
   if (!container) return;
-  const hasHeatPump = byId('hasHeatPump')?.checked === true;
+  const includeHeatPump = shouldIncludeHeatPumpInHeatingSources();
   const existing = container.querySelector('.heating-source-wp-info');
 
-  if (hasHeatPump && !existing) {
+  if (includeHeatPump && !existing) {
     const info = document.createElement('div');
     info.className = 'heating-source heating-source-wp-info';
     info.style.cssText = 'border:1px dashed #0B8F6A; background:#f0faf7; padding:0.75rem 1rem; border-radius:8px; font-size:0.9rem; color:#0B8F6A;';
-    info.innerHTML = `⚡ <strong>Wärmepumpe</strong> – Stromverbrauch wird automatisch aus dem Großverbraucher-Schritt übernommen und in der Tarifberechnung berücksichtigt. Hier keine weitere Eingabe nötig.`;
+    info.innerHTML = `<strong>Wärmepumpe</strong> – wird automatisch aus dem Großverbraucher-Schritt als Heizquelle übernommen (Modus: Heizen). Hier keine weitere Eingabe nötig.`;
     container.prepend(info);
-  } else if (!hasHeatPump && existing) {
+  } else if (!includeHeatPump && existing) {
     existing.remove();
   }
   renumberHeatingSources();
@@ -2826,12 +2956,13 @@ function renderEnergyAnalysis() {
 
   const avgPowerPrice = annualPowerCost > 0 ? annualPowerCost / annualPowerUse : 0.32; // Fallback 32 ct/kWh
   const hasHeatPump = byId('hasHeatPump')?.checked === true;
+  const includeHeatPump = shouldIncludeHeatPumpInHeatingSources();
 
   // Heizquellen aus Karten einsammeln
   const sources = collectHeatingSources();
 
   // WP aus Großverbraucher als virtuelle Quelle hinzufügen (falls aktiv)
-  if (hasHeatPump) {
+  if (hasHeatPump && includeHeatPump) {
     const wpConsumption = eaNum('heatPumpConsumption', 0);
     if (wpConsumption > 0) {
       sources.push({ type: 'heatpump', consumption: wpConsumption, basePrice: 0 });
@@ -2872,7 +3003,7 @@ function renderEnergyAnalysis() {
   const heatCostPerM2 = eaSafeDiv(totalHeatingCostAbs, Math.max(areaM2, 1));
 
   // Stromkosten: WP-Anteil aus Gesamtkosten herausrechnen wenn bekannt
-  const wpConsumption = hasHeatPump ? eaNum('heatPumpConsumption', 0) : 0;
+  const wpConsumption = (hasHeatPump && includeHeatPump) ? eaNum('heatPumpConsumption', 0) : 0;
   const householdPowerCost = annualPowerCost > 0
     ? Math.max(annualPowerCost - wpConsumption * avgPowerPrice, 0)
     : (annualPowerUse - wpConsumption) * avgPowerPrice;

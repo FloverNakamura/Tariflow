@@ -80,7 +80,7 @@ function sanitizeLargeLoads(value: unknown): LargeLoadConfig[] {
     .map((entry) => {
       const load = entry as Record<string, unknown>;
       return {
-        powerKw: clamp(toNum(load.powerKw, 5), 0, 500),
+        powerKw: clamp(toNum(load.powerKw, 5), 4.2, 500),
         startHour: clamp(Math.round(toNum(load.startHour, 0)), 0, 23),
         endHour: clamp(Math.round(toNum(load.endHour, 0)), 0, 23),
       };
