@@ -2454,14 +2454,20 @@ function renderResults(data) {
   const best = pickBestTariff(visibleTariffs);
   const summary = data.summary || {};
   const used = data.usedParams || {};
+  const eligibility = data.eligibilityReport || null;
   const moduleDecision = determineModuleDecision();
   const recommendedTariff = best?.label || summary.recommendedTariff || '-';
   const recommendedModule = formatSelectedModuleLabel(moduleDecision.module);
+  const staticTariff = visibleTariffs.find((tariff) => tariff.tariffType === 'static' && tariff.module14a === 'none') || null;
+  const dynamicTariff = visibleTariffs.find((tariff) => tariff.tariffType === 'dynamic' && tariff.module14a === 'none') || null;
 
-  byId('resRecommendation').innerHTML = `Tarif: <strong>${escapeHtml(recommendedTariff)}</strong><br>Modul: <strong>${escapeHtml(recommendedModule)}</strong>`;
+  byId('resRecommendation').innerHTML = `<strong>${escapeHtml(recommendedTariff)}</strong><span class="result-recommendation-sub">${escapeHtml(recommendedModule)}</span>`;
+  setText('resSummaryReason', eligibility?.mainReason || 'Die Empfehlung basiert auf Voraussetzungen und Kostenvergleich.');
   byId('resConsumption').textContent = `${formatNumber(summary.totalConsumption_kwh)} kWh`;
   byId('resYield').textContent = `${formatNumber(summary.pvYield_kwh)} kWh`;
   byId('resSaving').textContent = formatEuro(summary.annualSavingVsStatic_eur);
+  setText('resStaticCost', formatEuro(eligibility?.estimatedStaticCost_eur ?? staticTariff?.netCost_eur ?? 0));
+  setText('resDynamicCost', formatEuro(eligibility?.estimatedDynamicCost_eur ?? dynamicTariff?.netCost_eur ?? 0));
 
   const coords = used.coordinates || { lat: '-', lon: '-' };
   byId('resCoords').textContent = `${coords.lat}, ${coords.lon}`;
@@ -2840,42 +2846,51 @@ function renderTariffTable(tariffs) {
 function renderEligibilityReport(report) {
   const container = byId('eligibilityReportContainer');
   if (!container) return;
-  
+
   container.innerHTML = '';
 
-  // ── Header mit Empfehlung ──────────────────────────────────────────────────
   const header = document.createElement('div');
   header.className = 'eligibility-header';
-  header.style.cssText = `
-    padding: 1rem;
-    margin-bottom: 1rem;
-    border-radius: 8px;
-    background: ${report.recommendedTariff === 'dynamic' ? '#E8F5E9' : '#FFF3E0'};
-    border-left: 4px solid ${report.recommendedTariff === 'dynamic' ? '#4CAF50' : '#FF9800'};
-  `;
-  
+  header.classList.add(report.recommendedTariff === 'dynamic' ? 'is-dynamic' : 'is-static');
+
   const icon = report.recommendedTariff === 'dynamic' ? '✅' : 'ℹ️';
   const recommendation = report.recommendedTariff === 'dynamic'
     ? 'Dynamischer Tarif empfohlen'
     : 'Statischer Tarif empfohlen';
-  
+
   header.innerHTML = `
-    <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem;">
+    <div class="eligibility-headline">
       ${icon} ${recommendation}
     </div>
-    <div style="font-size: 0.95rem; margin-bottom: 0.5rem;">
+    <div class="eligibility-main-reason">
       <strong>${escapeHtml(report.mainReason)}</strong>
     </div>
-    <div style="font-size: 0.9rem; color: #555;">
-      <strong>Geschätzte Jahreskosten:</strong><br/>
-      Statisch: <strong>${formatEuro(report.estimatedStaticCost_eur)}</strong> | 
-      Dynamisch: <strong>${formatEuro(report.estimatedDynamicCost_eur)}</strong> | 
-      Ersparnis: <strong>${formatEuro(report.estimatedSavings_eur)} (${Math.round(report.estimatedSavings_pct * 10) / 10}%)</strong>
+    <div class="eligibility-cost-line">
+      <span>Statisch: <strong>${formatEuro(report.estimatedStaticCost_eur)}</strong></span>
+      <span>Dynamisch: <strong>${formatEuro(report.estimatedDynamicCost_eur)}</strong></span>
+      <span>Ersparnis: <strong>${formatEuro(report.estimatedSavings_eur)} (${Math.round(report.estimatedSavings_pct * 10) / 10}%)</strong></span>
     </div>
   `;
   container.appendChild(header);
 
-  // ── Bedingungen nach Kategorie ──────────────────────────────────────────────
+  const statusBar = document.createElement('div');
+  statusBar.className = 'eligibility-status-grid';
+  const statusLines = [
+    ['Mindestvoraussetzungen', report.requirementsMet],
+    ['Technische Voraussetzungen', report.technicalMet],
+    ['Ausschlussregeln', report.exclusionsOk],
+    ['Wirtschaftlichkeit', report.economicMet]
+  ];
+
+  statusLines.forEach(([name, met]) => {
+    const item = document.createElement('div');
+    item.className = `eligibility-status-item ${met ? 'ok' : 'fail'}`;
+    item.innerHTML = `<span>${met ? '✓' : '✗'}</span><strong>${escapeHtml(name)}</strong>`;
+    statusBar.appendChild(item);
+  });
+
+  container.appendChild(statusBar);
+
   const categories = [
     { key: 'requirements', label: '📋 Mindestvoraussetzungen', color: '#1976D2' },
     { key: 'technical', label: '⚙️ Technische Voraussetzungen', color: '#388E3C' },
@@ -2887,40 +2902,30 @@ function renderEligibilityReport(report) {
     const checks = report.checks.filter((c) => c.section === key);
     if (!checks.length) return;
 
-    const section = document.createElement('section');
-    section.style.cssText = `
-      margin-bottom: 1.5rem;
-      padding: 1rem;
-      background: #F9FAFB;
-      border-radius: 8px;
-      border-top: 3px solid ${color};
-    `;
+    const section = document.createElement('details');
+    section.className = 'eligibility-group';
+    section.open = key === 'requirements';
+    section.style.setProperty('--group-color', color);
 
-    const title = document.createElement('h4');
-    title.style.cssText = `margin: 0 0 1rem 0; color: ${color}; font-size: 1rem;`;
-    title.textContent = label;
+    const title = document.createElement('summary');
+    title.textContent = `${label} (${checks.filter((check) => check.satisfied).length}/${checks.length})`;
     section.appendChild(title);
 
     const list = document.createElement('ul');
-    list.style.cssText = `margin: 0; padding-left: 1.5rem;`;
+    list.className = 'eligibility-check-list';
 
     checks.forEach((check) => {
       const li = document.createElement('li');
-      li.style.cssText = `
-        margin-bottom: 0.75rem;
-        font-size: 0.95rem;
-        color: ${check.satisfied ? '#2E7D32' : '#C62828'};
-        ${check.importance === 'critical' ? 'font-weight: bold;' : ''}
-      `;
+      li.className = `eligibility-check ${check.satisfied ? 'ok' : 'fail'}${check.importance === 'critical' ? ' critical' : ''}`;
 
       const icon = check.satisfied ? '✓' : '✗';
       const valueStr = check.value
-        ? ` <span style="color: #555; font-weight: 500;">[${check.value}]</span>`
+        ? ` <span class="eligibility-check-value">${escapeHtml(String(check.value))}</span>`
         : '';
 
       li.innerHTML = `
-        <strong>${icon}</strong> ${escapeHtml(check.name)}${valueStr}
-        <div style="font-size: 0.88rem; color: #666; margin-top: 0.25rem; margin-left: 1.5rem;">
+        <div class="eligibility-check-top"><strong>${icon}</strong> ${escapeHtml(check.name)}${valueStr}</div>
+        <div class="eligibility-check-reason">
           ${escapeHtml(check.reason)}
         </div>
       `;
@@ -2930,34 +2935,6 @@ function renderEligibilityReport(report) {
     section.appendChild(list);
     container.appendChild(section);
   });
-
-  // ── Zusammenfassung der Status ─────────────────────────────────────────────
-  const summary = document.createElement('div');
-  summary.style.cssText = `
-    padding: 1rem;
-    background: #E3F2FD;
-    border-left: 4px solid #1976D2;
-    border-radius: 4px;
-    font-size: 0.95rem;
-    margin-top: 1rem;
-  `;
-
-  const statusLines = [
-    ['Mindestvoraussetzungen', report.requirementsMet],
-    ['Technische Voraussetzungen', report.technicalMet],
-    ['Ausschlussregeln', report.exclusionsOk],
-    ['Wirtschaftlichkeit', report.economicMet]
-  ];
-
-  let statusHtml = '<strong>Status der Prüfungen:</strong><br/>';
-  statusLines.forEach(([name, met]) => {
-    const icon = met ? '✓' : '✗';
-    const color = met ? '#2E7D32' : '#C62828';
-    statusHtml += `<div style="color: ${color}; margin: 0.25rem 0;"><strong>${icon}</strong> ${name}</div>`;
-  });
-
-  summary.innerHTML = statusHtml;
-  container.appendChild(summary);
 }
 
 function renderTransparency(entries) {
