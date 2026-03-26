@@ -83,13 +83,22 @@
 
                 <div id="consumptionChoiceBlock" class="conditional-block hidden">
                   <label class="field">
-                    <span>Wie ist der Verbrauch Ihres Hauses?</span>
+                    <span>Wie hoch ist der steuerbare Verbrauch?</span>
                     <input id="moduleConsumptionPattern" type="hidden" value="">
-                    <div class="decision-toggle decision-toggle-three" id="consumptionPatternButtons">
-                      <button type="button" class="decision-btn module-choice-btn" data-pattern="low">Sehr gering</button>
-                      <button type="button" class="decision-btn module-choice-btn" data-pattern="high">Sehr hoch</button>
-                      <button type="button" class="decision-btn module-choice-btn" data-pattern="shiftable">Zeitlich gut verschiebbar</button>
+                    <div class="decision-toggle" id="consumptionPatternButtons">
+                      <button type="button" class="decision-btn module-choice-btn" data-pattern="low">Gering bis normal</button>
+                      <button type="button" class="decision-btn module-choice-btn" data-pattern="high">Sehr hoch (z. B. Wärmepumpe)</button>
                     </div>
+                    <small class="hint">Für die Grundempfehlung wählen Sie gering/normal oder sehr hoch.</small>
+                  </label>
+
+                  <label class="field" style="margin-top:0.6rem">
+                    <span>Verbrauch zeitlich gut verschiebbar? (für variables Netzentgelt)</span>
+                    <label class="checkbox-row">
+                      <input id="moduleShiftable" type="checkbox">
+                      <span>Ja, Lasten können in günstige Zeiten verschoben werden (z. B. Smart Charging / EMS)</span>
+                    </label>
+                    <small class="hint">Hinweis: Modul 3 ist nur sinnvoll mit intelligenter Messung und aktivem Lastmanagement.</small>
                   </label>
                 </div>
               </div>

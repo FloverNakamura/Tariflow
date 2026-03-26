@@ -402,6 +402,26 @@ h1 {
   margin-bottom: 0;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.05rem;
+  accent-color: var(--accent);
+}
+
+.checkbox-row span {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
 /* Großverbraucher combined step */
 .gross-step-heading {
   margin: 0 0 0.3rem;

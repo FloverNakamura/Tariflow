@@ -948,7 +948,7 @@ function validatePayload(payload) {
 
   const moduleDecision = determineModuleDecision();
   if (payload.tariff.largeLoadOver42kw && moduleDecision.requiresConsumptionChoice && !moduleDecision.hasConsumptionChoice) {
-    return 'Bitte wählen Sie in der §14a-Abfrage aus, ob der Verbrauch sehr gering, sehr hoch oder zeitlich gut verschiebbar ist.';
+    return 'Bitte wählen Sie in der §14a-Abfrage die Grundcharakteristik (gering/normal oder sehr hoch). Die Verschiebbarkeit ist optional als Checkbox.';
   }
 
   const pvMode = document.querySelector('input[name="pvMode"]:checked').value;
@@ -1305,7 +1305,8 @@ function initHouseholdConsumptionMode() {
 
 function initModuleDecisionFlow() {
   const largeLoadToggle = byId('hasLargeLoad42');
-  if (!largeLoadToggle || !moduleConditionBlock || !moduleDecisionResult || !installedBefore2024 || !allowsGridControl || !controlConsentBlock || !consumptionChoiceBlock || !moduleConsumptionPattern) {
+  const shiftableToggle = byId('moduleShiftable');
+  if (!largeLoadToggle || !moduleConditionBlock || !moduleDecisionResult || !installedBefore2024 || !allowsGridControl || !controlConsentBlock || !consumptionChoiceBlock || !moduleConsumptionPattern || !shiftableToggle) {
     return;
   }
 
@@ -1319,7 +1320,7 @@ function initModuleDecisionFlow() {
     });
   });
 
-  [largeLoadToggle, installedBefore2024, allowsGridControl].forEach((el) => {
+  [largeLoadToggle, installedBefore2024, allowsGridControl, shiftableToggle].forEach((el) => {
     el.addEventListener('change', syncModuleDecisionFlow);
   });
 
@@ -1328,6 +1329,7 @@ function initModuleDecisionFlow() {
 
 function syncModuleDecisionFlow() {
   const largeLoadToggle = byId('hasLargeLoad42');
+  const shiftableToggle = byId('moduleShiftable');
   const hasLargeLoad = largeLoadToggle?.checked === true;
   const isBefore2024 = installedBefore2024?.checked === true;
   const allowsControl = allowsGridControl?.checked === true;
@@ -1336,6 +1338,7 @@ function syncModuleDecisionFlow() {
   if (!hasLargeLoad) {
     if (installedBefore2024) installedBefore2024.checked = false;
     if (allowsGridControl) allowsGridControl.checked = false;
+    if (shiftableToggle) shiftableToggle.checked = false;
     if (moduleConsumptionPattern) moduleConsumptionPattern.value = '';
     syncModuleConsumptionButtons('');
     syncDecisionButtons('installedBefore2024', false);
@@ -1353,9 +1356,14 @@ function syncModuleDecisionFlow() {
 
   const canProceedToConsumption = hasLargeLoad && (!isBefore2024 || allowsControl);
   consumptionChoiceBlock?.classList.toggle('hidden', !canProceedToConsumption);
-  if (!canProceedToConsumption && moduleConsumptionPattern) {
-    moduleConsumptionPattern.value = '';
-    syncModuleConsumptionButtons('');
+  if (!canProceedToConsumption) {
+    if (moduleConsumptionPattern) {
+      moduleConsumptionPattern.value = '';
+      syncModuleConsumptionButtons('');
+    }
+    if (shiftableToggle) {
+      shiftableToggle.checked = false;
+    }
   }
 
   const decision = determineModuleDecision();
@@ -1378,6 +1386,7 @@ function determineModuleDecision() {
   const isBefore2024 = installedBefore2024?.checked === true;
   const allowsControl = allowsGridControl?.checked === true;
   const pattern = moduleConsumptionPattern?.value || '';
+  const isShiftable = byId('moduleShiftable')?.checked === true;
 
   if (!hasLargeLoad) {
     return {
@@ -1397,12 +1406,13 @@ function determineModuleDecision() {
     };
   }
 
-  if (pattern === 'low') {
+  // Official baseline from BNetzA: Modul 1 = pauschaler Rabatt (default/robust).
+  if (isShiftable) {
     return {
-      module: 'modul1',
+      module: 'modul3',
       requiresConsumptionChoice: true,
       hasConsumptionChoice: true,
-      message: 'Empfohlen: Modul 1 (Pauschalrabatt für Bereitschaft bei Netzknappheit zu drosseln).'
+      message: 'Empfohlen: Modul 3 (zeitvariables Netzentgelt; sinnvoll bei gut verschiebbaren Lasten, Smart Meter/EMS empfehlenswert).'
     };
   }
 
@@ -1411,16 +1421,16 @@ function determineModuleDecision() {
       module: 'modul2',
       requiresConsumptionChoice: true,
       hasConsumptionChoice: true,
-      message: 'Empfohlen: Modul 2 (günstiger Arbeitspreis für Großgeräte, 2 Zähler benötigt).'
+      message: 'Empfohlen: Modul 2 (60 % Reduktion des Arbeitspreis-Netzentgeltanteils; separater Zählpunkt nötig, oft stark bei hohem Verbrauch).'
     };
   }
 
-  if (pattern === 'shiftable') {
+  if (pattern === 'low') {
     return {
-      module: 'modul3',
+      module: 'modul1',
       requiresConsumptionChoice: true,
       hasConsumptionChoice: true,
-      message: 'Empfohlen: Modul 3 (variables Netzentgelt, Smart Meter erforderlich).'
+      message: 'Empfohlen: Modul 1 (pauschaler Netzentgelt-Rabatt; stabil und meist sinnvoll bei geringem bis normalem Zusatzverbrauch).'
     };
   }
 
@@ -1428,7 +1438,7 @@ function determineModuleDecision() {
     module: 'none',
     requiresConsumptionChoice: true,
     hasConsumptionChoice: false,
-    message: 'Bitte wählen Sie die Verbrauchscharakteristik (sehr gering, sehr hoch oder zeitlich gut verschiebbar).'
+    message: 'Bitte wählen Sie die Grundcharakteristik (gering/normal oder sehr hoch). Optional können Sie zusätzlich Verschiebbarkeit aktivieren.'
   };
 }
 
