@@ -84,7 +84,7 @@ body {
 .brand-logo-secondary {
   width: auto;
   height: 72px;
-  max-width: min(28vw, 160px);
+  max-width: min(46vw, 320px);
   object-fit: contain;
   filter: contrast(1.04) saturate(1.03);
 }
