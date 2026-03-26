@@ -408,14 +408,13 @@ const INFO_TEXTS = {
   },
   resConsumption: {
     title: 'Jahresverbrauch',
-    html: `<p>Gesamter elektrischer Jahresverbrauch des Haushalts in kWh, berechnet als Summe aller Komponenten:</p>
-           <div class="formula">Gesamt = Haushalt + Wärmepumpe + Elektrofahrzeug</div>
+    html: `<p>Elektrischer <strong>Haushaltsverbrauch</strong> in kWh/Jahr (ohne Wärmepumpe und E-Auto).</p>
+           <div class="formula">Haushalt = Absolutwert oder Personenansatz (BDEW-H0)</div>
            <ul>
-             <li><strong>Haushalt:</strong> Personenzahl × BDEW-H0-Profil</li>
-             <li><strong>Wärmepumpe:</strong> direkt eingegebener Jahreswert (auf Heizkurve verteilt)</li>
-             <li><strong>E-Auto:</strong> Batteriekapazität × 50 Ladezyklen/Jahr</li>
+             <li><strong>Absolutmodus:</strong> Gesamtwert wird um separat erfasste Großverbraucher bereinigt</li>
+             <li><strong>Personenmodus:</strong> typisierte Haushaltswerte nach Personenzahl</li>
            </ul>
-           <p>Eigenerzeugung durch die PV-Anlage senkt den <em>Netzbezug</em>, nicht den Gesamtverbrauch.</p>`
+           <p>PV, Wärmepumpe und E-Auto beeinflussen Netzbezug und Kosten, werden hier aber nicht als Haushaltsverbrauch ausgewiesen.</p>`
   },
   resYield: {
     title: 'PV-Jahresertrag',
@@ -2518,6 +2517,7 @@ function renderResults(data) {
   const summary = data.summary || {};
   const used = data.usedParams || {};
   const eligibility = data.eligibilityReport || null;
+  const householdConsumptionKwh = getHouseholdConsumptionForDisplay(summary);
   const moduleDecision = determineModuleDecision();
   const recommendedTariff = best?.label || summary.recommendedTariff || '-';
   const recommendedModule = formatSelectedModuleLabel(moduleDecision.module);
@@ -2526,7 +2526,7 @@ function renderResults(data) {
 
   byId('resRecommendation').innerHTML = `<strong>${escapeHtml(recommendedTariff)}</strong><span class="result-recommendation-sub">${escapeHtml(recommendedModule)}</span>`;
   setText('resSummaryReason', eligibility?.mainReason || 'Die Empfehlung basiert auf Voraussetzungen und Kostenvergleich.');
-  byId('resConsumption').textContent = `${formatNumber(summary.totalConsumption_kwh)} kWh`;
+  byId('resConsumption').textContent = `${formatNumber(householdConsumptionKwh)} kWh`;
   byId('resYield').textContent = `${formatNumber(summary.pvYield_kwh)} kWh`;
   byId('resSaving').textContent = formatEuro(summary.annualSavingVsStatic_eur);
   setText('resStaticCost', formatEuro(eligibility?.estimatedStaticCost_eur ?? staticTariff?.netCost_eur ?? 0));
@@ -3673,7 +3673,28 @@ function buildSuccessMessage(data) {
   const best = pickBestTariff(visibleTariffs);
   const recommendedTariff = best?.label || summary.recommendedTariff || 'kein Tarif';
   const recommendedModule = formatSelectedModuleLabel(determineModuleDecision().module);
-  return `Berechnung erfolgreich. Empfohlen: ${recommendedTariff} mit ${recommendedModule}. Jahresverbrauch: ${formatNumber(summary.totalConsumption_kwh)} kWh.`;
+  const householdConsumptionKwh = getHouseholdConsumptionForDisplay(summary);
+  return `Berechnung erfolgreich. Empfohlen: ${recommendedTariff} mit ${recommendedModule}. Haushaltsverbrauch: ${formatNumber(householdConsumptionKwh)} kWh.`;
+}
+
+function getHouseholdConsumptionForDisplay(summary = {}) {
+  const consumptionKnown = byId('consumptionKnown')?.checked === true;
+
+  if (consumptionKnown) {
+    const absoluteTotal = optionalNumber('householdAnnualConsumption');
+    if (Number.isFinite(absoluteTotal)) {
+      const annualLargeLoads = estimateAnnualLargeLoadConsumption(collectLargeLoads());
+      return Math.max(0, absoluteTotal - annualLargeLoads);
+    }
+  }
+
+  const personsRaw = parseInt(byId('persons')?.value || '', 10);
+  if (Number.isInteger(personsRaw)) {
+    const AVG_KWH = [0, 1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500];
+    return AVG_KWH[personsRaw] ?? (personsRaw * 1000 + 500);
+  }
+
+  return Number(summary.totalConsumption_kwh) || 0;
 }
 
 function formatNumber(value) {
