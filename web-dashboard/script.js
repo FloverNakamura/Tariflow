@@ -117,6 +117,15 @@ const MARKET_TICKER_INTERVAL_MS = 60 * 60 * 1000;
 const MARKET_TICKER_SYNC_DELAY_MS = 1500;
 const WIZARD_ANIMATION_MS = 360;
 
+// Referenz-Tagesprofil (ct/kWh) fuer EPEX-typische Day-Ahead-Verlaeufe in DE:
+// Nacht guenstig, mittags oft guenstiger (PV), abends klarer Peak.
+const REFERENCE_HOURLY_SPOT_CT = [
+  14, 13, 12, 11, 11, 13,
+  18, 23, 27, 24, 20, 17,
+  14, 13, 14, 17, 22, 29,
+  34, 31, 26, 22, 18, 16
+];
+
 const wizardState = {
   steps: [],
   currentIndex: 0
@@ -1413,13 +1422,6 @@ function updateLargeLoadProfiles() {
 
   largeLoadProfileSection.classList.remove('hidden');
   
-  // Typisches 24h Stundenpreisprofil für Deutschland (ct/kWh)
-  // Simulates EPEX Spot prices: Nacht günstig, Morgen teuer, Mittag moderater, Abend wieder teuer
-  const HOURLY_PRICES = [
-    22, 21, 20, 18, 16, 20, 28, 35, 38, 40, 42, 44,  // 0-11h (Nacht günstig, Morgen teuer)
-    45, 43, 40, 38, 35, 36, 38, 42, 45, 48, 50, 35   // 12-23h (Mittag/Abend, Nacht wieder günstiger)
-  ];
-  
   largeLoadProfilesContainer.innerHTML = '';
   
   loads.forEach((load, idx) => {
@@ -1432,9 +1434,9 @@ function updateLargeLoadProfiles() {
     // Berechne Kosten pro Stunde
     const hourlyData = hoursArray.map(hour => ({
       hour,
-      price: HOURLY_PRICES[hour] || 30,
+      price: REFERENCE_HOURLY_SPOT_CT[hour] || 20,
       consumption: power,
-      cost: (power * HOURLY_PRICES[hour] / 100)
+      cost: (power * REFERENCE_HOURLY_SPOT_CT[hour] / 100)
     }));
     
     // Tageskosten
@@ -1499,13 +1501,6 @@ function updateEvVehicleProfiles() {
 
   evProfileSection.classList.remove('hidden');
   
-  // Typisches 24h Stundenpreisprofil für Deutschland (ct/kWh)
-  // Simulates EPEX Spot prices: Nacht günstig, Morgen teuer, Mittag moderater, Abend wieder teuer
-  const HOURLY_PRICES = [
-    22, 21, 20, 18, 16, 20, 28, 35, 38, 40, 42, 44,  // 0-11h (Nacht günstig, Morgen teuer)
-    45, 43, 40, 38, 35, 36, 38, 42, 45, 48, 50, 35   // 12-23h (Mittag/Abend, Nacht wieder günstiger)
-  ];
-  
   evProfilesContainer.innerHTML = '';
   
   vehicles.forEach((vehicle, idx) => {
@@ -1525,10 +1520,10 @@ function updateEvVehicleProfiles() {
     // Berechne Kosten pro Stunde
     const hourlyData = hoursArray.map(hour => ({
       hour,
-      price: HOURLY_PRICES[hour] || 30,
+      price: REFERENCE_HOURLY_SPOT_CT[hour] || 20,
       power: wallboxPower,
       energyKwh: wallboxPower,
-      cost: (wallboxPower * HOURLY_PRICES[hour] / 100)
+      cost: (wallboxPower * REFERENCE_HOURLY_SPOT_CT[hour] / 100)
     }));
     
     // Kosten pro Ladesession (Vollladung)
