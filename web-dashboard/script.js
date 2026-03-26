@@ -1371,10 +1371,16 @@ function syncModuleDecisionFlow() {
     syncDecisionButtons('allowsGridControl', false);
   }
 
-  const needsConsent = hasLargeLoad && !isBefore2024;
+  // Grid control consent is only relevant for devices installed BEFORE 2024.
+  // After 2024 the new §14a mandate applies automatically — no need to ask.
+  const needsConsent = hasLargeLoad && isBefore2024;
   controlConsentBlock?.classList.toggle('hidden', !needsConsent);
+  if (!isBefore2024) {
+    if (allowsGridControl) allowsGridControl.checked = false;
+    syncDecisionButtons('allowsGridControl', false);
+  }
 
-  const canProceedToConsumption = hasLargeLoad && (isBefore2024 || allowsControl);
+  const canProceedToConsumption = hasLargeLoad && (!isBefore2024 || allowsControl);
   consumptionChoiceBlock?.classList.toggle('hidden', !canProceedToConsumption);
   if (!canProceedToConsumption && moduleConsumptionPattern) {
     moduleConsumptionPattern.value = '';
@@ -1411,7 +1417,7 @@ function determineModuleDecision() {
     };
   }
 
-  if (!isBefore2024 && !allowsControl) {
+  if (isBefore2024 && !allowsControl) {
     return {
       module: 'none',
       requiresConsumptionChoice: false,
