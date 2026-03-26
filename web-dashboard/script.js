@@ -751,11 +751,83 @@ function runInitStep(name, fn) {
   }
 }
 
+function simplifyCaptionsForLayperson() {
+  const hints = document.querySelectorAll('.hint');
+  hints.forEach((hintEl) => {
+    const raw = (hintEl.textContent || '').trim();
+    if (!raw) return;
+
+    let simplified = raw.replace(/Quelle\s*:?.*$/i, '').trim();
+    const firstSentence = simplified.split(/(?<=[.!?])\s+/)[0] || simplified;
+    simplified = firstSentence.length > 130
+      ? `${firstSentence.slice(0, 127).trim()}...`
+      : firstSentence;
+
+    if (simplified) {
+      hintEl.textContent = simplified;
+    }
+  });
+}
+
+function simplifyInfoHtmlForLayperson(html) {
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = html || '';
+
+  const sourcePattern = /(quelle|bdew|bnetza|eeg|enwg|pvgis|awattar|epex|agfw|depv|co2online|beschlusskammer|leitfaden)/i;
+  wrapper.querySelectorAll('p, li, small').forEach((node) => {
+    const text = (node.textContent || '').trim();
+    if (sourcePattern.test(text)) {
+      node.remove();
+    }
+  });
+
+  const parts = [];
+  const paragraphs = Array.from(wrapper.querySelectorAll('p'))
+    .map((p) => (p.textContent || '').trim())
+    .filter(Boolean)
+    .slice(0, 2);
+
+  paragraphs.forEach((text) => {
+    const shortText = text.length > 240 ? `${text.slice(0, 237).trim()}...` : text;
+    parts.push(`<p>${escapeHtml(shortText)}</p>`);
+  });
+
+  const formulaText = (wrapper.querySelector('.formula')?.textContent || '').trim();
+  if (formulaText) {
+    parts.push(`<div class="formula">${escapeHtml(formulaText)}</div>`);
+  }
+
+  const firstList = wrapper.querySelector('ul, ol');
+  if (firstList) {
+    const items = Array.from(firstList.querySelectorAll('li'))
+      .map((li) => (li.textContent || '').trim())
+      .filter(Boolean)
+      .slice(0, 4)
+      .map((text) => {
+        const shortText = text.length > 120 ? `${text.slice(0, 117).trim()}...` : text;
+        return `<li>${escapeHtml(shortText)}</li>`;
+      });
+    if (items.length) {
+      parts.push(`<ul>${items.join('')}</ul>`);
+    }
+  }
+
+  if (!parts.length) {
+    const fallbackText = (wrapper.textContent || '').replace(/\s+/g, ' ').trim();
+    if (fallbackText) {
+      const shortText = fallbackText.length > 260 ? `${fallbackText.slice(0, 257).trim()}...` : fallbackText;
+      parts.push(`<p>${escapeHtml(shortText)}</p>`);
+    }
+  }
+
+  return parts.join('');
+}
+
 function openInfoModal(key) {
   const entry = INFO_TEXTS[key];
   if (!entry || !infoModalTitle || !infoModalBody || !infoModal || !infoModalClose) return;
   infoModalTitle.textContent = entry.title;
-  infoModalBody.innerHTML    = entry.html;
+  infoModalBody.innerHTML = simplifyInfoHtmlForLayperson(entry.html);
   infoModal.classList.remove('hidden');
   infoModalClose.focus();
 }
@@ -797,6 +869,7 @@ function init() {
   }
 
   runInitStep('Formular freischalten', unlockAllFormInputs);
+  runInitStep('Beschriftungen vereinfachen', simplifyCaptionsForLayperson);
   runInitStep('Zahlfelder härten', initNumericInputs);
   runInitStep('Formular-Wizard', initWizard);
   runInitStep('Entscheidungsbuttons', initDecisionButtons);
