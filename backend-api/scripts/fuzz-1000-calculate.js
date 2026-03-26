@@ -161,7 +161,8 @@ function checkPlausibility(data) {
 }
 
 async function run() {
-  const total = 1000;
+  const configuredTotal = Number.parseInt(process.env.FUZZ_TOTAL || '1000', 10);
+  const total = Number.isFinite(configuredTotal) && configuredTotal > 0 ? configuredTotal : 1000;
   const report = {
     total,
     ok2xx: 0,
@@ -176,6 +177,9 @@ async function run() {
   };
 
   for (let i = 0; i < total; i += 1) {
+    if (i > 0 && i % 1000 === 0) {
+      console.error(`... ${i} / ${total} requests done`);
+    }
     const payload = makeCase(i);
 
     let response;

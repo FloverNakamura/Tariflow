@@ -134,7 +134,23 @@ function getEVVehicles(req) {
             consumption_kwh_per_100km: req.emobility.consumption_kwh_per_100km ?? 20,
             wallboxPower_kw: req.emobility.chargingPower_kw ?? 11,
             useBidirectional: req.emobility.useBidirectional ?? false,
+            chargingStartHour: 22,
+            chargingEndHour: 6,
         }];
+}
+function buildHoursArray(startHour, endHour) {
+    const start = Math.min(23, Math.max(0, Math.round(startHour)));
+    const end = Math.min(23, Math.max(0, Math.round(endHour)));
+    if (start === end) {
+        return Array.from({ length: 24 }, (_, idx) => idx);
+    }
+    if (start < end) {
+        return Array.from({ length: end - start }, (_, idx) => start + idx);
+    }
+    return [
+        ...Array.from({ length: 24 - start }, (_, idx) => start + idx),
+        ...Array.from({ length: end }, (_, idx) => idx)
+    ];
 }
 function getLargeLoads(req) {
     const loads = Array.isArray(req.tariff.largeLoads) ? req.tariff.largeLoads : [];
@@ -175,7 +191,9 @@ function generateConsumptionHourly(req) {
         : (getAnnualHouseholdConsumptionForPersons(persons) * buildingFactor);
     let hpAnnual = 0;
     if (req.heatPump.hasHeatPump) {
-        hpAnnual = req.heatPump.annualConsumption_kwh ?? 3000;
+        const heatDemand = req.heatPump.annualConsumption_kwh ?? 3000;
+        const cop = Math.max(1.5, req.heatPump.cop ?? 3);
+        hpAnnual = heatDemand / cop;
     }
     let evAnnual = 0;
     const evVehicles = getEVVehicles(req);
@@ -199,13 +217,13 @@ function generateConsumptionHourly(req) {
     const hourlyH0 = loadProfiles.hourlyFactors;
     const monthlyHP = loadProfiles.heatPumpMonthlyFactors;
     const hourlyHP = loadProfiles.heatPumpHourlyFactors;
-    const hourlyEV = (req.emobility.preferNightCharging !== false)
-        ? loadProfiles.evChargingHourlyFactors_night
-        : loadProfiles.evChargingHourlyFactors_day;
+    const hourlyEVNight = loadProfiles.evChargingHourlyFactors_night;
+    const hourlyEVDay = loadProfiles.evChargingHourlyFactors_day;
     const hpMonthSum = monthlyHP.reduce((a, b) => a + b, 0);
     const h0HourSum = hourlyH0.reduce((a, b) => a + b, 0);
     const hpHourSum = hourlyHP.reduce((a, b) => a + b, 0);
-    const evHourSum = hourlyEV.reduce((a, b) => a + b, 0);
+    const evNightHourSum = hourlyEVNight.reduce((a, b) => a + b, 0);
+    const evDayHourSum = hourlyEVDay.reduce((a, b) => a + b, 0);
     const hourly = [];
     for (let m = 0; m < 12; m++) {
         const h0Month = (baseAnnual / 12) * monthlyH0[m];
@@ -216,7 +234,28 @@ function generateConsumptionHourly(req) {
             for (let h = 0; h < 24; h++) {
                 const h0Val = (h0Month / days) * (hourlyH0[h] / h0HourSum);
                 const hpVal = hpMonth > 0 ? (hpMonth / days) * (hourlyHP[h] / hpHourSum) : 0;
-                const evVal = evAnnual > 0 ? (evMonth / days) * (hourlyEV[h] / evHourSum) : 0;
+                let evVal = 0;
+                if (evVehicles.length) {
+                    evVal = evVehicles.reduce((sum, vehicle) => {
+                        const km = vehicle.annualKm ?? 12000;
+                        const cons = vehicle.consumption_kwh_per_100km ?? 20;
+                        const battery = vehicle.batteryCapacity_kwh ?? 60;
+                        const wallboxPower = vehicle.wallboxPower_kw ?? 11;
+                        const tractionKwh = (km / 100) * cons;
+                        const wallboxLossFactor = wallboxPower <= 4.6 ? 1.12 : wallboxPower <= 11 ? 1.1 : 1.08;
+                        const batteryOverheadKwh = battery * 3;
+                        const bidiCycleOverheadKwh = vehicle.useBidirectional ? (tractionKwh * 0.02) : 0;
+                        const vehicleAnnualKwh = (tractionKwh * wallboxLossFactor) + batteryOverheadKwh + bidiCycleOverheadKwh;
+                        const vehicleMonthKwh = vehicleAnnualKwh / 12;
+                        const explicitHours = buildHoursArray(vehicle.chargingStartHour ?? 22, vehicle.chargingEndHour ?? 6);
+                        if (explicitHours.length) {
+                            return sum + (explicitHours.includes(h) ? (vehicleMonthKwh / days) / explicitHours.length : 0);
+                        }
+                        const hourlyProfile = (req.emobility.preferNightCharging !== false) ? hourlyEVNight : hourlyEVDay;
+                        const hourSum = (req.emobility.preferNightCharging !== false) ? evNightHourSum : evDayHourSum;
+                        return sum + ((vehicleMonthKwh / days) * (hourlyProfile[h] / Math.max(hourSum, 1)));
+                    }, 0);
+                }
                 const largeLoadVal = largeLoadDailyCurveKw[h] ?? 0; // kWh per hour (equivalent to kW over 1h)
                 hourly.push((h0Val + hpVal + evVal + largeLoadVal) * 1000); // Wh
             }

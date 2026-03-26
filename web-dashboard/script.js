@@ -532,37 +532,59 @@ const INFO_TEXTS = {
 };
 
 Object.assign(INFO_TEXTS, {
+  heatingSourcesInfo: {
+    title: 'Heizquellen',
+    html: `<p>Hier können Sie alle Heizquellen des Haushalts erfassen – auch mehrere gleichzeitig (z.&nbsp;B. Gas + Fernwärme).</p>
+           <p><strong>Wichtig:</strong> Gas, Öl, Holz und Fernwärme fließen <em>nicht</em> in den elektrischen Stromverbrauch ein –
+           sie werden separat ausgewiesen. Nur die Wärmepumpe wird als Stromabnehmer in der Tarifberechnung berücksichtigt.</p>
+           <p>Quelle: Energieausweis-Systematik gemäß EnEV / GEG (Gebäudeenergiegesetz 2023).</p>`
+  },
   inputsOverview: {
     title: 'Heizung',
-    html: '<p>Hier wird die Heizart und der Heizverbrauch fuer die Energieanalyse erfasst.</p>'
+    html: '<p>Hier wird die Heizart und der Heizverbrauch für die Energieanalyse erfasst.</p>'
   },
   areaM2: {
-    title: 'Wohnflaeche',
-    html: '<p>Die Wohnflaeche ist die Bezugsbasis fuer Kosten und Verbraeuche pro Quadratmeter.</p>'
+    title: 'Wohnfläche (m²)',
+    html: `<p>Die Wohnfläche ist die Bezugsbasis für Kosten und Verbräuche pro Quadratmeter.</p>
+           <p>Typische Wohnflächen: Einfamilienhaus 100–180 m², Wohnung 50–120 m².</p>
+           <p>Quelle: Statistisches Bundesamt – Durchschnittliche Wohnfläche je Wohnung in Deutschland (2023): ca. 92 m².</p>`
   },
   powerTariff: {
     title: 'Aktueller Stromtarif',
-    html: '<p>Der Tariftyp dient der Einordnung. Der tatsaechliche Durchschnittspreis wird aus Kosten und Verbrauch berechnet.</p>'
+    html: '<p>Der Tariftyp dient der Einordnung. Der tatsächliche Durchschnittspreis wird aus Kosten und Verbrauch berechnet.</p>'
   },
   annualPowerCost: {
-    title: 'Jaehrliche Stromkosten',
-    html: '<p>Gesamte Stromkosten pro Jahr in Euro.</p>'
+    title: 'Jährliche Stromkosten (EUR)',
+    html: `<p>Gesamte Stromkosten pro Jahr in Euro (aus der letzten Jahresabrechnung).</p>
+           <p>Quelle: BDEW Strompreisanalyse 2025 – Ø Haushaltsstrompreis Deutschland ca. 31–33 ct/kWh (brutto inkl. MwSt.).</p>`
   },
   annualPowerUse: {
-    title: 'Jaehrlicher Stromverbrauch',
+    title: 'Jährlicher Stromverbrauch (kWh)',
     html: '<p>Gesamter Haushaltsstromverbrauch pro Jahr in kWh.</p>'
   },
   heatingType: {
     title: 'Heizart',
-    html: '<p>Abhaengig von der Heizart werden unterschiedliche Kostenmodelle und Wirkungsgrade genutzt.</p>'
+    html: `<p>Abhängig von der Heizart werden unterschiedliche Kostenmodelle und Wirkungsgrade genutzt:</p>
+           <ul>
+             <li><strong>Fernwärme:</strong> ~14,5 ct/kWh + Grundpreis</li>
+             <li><strong>Gas:</strong> ~12 ct/kWh (1 m³ Erdgas ≈ 10 kWh Heizwert, Hi)</li>
+             <li><strong>Öl:</strong> ~11 ct/kWh (1 Liter Heizöl ≈ 10 kWh Heizwert, Hi)</li>
+             <li><strong>Holz/Pellets:</strong> ~8 ct/kWh (1 kg Pellets ≈ 5 kWh)</li>
+             <li><strong>Wärmepumpe:</strong> Strombezug × COP → thermische Energie</li>
+           </ul>
+           <p>Quelle: BDEW/VEA Energiemarktreport 2025; DEPV (Deutsche Energie-Pellet-Verband) 2025.</p>`
   },
   heatingConsumption: {
-    title: 'Heizverbrauch',
-    html: '<p>Jaehrlicher Verbrauch der gewaehhlten Heizart. Bei Waermepumpe ist das elektrischer Heizstrom.</p>'
+    title: 'Jährlicher Heizverbrauch',
+    html: `<p>Jährlicher Verbrauch der gewählten Heizart in kWh-Äquivalent.</p>
+           <p>Bei der Wärmepumpe ist das der elektrische Heizstromverbrauch (aus dem Großverbraucher-Schritt).</p>
+           <p>Umrechnungshilfe: Gas 1 m³ ≈ 10 kWh | Heizöl 1 Liter ≈ 10 kWh | Pellets 1 kg ≈ 5 kWh.</p>`
   },
   districtBasePrice: {
-    title: 'Fernwaerme Grundpreis',
-    html: '<p>Fixer Jahrespreis, der bei Fernwaerme zusaetzlich zum Arbeitspreis angesetzt wird.</p>'
+    title: 'Fernwärme Grundpreis (EUR/Jahr)',
+    html: `<p>Fixer Jahrespreis, der bei Fernwärme zusätzlich zum Arbeitspreis angesetzt wird.</p>
+           <p>Typischer Grundpreis in Deutschland: 300–600 EUR/Jahr je nach Anbieter und Anschlussleistung.</p>
+           <p>Quelle: AGFW (Arbeitsgemeinschaft Fernwärme) Branchenreport 2024.</p>`
   },
   resultsOverview: {
     title: 'Energieanalyse: Ergebnisse',
@@ -570,39 +592,55 @@ Object.assign(INFO_TEXTS, {
   },
   resPowerUse: {
     title: 'Gesamtstromverbrauch/Jahr',
-    html: '<p>Der eingegebene Stromjahresverbrauch in kWh.</p>'
+    html: `<p>Der simulierte elektrische Jahresstromverbrauch in kWh, berechnet aus Haushalt + Wärmepumpe + E-Auto.</p>
+           <p>Dieser Wert fließt direkt in die Tarifberechnung ein.</p>`
   },
   resPowerPrice: {
-    title: 'Durchschnittlicher Strompreis',
-    html: '<p>Berechnet als Jahresstromkosten geteilt durch Jahresstromverbrauch.</p>'
+    title: 'Ø Strompreis (ct/kWh)',
+    html: `<p>Durchschnittlicher Strompreis: Jährliche Stromkosten geteilt durch den Jahresverbrauch.</p>
+           <p>Quelle: BDEW Strompreisanalyse – Ø Haushaltsstrompreis 2025 ca. 31–33 ct/kWh.</p>`
   },
   resPowerPerM2: {
-    title: 'Stromkosten pro Quadratmeter',
-    html: '<p>Stromkosten bezogen auf die Wohnflaeche.</p>'
+    title: 'Stromkosten pro m²',
+    html: '<p>Stromkosten bezogen auf die Wohnfläche – zur Vergleichbarkeit mit Energieausweiswerten.</p>'
   },
   resHeatCost: {
     title: 'Heizkosten/Jahr',
-    html: '<p>Jaehrliche Heizkosten auf Basis der gewaehlten Heizart und Eingaben.</p>'
+    html: `<p>Jährliche Heizkosten (Summe aller Heizquellen) basierend auf den eingegebenen Verbräuchen und typischen Energiepreisen.</p>
+           <p>Quelle: co2online Heizspiegel Deutschland 2024.</p>`
   },
   resHeatPerM2: {
-    title: 'Heizverbrauch pro Quadratmeter',
-    html: '<p>Normierter Waermebedarf zur Effizienzbewertung des Gebaeudes.</p>'
+    title: 'Heizverbrauch pro m²',
+    html: `<p>Normierter Wärmebedarf in kWh/(m²·Jahr) – Grundlage für die Effizienzbewertung (Energieausweis-Systematik).</p>
+           <p>Quelle: GEG 2023 / DIN V 18599 – Referenzwerte für Wohngebäude.</p>`
   },
   resEfficiency: {
-    title: 'Effizienzbewertung',
-    html: '<p>Klasse A bis E basierend auf dem Waermebedarf pro Quadratmeter.</p>'
+    title: 'Effizienzbewertung (Energieklasse)',
+    html: `<p>Klasse A bis E basierend auf dem Wärmebedarf pro Quadratmeter:</p>
+           <ul>
+             <li><strong>A</strong> ≤ 40 kWh/(m²·a) – Sehr gut (Neubau/Passivhaus)</li>
+             <li><strong>B</strong> ≤ 70 kWh/(m²·a) – Gut (KfW-55)</li>
+             <li><strong>C</strong> ≤ 110 kWh/(m²·a) – Mittel (sanierter Altbau)</li>
+             <li><strong>D</strong> ≤ 160 kWh/(m²·a) – Schlecht</li>
+             <li><strong>E</strong> &gt; 160 kWh/(m²·a) – Sehr schlecht (unsanierter Altbau)</li>
+           </ul>
+           <p>Quelle: Energieausweis-Anforderungen nach GEG 2023 / EnEV.</p>`
   },
   resHeatCostPerKwh: {
     title: 'Heizkosten pro kWh',
-    html: '<p>Jaehrliche Heizkosten geteilt durch den Heizverbrauch.</p>'
+    html: `<p>Jährliche Heizkosten geteilt durch den Heizenergieverbrauch in kWh.</p>
+           <p>Vergleichswerte 2025: Gas ca. 12 ct/kWh | Fernwärme ca. 14–16 ct/kWh | Heizöl ca. 10–12 ct/kWh.</p>`
   },
   resHeatCostPerM2: {
-    title: 'Heizkosten pro Quadratmeter',
-    html: '<p>Jaehrliche Heizkosten bezogen auf die Wohnflaeche.</p>'
+    title: 'Heizkosten pro m²',
+    html: `<p>Jährliche Heizkosten bezogen auf die Wohnfläche (EUR/(m²·a)).</p>
+           <p>Typische Richtwerte: Gut gedämmt ≤ 8 €/m² | Mittleres Gebäude 8–15 €/m² | Altbau &gt; 15 €/m².</p>`
   },
   heatingCompareTable: {
     title: 'Vergleich alternativer Heizsysteme',
-    html: '<p>Vergleicht geschaetzten Verbrauch und Kosten alternativer Heizarten gegen das aktuelle System.</p>'
+    html: `<p>Vergleicht geschätzten Energieverbrauch und Jahreskosten aller Heizsystemalternativen mit Ihrem aktuellen System.</p>
+           <p>Basis: gleicher Wärmebedarf (kWh/a), unterschiedliche Wirkungsgrade und Energiepreise 2025.</p>
+           <p>Quelle: co2online Heizkostenrechner 2025; BDEW Energiemarktreport 2025.</p>`
   }
 });
 
@@ -2532,40 +2570,40 @@ const EA_HEAT_PUMP_COP = 3.2;
 
 const EA_HEATING_TYPES = {
   district: {
-    inputLabel: 'Fernwaermeverbrauch (automatisch aus m2 berechnet)',
-    hint: 'Fernwaerme: Verbrauch wird aus Wohnflaeche x 14,6 kWh/m2 berechnet.',
+    inputLabel: 'Fernwärmeverbrauch (automatisch aus m² berechnet)',
+    hint: 'Fernwärme: Verbrauch wird aus Wohnfläche × 14,6 kWh/m² berechnet.',
     needsConsumption: false,
     needsBasePrice: true,
     variableCostPerKwh: 0.145,
     efficiency: 1.0
   },
   gas: {
-    inputLabel: 'Jaehrlicher Gasverbrauch (kWh)',
-    hint: 'Gas: Bitte den jaehrlichen Gasverbrauch in kWh eingeben.',
+    inputLabel: 'Jährlicher Gasverbrauch (kWh Heizwert)',
+    hint: 'Gas: Verbrauch in kWh eingeben. Umrechnung: 1 m³ Erdgas ≈ 10 kWh Hi.',
     needsConsumption: true,
     needsBasePrice: false,
     variableCostPerKwh: 0.12,
     efficiency: 0.92
   },
   oil: {
-    inputLabel: 'Jaehrlicher Oelverbrauch (kWh aeq.)',
-    hint: 'Oel: Bitte den jaehrlichen Oelverbrauch in kWh-aequivalent eingeben.',
+    inputLabel: 'Jährlicher Ölverbrauch (kWh Heizwert)',
+    hint: 'Heizöl: Verbrauch in kWh eingeben. Umrechnung: 1 Liter Heizöl ≈ 10 kWh Hi.',
     needsConsumption: true,
     needsBasePrice: false,
     variableCostPerKwh: 0.11,
     efficiency: 0.88
   },
   wood: {
-    inputLabel: 'Jaehrlicher Holz-/Pelletverbrauch (kWh)',
-    hint: 'Holz/Pellets: Bitte den jaehrlichen Energieverbrauch in kWh eingeben.',
+    inputLabel: 'Jährlicher Holz-/Pelletverbrauch (kWh)',
+    hint: 'Holz/Pellets: Verbrauch in kWh eingeben. Umrechnung: 1 kg Pellets ≈ 5 kWh, 1 Ster Holz ≈ 1.500 kWh.',
     needsConsumption: true,
     needsBasePrice: false,
     variableCostPerKwh: 0.08,
     efficiency: 0.85
   },
   heatpump: {
-    inputLabel: 'Jaehrlicher Heizstromverbrauch Waermepumpe (kWh)',
-    hint: 'Waermepumpe: Bitte den jaehrlichen Stromverbrauch fuer Heizung in kWh eingeben.',
+    inputLabel: 'Jährlicher Heizstromverbrauch Wärmepumpe (kWh)',
+    hint: 'Wärmepumpe: Jährlichen Stromverbrauch für Heizung in kWh eingeben.',
     needsConsumption: true,
     needsBasePrice: false,
     variableCostPerKwh: null,
@@ -2574,126 +2612,247 @@ const EA_HEATING_TYPES = {
 };
 
 const EA_ALTERNATIVES = [
-  { key: 'district', label: 'Fernwaerme', variableCostPerKwh: 0.145, basePrice: 420, efficiency: 1.0 },
+  { key: 'district', label: 'Fernwärme', variableCostPerKwh: 0.145, basePrice: 420, efficiency: 1.0 },
   { key: 'gas', label: 'Gas', variableCostPerKwh: 0.12, basePrice: 0, efficiency: 0.92 },
-  { key: 'oil', label: 'Oel', variableCostPerKwh: 0.11, basePrice: 0, efficiency: 0.88 },
+  { key: 'oil', label: 'Öl', variableCostPerKwh: 0.11, basePrice: 0, efficiency: 0.88 },
   { key: 'wood', label: 'Holz/Pellets', variableCostPerKwh: 0.08, basePrice: 0, efficiency: 0.85 },
-  { key: 'heatpump', label: 'Waermepumpe', variableCostPerKwh: null, basePrice: 0, efficiency: EA_HEAT_PUMP_COP }
+  { key: 'heatpump', label: 'Wärmepumpe', variableCostPerKwh: null, basePrice: 0, efficiency: EA_HEAT_PUMP_COP }
 ];
+
+// ── Heizquellen-Karten-System ────────────────────────────────────────────────
+const heatingSourcesContainer = () => byId('heatingSources');
 
 function initEnergyAnalysisSection() {
   if (!byId('areaM2')) {
     return;
   }
 
-  const heatingTypeEl = byId('heatingType');
-  const heatingTypeField = byId('heatingTypeField');
-  const hasHeatPumpEl = byId('hasHeatPump');
-  const syncFromHeatingType = () => {
-    const hasHeatPump = hasHeatPumpEl?.checked === true;
-    if (hasHeatPump && heatingTypeEl) {
-      heatingTypeEl.value = 'heatpump';
-      heatingTypeEl.disabled = true;
-      heatingTypeField?.classList.add('auto-filled');
-    } else if (heatingTypeEl) {
-      heatingTypeEl.disabled = false;
-      heatingTypeField?.classList.remove('auto-filled');
-      if (heatingTypeEl.value === 'heatpump') {
-        heatingTypeEl.value = 'district';
-      }
+  initHeatingSources();
+
+  // Wenn WP in Großverbraucher aktiviert/deaktiviert wird → WP-Karte aktualisieren
+  byId('hasHeatPump')?.addEventListener('change', () => {
+    syncWpHeatingCard();
+  });
+}
+
+function initHeatingSources() {
+  const container = heatingSourcesContainer();
+  const addBtn = byId('addHeatingSourceBtn');
+  if (!container || !addBtn) return;
+
+  addBtn.addEventListener('click', () => addHeatingSource());
+
+  container.addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('.heating-source-remove-btn');
+    if (!removeBtn) return;
+    const card = removeBtn.closest('.heating-source');
+    if (card) {
+      card.remove();
+      renumberHeatingSources();
     }
+  });
 
-    const heatingType = heatingTypeEl?.value || 'district';
-    const cfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
-    syncEnergyInputVisibility(cfg, hasHeatPump);
-  };
+  // Standard: eine Heizquelle (Gas) vorbelegen
+  if (!container.children.length) {
+    addHeatingSource({ type: 'gas' });
+  }
 
-  heatingTypeEl?.addEventListener('change', syncFromHeatingType);
-  hasHeatPumpEl?.addEventListener('change', syncFromHeatingType);
-  syncFromHeatingType();
+  syncWpHeatingCard();
+}
+
+function syncWpHeatingCard() {
+  const container = heatingSourcesContainer();
+  if (!container) return;
+  const hasHeatPump = byId('hasHeatPump')?.checked === true;
+  const existing = container.querySelector('.heating-source-wp-info');
+
+  if (hasHeatPump && !existing) {
+    const info = document.createElement('div');
+    info.className = 'heating-source heating-source-wp-info';
+    info.style.cssText = 'border:1px dashed #0B8F6A; background:#f0faf7; padding:0.75rem 1rem; border-radius:8px; font-size:0.9rem; color:#0B8F6A;';
+    info.innerHTML = `⚡ <strong>Wärmepumpe</strong> – Stromverbrauch wird automatisch aus dem Großverbraucher-Schritt übernommen und in der Tarifberechnung berücksichtigt. Hier keine weitere Eingabe nötig.`;
+    container.prepend(info);
+  } else if (!hasHeatPump && existing) {
+    existing.remove();
+  }
+  renumberHeatingSources();
+}
+
+function addHeatingSource(source = {}) {
+  const container = heatingSourcesContainer();
+  if (!container) return;
+
+  const type = source.type || 'gas';
+  const cfg = EA_HEATING_TYPES[type] || EA_HEATING_TYPES.gas;
+
+  const card = document.createElement('div');
+  card.className = 'heating-source';
+  card.innerHTML = `
+    <div class="ev-vehicle-head">
+      <strong class="heating-source-title">Heizquelle</strong>
+      <button type="button" class="ghost heating-source-remove-btn">Entfernen</button>
+    </div>
+    <div class="grid three">
+      <label class="field">
+        <span>Heizart <button type="button" class="info-btn" data-info="heatingType">&#9432;</button></span>
+        <select class="heating-source-type">
+          <option value="gas">Gas</option>
+          <option value="oil">Öl / Heizöl</option>
+          <option value="wood">Holz / Pellets</option>
+          <option value="district">Fernwärme</option>
+        </select>
+      </label>
+      <label class="field heating-source-consumption-field">
+        <span class="heating-source-consumption-label">${cfg.inputLabel} <button type="button" class="info-btn" data-info="heatingConsumption">&#9432;</button></span>
+        <input class="heating-source-consumption" type="number" min="0" step="1" value="${source.consumption || ''}">
+        <small class="hint heating-source-hint">${cfg.hint}</small>
+      </label>
+      <label class="field heating-source-baseprice-field hidden">
+        <span>Fernwärme Grundpreis (EUR/Jahr) <button type="button" class="info-btn" data-info="districtBasePrice">&#9432;</button></span>
+        <input class="heating-source-baseprice" type="number" min="0" step="0.01" value="${source.basePrice || 420}">
+      </label>
+    </div>
+  `;
+
+  card.querySelector('.heating-source-type').value = type;
+  syncHeatingSourceCard(card);
+
+  card.querySelector('.heating-source-type').addEventListener('change', () => syncHeatingSourceCard(card));
+
+  container.appendChild(card);
+  renumberHeatingSources();
+}
+
+function syncHeatingSourceCard(card) {
+  const type = card.querySelector('.heating-source-type')?.value || 'gas';
+  const cfg = EA_HEATING_TYPES[type] || EA_HEATING_TYPES.gas;
+
+  const consumptionField = card.querySelector('.heating-source-consumption-field');
+  const basePriceField = card.querySelector('.heating-source-baseprice-field');
+  const label = card.querySelector('.heating-source-consumption-label');
+  const hint = card.querySelector('.heating-source-hint');
+
+  consumptionField?.classList.toggle('hidden', !cfg.needsConsumption);
+  basePriceField?.classList.toggle('hidden', !cfg.needsBasePrice);
+  if (label) label.innerHTML = `${cfg.inputLabel} <button type="button" class="info-btn" data-info="heatingConsumption">&#9432;</button>`;
+  if (hint) hint.textContent = cfg.hint;
+}
+
+function renumberHeatingSources() {
+  const container = heatingSourcesContainer();
+  if (!container) return;
+  const regularCards = Array.from(container.querySelectorAll('.heating-source:not(.heating-source-wp-info)'));
+  regularCards.forEach((card, i) => {
+    const title = card.querySelector('.heating-source-title');
+    if (title) title.textContent = `Heizquelle ${i + 1}`;
+    const removeBtn = card.querySelector('.heating-source-remove-btn');
+    if (removeBtn) removeBtn.disabled = regularCards.length <= 1;
+  });
+}
+
+function collectHeatingSources() {
+  const container = heatingSourcesContainer();
+  if (!container) return [];
+  return Array.from(container.querySelectorAll('.heating-source:not(.heating-source-wp-info)')).map(card => ({
+    type: card.querySelector('.heating-source-type')?.value || 'gas',
+    consumption: Number(card.querySelector('.heating-source-consumption')?.value) || 0,
+    basePrice: Number(card.querySelector('.heating-source-baseprice')?.value) || 420
+  }));
 }
 
 function renderEnergyAnalysis() {
-  const areaM2 = eaNum('areaM2', 210);
-  const annualPowerCost = eaNum('annualPowerCost', 5800);
+  const areaM2 = eaNum('areaM2', 120);
+  const annualPowerCost = eaNum('annualPowerCost', 0);
   const totalConsumptionFromMain = Number(latestData?.summary?.totalConsumption_kwh);
   const annualPowerUse = Math.max(
     Number.isFinite(totalConsumptionFromMain) && totalConsumptionFromMain > 0
       ? totalConsumptionFromMain
-      : eaNum('annualPowerUse', 20000),
+      : eaNum('annualPowerUse', 3500),
     1
   );
+
+  const avgPowerPrice = annualPowerCost > 0 ? annualPowerCost / annualPowerUse : 0.32; // Fallback 32 ct/kWh
   const hasHeatPump = byId('hasHeatPump')?.checked === true;
-  const heatingType = hasHeatPump ? 'heatpump' : (byId('heatingType')?.value || 'district');
-  const heatingCfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
 
-  syncEnergyInputVisibility(heatingCfg, hasHeatPump);
+  // Heizquellen aus Karten einsammeln
+  const sources = collectHeatingSources();
 
-  const avgPowerPrice = annualPowerCost / annualPowerUse;
-  const districtBasePrice = eaNum('districtBasePrice', 420);
-  const typedHeatingConsumption = hasHeatPump
-    ? eaNum('heatPumpConsumption', 0)
-    : eaNum('heatingConsumption', 0);
+  // WP aus Großverbraucher als virtuelle Quelle hinzufügen (falls aktiv)
+  if (hasHeatPump) {
+    const wpConsumption = eaNum('heatPumpConsumption', 0);
+    if (wpConsumption > 0) {
+      sources.push({ type: 'heatpump', consumption: wpConsumption, basePrice: 0 });
+    }
+  }
 
-  const heatConsumptionKwh = heatingType === 'district'
-    ? areaM2 * EA_REF_HEAT_NEED_KWH_PER_M2
-    : typedHeatingConsumption;
+  // Heizkosten über alle Quellen summieren
+  let totalHeatNeedKwh = 0;
+  let totalHeatingCostAbs = 0;
+  let primaryHeatingType = sources.length > 0 ? sources[0].type : 'district';
 
-  const heatNeedKwh = toEnergyHeatNeedKwh(heatingType, heatConsumptionKwh);
-  const heatingCostAbs = calcEnergyHeatingCost({
-    heatingType,
-    heatConsumptionKwh,
-    avgPowerPrice,
-    districtBasePrice
-  });
+  for (const src of sources) {
+    const heatConsumptionKwh = src.type === 'district'
+      ? areaM2 * EA_REF_HEAT_NEED_KWH_PER_M2
+      : src.consumption;
+    const heatNeedKwh = toEnergyHeatNeedKwh(src.type, heatConsumptionKwh);
+    const cost = calcEnergyHeatingCost({
+      heatingType: src.type,
+      heatConsumptionKwh,
+      avgPowerPrice,
+      districtBasePrice: src.basePrice || 420
+    });
+    totalHeatNeedKwh += heatNeedKwh;
+    totalHeatingCostAbs += cost;
+  }
 
-  const heatCostPerKwh = eaSafeDiv(heatingCostAbs, Math.max(heatConsumptionKwh, 1));
-  const heatCostPerM2 = eaSafeDiv(heatingCostAbs, Math.max(areaM2, 1));
+  // Fallback: keine Quellen erfasst
+  if (!sources.length) {
+    totalHeatNeedKwh = areaM2 * EA_REF_HEAT_NEED_KWH_PER_M2;
+    totalHeatingCostAbs = totalHeatNeedKwh * EA_HEATING_TYPES.district.variableCostPerKwh + 420;
+  }
 
-  const householdPowerCost = heatingType === 'heatpump'
-    ? Math.max((annualPowerUse - heatConsumptionKwh) * avgPowerPrice, 0)
-    : annualPowerCost;
+  const totalHeatConsumptionKwh = sources.reduce((sum, src) =>
+    sum + (src.type === 'district' ? areaM2 * EA_REF_HEAT_NEED_KWH_PER_M2 : src.consumption), 0
+  ) || (areaM2 * EA_REF_HEAT_NEED_KWH_PER_M2);
+
+  const heatCostPerKwh = eaSafeDiv(totalHeatingCostAbs, Math.max(totalHeatConsumptionKwh, 1));
+  const heatCostPerM2 = eaSafeDiv(totalHeatingCostAbs, Math.max(areaM2, 1));
+
+  // Stromkosten: WP-Anteil aus Gesamtkosten herausrechnen wenn bekannt
+  const wpConsumption = hasHeatPump ? eaNum('heatPumpConsumption', 0) : 0;
+  const householdPowerCost = annualPowerCost > 0
+    ? Math.max(annualPowerCost - wpConsumption * avgPowerPrice, 0)
+    : (annualPowerUse - wpConsumption) * avgPowerPrice;
   const powerCostPerM2 = eaSafeDiv(householdPowerCost, Math.max(areaM2, 1));
 
-  const heatPerM2 = eaSafeDiv(heatNeedKwh, Math.max(areaM2, 1));
+  const heatPerM2 = eaSafeDiv(totalHeatNeedKwh, Math.max(areaM2, 1));
   const quality = classifyEnergyHeatNeed(heatPerM2);
 
   setText('resPowerUse', `${eaFmtNum(annualPowerUse)} kWh`);
-  setText('resPowerPrice', `${eaFmtMoney(avgPowerPrice)} / kWh`);
-  setText('resPowerPerM2', `${eaFmtMoney(powerCostPerM2)} / m2`);
-  setText('resHeatCost', eaFmtMoney(heatingCostAbs));
+  setText('resPowerPrice', `${(avgPowerPrice * 100).toFixed(1)} ct/kWh`);
+  setText('resPowerPerM2', `${eaFmtMoney(powerCostPerM2)} / m²`);
+  setText('resHeatCost', eaFmtMoney(totalHeatingCostAbs));
+  setText('resHeatPerM2', `${eaFmtNum(heatPerM2)} kWh/m²`);
 
-  setText('resHeatPerM2', `${eaFmtNum(heatPerM2)} kWh/m2`);
   const resEfficiency = byId('resEfficiency');
   if (resEfficiency) {
     resEfficiency.innerHTML = `${quality.label} <span class="quality-badge ${quality.className}">${quality.grade}</span>`;
   }
   setText('resHeatCostPerKwh', `${eaFmtMoney(heatCostPerKwh)} / kWh`);
-  setText('resHeatCostPerM2', `${eaFmtMoney(heatCostPerM2)} / m2`);
+  setText('resHeatCostPerM2', `${eaFmtMoney(heatCostPerM2)} / m²`);
 
+  const districtBaseForTable = sources.find(s => s.type === 'district')?.basePrice || 420;
   renderEnergyComparisonTable({
-    heatNeedKwh,
+    heatNeedKwh: totalHeatNeedKwh,
     avgPowerPrice,
-    districtBasePrice,
-    currentHeatingType: heatingType,
-    currentHeatingCost: heatingCostAbs
+    districtBasePrice: districtBaseForTable,
+    currentHeatingType: primaryHeatingType,
+    currentHeatingCost: totalHeatingCostAbs
   });
 }
 
-function syncEnergyInputVisibility(cfg, hasHeatPump = false) {
-  const hint = byId('heatingHint');
-  const consumptionField = byId('consumptionField');
-  const districtBaseField = byId('districtBaseField');
-  const label = byId('heatingConsumptionLabel');
-
-  if (hint) {
-    hint.textContent = hasHeatPump
-      ? 'Wärmepumpe wurde bereits oben erfasst und wird hier automatisch übernommen.'
-      : cfg.hint;
-  }
-  if (label) label.textContent = cfg.inputLabel;
-  consumptionField?.classList.toggle('hidden', hasHeatPump || !cfg.needsConsumption);
-  districtBaseField?.classList.toggle('hidden', !cfg.needsBasePrice);
+function syncEnergyInputVisibility(_cfg, _hasHeatPump = false) {
+  // Wird nicht mehr für das Einzel-Formular genutzt – ersetzt durch Karten-System
 }
 
 function calcEnergyHeatingCost({ heatingType, heatConsumptionKwh, avgPowerPrice, districtBasePrice }) {

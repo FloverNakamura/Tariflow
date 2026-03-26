@@ -313,30 +313,11 @@
 
           <section class="wizard-step" data-step-title="Heizung">
             <section class="subsection energy-inputs">
-              <h2>Heizung <button type="button" class="info-btn" data-info="inputsOverview">&#9432;</button></h2>
-
-              <div class="grid three">
-                <label class="field" id="heatingTypeField">
-                  <span>Heizart <button type="button" class="info-btn" data-info="heatingType">&#9432;</button></span>
-                  <select id="heatingType">
-                    <option value="district" selected>Fernwärme</option>
-                    <option value="gas">Gas</option>
-                    <option value="oil">Öl</option>
-                    <option value="wood">Holz/Pellets</option>
-                    <option value="heatpump" hidden>Wärmepumpe</option>
-                  </select>
-                  <p id="heatingHint" class="hint"></p>
-                </label>
-
-                <label id="consumptionField" class="field hidden">
-                  <span id="heatingConsumptionLabel">Jährlicher Heizverbrauch <button type="button" class="info-btn" data-info="heatingConsumption">&#9432;</button></span>
-                  <input id="heatingConsumption" type="number" min="0" step="1">
-                </label>
-
-                <label id="districtBaseField" class="field">
-                  <span>Fernwärme Grundpreis (EUR/Jahr) <button type="button" class="info-btn" data-info="districtBasePrice">&#9432;</button></span>
-                  <input id="districtBasePrice" type="number" min="0" step="0.01">
-                </label>
+              <h2>Heizquellen <button type="button" class="info-btn" data-info="heatingSourcesInfo">&#9432;</button></h2>
+              <p class="gross-step-intro">Erfassen Sie alle Heizquellen des Haushalts. Gas, Öl und Fernwärme fließen nicht in den Stromverbrauch ein – die Wärmepumpe wird automatisch aus dem Großverbraucher-Schritt übernommen.</p>
+              <div id="heatingSources" class="heating-sources"></div>
+              <div class="ev-toolbar" style="margin-top:0.75rem">
+                <button id="addHeatingSourceBtn" type="button" class="ghost">Heizquelle hinzufügen</button>
               </div>
             </section>
           </section>

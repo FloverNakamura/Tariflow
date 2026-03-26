@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fetchPvData } from '../services/pvService';
 import { runCalculation } from '../services/calcService';
+import { runCalculationInWorker } from '../services/workerPool';
 import { getCoordsFromPlz } from '../services/geocodeService';
 import { PvRequest } from '../types/pvTypes';
 import { validateAndSanitize } from '../validation/validateCalculationRequest';
@@ -52,11 +53,12 @@ router.post('/calculate', async (req: Request, res: Response) => {
     } catch (validationError: any) {
       return res.status(422).json({ success: false, error: validationError?.message ?? 'Ungültige Eingabedaten.' });
     }
-    const result = await runCalculation(sanitized);
+    const result = await runCalculationInWorker(sanitized);
     res.json(result);
   } catch (error: any) {
+    const isOverload = error?.message?.includes('überlastet');
     console.error(error);
-    res.status(500).json({ error: error?.message ?? 'Server error' });
+    res.status(isOverload ? 503 : 500).json({ error: error?.message ?? 'Server error' });
   }
 });
 

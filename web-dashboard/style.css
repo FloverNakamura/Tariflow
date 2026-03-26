@@ -791,14 +791,6 @@ button:not(.info-btn) {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.profile-toggle-btn {
-  margin: 0.35rem 0 0.15rem;
-}
-
-.profile-table-wrap {
-  margin-top: 0.3rem;
-}
-
 .large-load-profile-card table {
   width: 100%;
   border-collapse: collapse;

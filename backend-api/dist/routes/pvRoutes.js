@@ -41,7 +41,7 @@ const axios_1 = __importDefault(require("axios"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const pvService_1 = require("../services/pvService");
-const calcService_1 = require("../services/calcService");
+const workerPool_1 = require("../services/workerPool");
 const geocodeService_1 = require("../services/geocodeService");
 const validateCalculationRequest_1 = require("../validation/validateCalculationRequest");
 const router = (0, express_1.Router)();
@@ -88,12 +88,13 @@ router.post('/calculate', async (req, res) => {
         catch (validationError) {
             return res.status(422).json({ success: false, error: validationError?.message ?? 'Ungültige Eingabedaten.' });
         }
-        const result = await (0, calcService_1.runCalculation)(sanitized);
+        const result = await (0, workerPool_1.runCalculationInWorker)(sanitized);
         res.json(result);
     }
     catch (error) {
+        const isOverload = error?.message?.includes('überlastet');
         console.error(error);
-        res.status(500).json({ error: error?.message ?? 'Server error' });
+        res.status(isOverload ? 503 : 500).json({ error: error?.message ?? 'Server error' });
     }
 });
 // ── Live-Marktpreis (aWATTar) ───────────────────────────────────────────────
