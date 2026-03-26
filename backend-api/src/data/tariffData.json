@@ -6,7 +6,7 @@
     "name": "Strom Pur",
     "label": "Statischer Tarif (Strom Pur)",
     "basePrice_eur_per_year": 122.96,
-    "workingPrice_ct_per_kwh": 0.3571,
+    "workingPrice_ct_per_kwh": 35.71,
     "_comment": "Standardtarif laut Vorgabe: 35,71 ct/kWh und 122,96 EUR/Jahr."
   },
 
@@ -24,9 +24,9 @@
     "name": "Strom Flex",
     "label": "Dynamischer Tarif (Strom Flex)",
     "basePrice_eur_per_year": 119.52,
-    "spotMarkup_ct_per_kwh": 0.0298,
-    "networkCost_ct_per_kwh": 0.01106,
-    "taxes_and_levies_ct_per_kwh": 0.0879,
+    "spotMarkup_ct_per_kwh": 2.98,
+    "networkCost_ct_per_kwh": 11.06,
+    "taxes_and_levies_ct_per_kwh": 8.79,
     "iMSysCost_eur_per_year": 30.00,
     "_workingPrice_comment": "Arbeitspreis = EPEX Spot + Basisverbrauchspreis 2,98 ct/kWh + gesetzliche Umlagen/Abgaben.",
     "_basePrice_comment": "Basisgrundpreis 83,82 EUR/Jahr + Netznutzungs-Grundpreis 35,70 EUR/Jahr = 119,52 EUR/Jahr.",
@@ -42,7 +42,7 @@
     "section19levy_ct_per_kwh": 1.86,
     "offshoreLevy_ct_per_kwh": 1.12,
     "abilityLevy_ct_per_kwh": 0.53,
-    "total_ct_per_kwh": 0.1741,
+    "total_ct_per_kwh": 17.41,
     "_module14a_comment": "Referenz auf SachsenEnergie-Werte; Konzessionsabgabe ist regional unterschiedlich."
   },
 
