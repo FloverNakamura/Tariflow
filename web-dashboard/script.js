@@ -262,6 +262,18 @@ const INFO_TEXTS = {
         </ul>
         <p>Typisch liegt der COP moderner Luft-Wasser-Wärmepumpen im Bereich 3 bis 4.</p>`
   },
+  heatPumpConsumption: {
+    title: 'Wärmepumpen-Verbrauch (kWh/Jahr)',
+    html: `<p>Hier tragen Sie den jährlichen Stromverbrauch der Wärmepumpe ein.</p>
+           <p>Dieser Wert wird als zusätzlicher Strombedarf direkt in die Tarifberechnung übernommen.</p>`
+  },
+  cop: {
+    title: 'COP (Leistungszahl)',
+    html: `<p>Der COP beschreibt, wie effizient die Wärmepumpe arbeitet:</p>
+           <div class="formula">COP = abgegebene Wärmeleistung / elektrische Leistungsaufnahme</div>
+           <p>Beispiel: COP 3,5 bedeutet, dass aus 1 kWh Strom etwa 3,5 kWh Wärme bereitgestellt werden.</p>
+           <p>Typische Werte liegen meist zwischen 2,5 und 5, je nach System und Außentemperatur.</p>`
+  },
   ev: {
       title: 'Elektrofahrzeug',
       html: `<p>Es können mehrere Elektrofahrzeuge erfasst werden. Für jedes Fahrzeug werden Batteriekapazität,
@@ -687,9 +699,6 @@ function init() {
       if (isEnabled && targetId === 'evFields') {
         ensureAtLeastOneEvVehicle();
       }
-      if (isEnabled && targetId === 'largeLoadFields') {
-        ensureAtLeastOneLargeLoad();
-      }
       if (!isEnabled && targetId === 'largeLoadFields' && largeLoadsContainer) {
         largeLoadsContainer.innerHTML = '';
       }
@@ -893,7 +902,8 @@ function buildPayload() {
     },
     heatPump: {
       hasHeatPump,
-      annualConsumption_kwh: hasHeatPump ? optionalNumber('heatPumpConsumption') : null
+      annualConsumption_kwh: hasHeatPump ? optionalNumber('heatPumpConsumption') : null,
+      cop: hasHeatPump ? optionalNumber('heatPumpCop') : null
     },
     emobility: {
       hasEV: hasEv && evVehicles.length > 0,
@@ -951,10 +961,27 @@ function validatePayload(payload) {
     return 'Bitte wählen Sie in der §14a-Abfrage die Grundcharakteristik (gering/normal oder sehr hoch). Die Verschiebbarkeit ist optional als Checkbox.';
   }
 
+  if (payload.heatPump.hasHeatPump) {
+    const hpConsumptionEl = byId('heatPumpConsumption');
+    const hpCopEl = byId('heatPumpCop');
+    hpConsumptionEl?.classList.remove('invalid');
+    hpCopEl?.classList.remove('invalid');
+
+    if (payload.heatPump.annualConsumption_kwh == null) {
+      hpConsumptionEl?.classList.add('invalid');
+      return 'Bitte den Wärmepumpen-Verbrauch in kWh/Jahr eingeben.';
+    }
+    if (payload.heatPump.cop == null) {
+      hpCopEl?.classList.add('invalid');
+      return 'Bitte den COP der Wärmepumpe eingeben.';
+    }
+  }
+
   const pvMode = document.querySelector('input[name="pvMode"]:checked').value;
   let rangeChecks = [
     { id: 'storageCapacity', min: 0, max: 100, active: payload.storage.hasStorage, label: 'Speicher' },
-    { id: 'heatPumpConsumption', min: 0, max: 50000, active: payload.heatPump.hasHeatPump, label: 'Wärmepumpe-Verbrauch' }
+    { id: 'heatPumpConsumption', min: 0, max: 50000, active: payload.heatPump.hasHeatPump, label: 'Wärmepumpe-Verbrauch' },
+    { id: 'heatPumpCop', min: 1, max: 8, active: payload.heatPump.hasHeatPump, label: 'Wärmepumpen-COP' }
   ];
 
   // Add PV-specific checks based on mode
@@ -1026,8 +1053,13 @@ function validatePayload(payload) {
 
   if (byId('hasLargeLoad42')?.checked) {
     const loads = Array.from(document.querySelectorAll('.large-load'));
+    const hasAnyGrossConsumer = payload.heatPump.hasHeatPump || payload.emobility.hasEV || loads.length > 0;
+    if (!hasAnyGrossConsumer) {
+      return 'Bitte geben Sie mindestens einen Großverbraucher an: entweder Wärmepumpe, E-Auto oder ein anderes Gerät über 4,2 kW.';
+    }
+
     if (!loads.length) {
-      return 'Bitte mindestens einen Großverbraucher hinzufügen.';
+      return '';
     }
 
     for (let index = 0; index < loads.length; index++) {
@@ -1171,7 +1203,6 @@ function initLargeLoads() {
       card.remove();
       renumberLargeLoads();
     }
-    ensureAtLeastOneLargeLoad();
   });
 }
 
@@ -1207,15 +1238,6 @@ function addLargeLoad(load = {}) {
   renumberLargeLoads();
 }
 
-function ensureAtLeastOneLargeLoad() {
-  if (!byId('hasLargeLoad42')?.checked || !largeLoadsContainer) {
-    return;
-  }
-  if (!largeLoadsContainer.children.length) {
-    addLargeLoad();
-  }
-}
-
 function renumberLargeLoads() {
   const titles = largeLoadsContainer?.querySelectorAll('.large-load-title') || [];
   const removeButtons = largeLoadsContainer?.querySelectorAll('.large-load-remove-btn') || [];
@@ -1223,7 +1245,7 @@ function renumberLargeLoads() {
     title.textContent = `Großverbraucher ${index + 1}`;
   });
   removeButtons.forEach((button) => {
-    button.disabled = removeButtons.length <= 1 && byId('hasLargeLoad42')?.checked;
+    button.disabled = false;
   });
 }
 
