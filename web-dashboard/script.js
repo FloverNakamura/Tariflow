@@ -2081,6 +2081,10 @@ function initWizard() {
   });
 
   wizardNext.addEventListener('click', () => {
+    if (isWizardOnLastStep()) {
+      form?.requestSubmit();
+      return;
+    }
     goToWizardStep(wizardState.currentIndex + 1, 'forward');
   });
 
@@ -2133,7 +2137,18 @@ function isWizardOnLastStep() {
   if (!wizardState.steps.length) {
     return true;
   }
-  return wizardState.currentIndex >= wizardState.steps.length - 1;
+  return wizardState.currentIndex >= getWizardLastInteractiveIndex();
+}
+
+function getWizardLastInteractiveIndex() {
+  if (!wizardState.steps.length) {
+    return 0;
+  }
+  const finalStepIndex = wizardState.steps.findIndex((step) => (step.dataset.stepTitle || '').trim() === 'Berechnen');
+  if (finalStepIndex > 0) {
+    return finalStepIndex - 1;
+  }
+  return wizardState.steps.length - 1;
 }
 
 function goToWizardStep(targetIndex, direction = 'forward') {
@@ -2141,7 +2156,7 @@ function goToWizardStep(targetIndex, direction = 'forward') {
     return false;
   }
 
-  const maxIndex = wizardState.steps.length - 1;
+  const maxIndex = getWizardLastInteractiveIndex();
   let clampedTarget = Math.max(0, Math.min(targetIndex, maxIndex));
 
   // Skip the "Großverbraucher" step unless §14a large-load question is answered with yes.
@@ -2257,9 +2272,9 @@ function updateWizardUi() {
     return;
   }
 
-  const total = wizardState.steps.length;
-  const current = wizardState.currentIndex + 1;
-  const isLast = wizardState.currentIndex === total - 1;
+  const total = getWizardLastInteractiveIndex() + 1;
+  const current = Math.min(wizardState.currentIndex + 1, total);
+  const isLast = isWizardOnLastStep();
   const title = wizardState.steps[wizardState.currentIndex].dataset.stepTitle || 'Eingaben';
   const percent = (current / total) * 100;
 
@@ -2279,8 +2294,8 @@ function updateWizardUi() {
     wizardPrev.disabled = wizardState.currentIndex === 0;
   }
   if (wizardNext) {
-    wizardNext.disabled = isLast;
-    wizardNext.textContent = isLast ? 'Letzter Schritt' : 'Weiter';
+    wizardNext.disabled = false;
+    wizardNext.textContent = isLast ? 'Berechnen' : 'Weiter';
   }
 }
 
@@ -2292,7 +2307,7 @@ function setLoading(loading) {
     wizardPrev.disabled = loading || wizardState.currentIndex === 0;
   }
   if (wizardNext) {
-    wizardNext.disabled = loading || isWizardOnLastStep();
+    wizardNext.disabled = loading;
   }
 }
 
