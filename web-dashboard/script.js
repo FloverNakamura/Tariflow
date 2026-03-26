@@ -309,20 +309,28 @@ const INFO_TEXTS = {
   },
   largeLoad: {
     title: 'Großverbraucher > 4,2 kW',
-    html: `<p>Hier erfassen Sie steuerbare Großverbraucher mit Leistung und Zeitfenster pro Gerät.</p>
-           <p>Aus allen Geräten wird eine tägliche 24h-Lastkurve erstellt und in die Jahreslast eingerechnet.</p>`
+    html: `<p>Hier erfassen Sie steuerbare Großverbraucher mit Leistung, Nutzungsdauer und Betriebstagen.</p>
+           <p>Aus Leistung × Dauer × Tage wird der geschätzte Jahresverbrauch berechnet und in die Tarifempfehlung einbezogen.</p>`
   },
   largeLoadPower: {
-    title: 'Leistung Großverbraucher (kW)',
-    html: `<p>Leistung des einzelnen Großverbrauchers in kW. Diese geht direkt stündlich in die Lastkurve ein.</p>`
+    title: 'Leistung (kW)',
+    html: `<p>Nennleistung des Großverbrauchers in Kilowatt. Muss mindestens 4,2 kW betragen.</p>`
+  },
+  largeLoadDuration: {
+    title: 'Tägliche Nutzungsdauer (h)',
+    html: `<p>Durchschnittliche Betriebsdauer pro Tag in Stunden (z.B. Sauna: 3h, Wäschetrockner: 1h, Durchlauferhitzer: 2h).</p>`
+  },
+  largeLoadUsageDays: {
+    title: 'Nutzungstage pro Woche',
+    html: `<p>An wieviel Tagen pro Woche wird das Gerät durchschnittlich betrieben? (z.B. Sauna: 2 Tage, Wäschetrockner: 3 Tage)</p>`
   },
   largeLoadStart: {
-    title: 'Startstunde',
-    html: `<p>Start des Betriebsfensters (0-23 Uhr). Wenn Start größer als Ende ist, läuft das Gerät über Mitternacht.</p>`
+    title: 'Startstunde (veraltet)',
+    html: `<p>Diese Information wird nicht mehr benötigt. Verwenden Sie stattdessen die tägliche Nutzungsdauer.</p>`
   },
   largeLoadEnd: {
-    title: 'Endstunde',
-    html: `<p>Ende des Betriebsfensters (0-23 Uhr). Wenn Start und Ende gleich sind, gilt das Gerät als 24h aktiv.</p>`
+    title: 'Endstunde (veraltet)',
+    html: `<p>Diese Information wird nicht mehr benötigt. Verwenden Sie stattdessen die Nutzungstage pro Woche.</p>`
   },
   bidi: {
     title: 'Bidirektionales Laden (V2H)',
@@ -591,6 +599,8 @@ const infoModalClose = byId('infoModalClose');
 const evVehiclesContainer = byId('evVehicles');
 const addEvBtn = byId('addEvBtn');
 const largeLoadsContainer = byId('largeLoads');
+const largeLoadProfileSection = byId('largeLoadProfileSection');
+const largeLoadProfilesContainer = byId('largeLoadProfiles');
 const addLargeLoadBtn = byId('addLargeLoadBtn');
 
 function reportInitError(message) {
@@ -699,8 +709,13 @@ function init() {
       if (isEnabled && targetId === 'evFields') {
         ensureAtLeastOneEvVehicle();
       }
+      if (isEnabled && targetId === 'largeLoadFields') {
+        ensureAtLeastOneLargeLoad();
+        updateLargeLoadProfiles();
+      }
       if (!isEnabled && targetId === 'largeLoadFields' && largeLoadsContainer) {
         largeLoadsContainer.innerHTML = '';
+        largeLoadProfileSection?.classList.add('hidden');
       }
     };
 
@@ -1081,27 +1096,27 @@ function validatePayload(payload) {
     for (let index = 0; index < loads.length; index++) {
       const loadNode = loads[index];
       const powerEl = loadNode.querySelector('.large-load-power');
-      const startEl = loadNode.querySelector('.large-load-start');
-      const endEl = loadNode.querySelector('.large-load-end');
+      const durationEl = loadNode.querySelector('.large-load-duration');
+      const usageDaysEl = loadNode.querySelector('.large-load-usage-days');
       powerEl?.classList.remove('invalid');
-      startEl?.classList.remove('invalid');
-      endEl?.classList.remove('invalid');
+      durationEl?.classList.remove('invalid');
+      usageDaysEl?.classList.remove('invalid');
 
       const power = Number(powerEl?.value);
-      const start = Number(startEl?.value);
-      const end = Number(endEl?.value);
+      const duration = Number(durationEl?.value);
+      const usageDays = Number(usageDaysEl?.value);
 
       if (!Number.isFinite(power) || power < 4.2 || power > 200) {
         powerEl?.classList.add('invalid');
         return `Leistung von Großverbraucher ${index + 1} muss zwischen 4,2 und 200 kW liegen.`;
       }
-      if (!Number.isInteger(start) || start < 0 || start > 23) {
-        startEl?.classList.add('invalid');
-        return `Startstunde von Großverbraucher ${index + 1} muss zwischen 0 und 23 liegen.`;
+      if (!Number.isFinite(duration) || duration < 0.5 || duration > 24) {
+        durationEl?.classList.add('invalid');
+        return `Tägliche Nutzung von Großverbraucher ${index + 1} muss zwischen 0,5 und 24 Stunden liegen.`;
       }
-      if (!Number.isInteger(end) || end < 0 || end > 23) {
-        endEl?.classList.add('invalid');
-        return `Endstunde von Großverbraucher ${index + 1} muss zwischen 0 und 23 liegen.`;
+      if (!Number.isInteger(usageDays) || usageDays < 1 || usageDays > 7) {
+        usageDaysEl?.classList.add('invalid');
+        return `Nutzungstage von Großverbraucher ${index + 1} müssen zwischen 1 und 7 Tagen liegen.`;
       }
     }
   }
@@ -1178,6 +1193,104 @@ function ensureAtLeastOneEvVehicle() {
   }
 }
 
+function ensureAtLeastOneLargeLoad() {
+  if (!byId('hasOtherLargeLoad')?.checked || !largeLoadsContainer) {
+    return;
+  }
+
+  if (!largeLoadsContainer.children.length) {
+    addLargeLoad();
+  }
+}
+
+function updateLargeLoadProfiles() {
+  if (!largeLoadProfileSection || !largeLoadProfilesContainer) {
+    return;
+  }
+
+  const loads = collectLargeLoads();
+  if (!loads.length) {
+    largeLoadProfileSection.classList.add('hidden');
+    return;
+  }
+
+  largeLoadProfileSection.classList.remove('hidden');
+  
+  // Typisches deutsches Tarifprofil: durchschnittliche ct/kWh pro Wochentag
+  // Wochentage: Mo-Fr günstiger, Sa-So etwas teurer (durchschnittliche Struktur)
+  const WEEKDAY_RATES = {
+    'Montag': 0.32, 'Dienstag': 0.31, 'Mittwoch': 0.30,
+    'Donnerstag': 0.31, 'Freitag': 0.32,
+    'Samstag': 0.35, 'Sonntag': 0.36
+  };
+  
+  const WEEKDAYS = Object.keys(WEEKDAY_RATES);
+  
+  largeLoadProfilesContainer.innerHTML = '';
+  
+  loads.forEach((load, idx) => {
+    const power = load.powerKw || 0;
+    const duration = load.dailyDuration_h || 0;
+    const usageDays = load.usageDays_perWeek || 5;
+    
+    const profileDiv = document.createElement('div');
+    profileDiv.className = 'large-load-profile-card';
+    profileDiv.innerHTML = `
+      <h3 style="margin:0.5rem 0; font-size:1rem">Großverbraucher ${idx + 1} — Stromkosten pro Wochentag</h3>
+      <table style="width:100%; border-collapse:collapse; font-size:0.9rem">
+        <thead>
+          <tr style="border-bottom:1px solid #ccc">
+            <th style="text-align:left; padding:0.5rem">Tag</th>
+            <th style="text-align:right; padding:0.5rem">Tarif (ct/kWh)</th>
+            <th style="text-align:right; padding:0.5rem">Verbrauch (kWh)</th>
+            <th style="text-align:right; padding:0.5rem">Kosten (EUR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${WEEKDAYS.map(day => {
+            const rate = WEEKDAY_RATES[day];
+            const dayIndex = WEEKDAYS.indexOf(day);
+            const activeToday = dayIndex < usageDays ? 1 : 0;
+            const dailyConsumption = power * duration * activeToday;
+            const dailyCost = (dailyConsumption * rate / 100).toFixed(2);
+            const costClass = activeToday ? '' : 'style="opacity:0.5;color:#999"';
+            return `
+              <tr ${costClass} style="border-bottom:1px solid #eee">
+                <td style="text-align:left; padding:0.5rem">${day}</td>
+                <td style="text-align:right; padding:0.5rem">${rate.toFixed(2)}</td>
+                <td style="text-align:right; padding:0.5rem">${dailyConsumption.toFixed(1)}</td>
+                <td style="text-align:right; padding:0.5rem; font-weight:bold">${dailyCost}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
+        <strong>Geschätzte Wochenkosten:</strong> ${(() => {
+          let weekCost = 0;
+          WEEKDAYS.forEach((day, i) => {
+            const rate = WEEKDAY_RATES[day];
+            const activeToday = i < usageDays ? 1 : 0;
+            const dailyConsumption = power * duration * activeToday;
+            weekCost += (dailyConsumption * rate / 100);
+          });
+          return weekCost.toFixed(2);
+        })()} EUR/Woche | <strong>Jahreskosten (ca.):</strong> ${(() => {
+          let weekCost = 0;
+          WEEKDAYS.forEach((day, i) => {
+            const rate = WEEKDAY_RATES[day];
+            const activeToday = i < usageDays ? 1 : 0;
+            const dailyConsumption = power * duration * activeToday;
+            weekCost += (dailyConsumption * rate / 100);
+          });
+          return (weekCost * 52).toFixed(0);
+        })()} EUR/Jahr
+      </div>
+    `;
+    largeLoadProfilesContainer.appendChild(profileDiv);
+  });
+}
+
 function renumberEvVehicles() {
   const titles = evVehiclesContainer?.querySelectorAll('.ev-vehicle-title') || [];
   const removeButtons = evVehiclesContainer?.querySelectorAll('.ev-remove-btn') || [];
@@ -1206,6 +1319,7 @@ function initLargeLoads() {
 
   addLargeLoadBtn.addEventListener('click', () => {
     addLargeLoad();
+    updateLargeLoadProfiles();
   });
 
   largeLoadsContainer.addEventListener('click', (event) => {
@@ -1218,7 +1332,12 @@ function initLargeLoads() {
     if (card) {
       card.remove();
       renumberLargeLoads();
+      updateLargeLoadProfiles();
     }
+  });
+
+  largeLoadsContainer.addEventListener('input', () => {
+    updateLargeLoadProfiles();
   });
 }
 
@@ -1227,6 +1346,11 @@ function addLargeLoad(load = {}) {
     return;
   }
 
+  const duration = load.dailyDuration_h ?? '';
+  const usageDays = load.usageDays_perWeek ?? 5;
+  const power = load.powerKw ?? '';
+  
+  const estimatedAnnualKwh = (power && duration) ? (power * duration * usageDays * 52).toFixed(0) : '—';
   const card = document.createElement('div');
   card.className = 'large-load';
   card.innerHTML = `
@@ -1237,20 +1361,36 @@ function addLargeLoad(load = {}) {
     <div class="grid three">
       <label class="field">
         <span>Leistung (kW) <button type="button" class="info-btn" data-info="largeLoadPower">&#9432;</button></span>
-        <input class="large-load-power" type="number" step="0.1" min="4.2" max="200" value="${load.powerKw ?? ''}">
+        <input class="large-load-power" type="number" step="0.1" min="4.2" max="200" value="${power}" data-update="true">
       </label>
       <label class="field">
-        <span>Startstunde (0-23) <button type="button" class="info-btn" data-info="largeLoadStart">&#9432;</button></span>
-        <input class="large-load-start" type="number" step="1" min="0" max="23" value="${load.startHour ?? ''}">
+        <span>Tägliche Nutzung (h/Tag) <button type="button" class="info-btn" data-info="largeLoadDuration">&#9432;</button></span>
+        <input class="large-load-duration" type="number" step="0.5" min="0.5" max="24" value="${duration}" data-update="true">
       </label>
       <label class="field">
-        <span>Endstunde (0-23) <button type="button" class="info-btn" data-info="largeLoadEnd">&#9432;</button></span>
-        <input class="large-load-end" type="number" step="1" min="0" max="23" value="${load.endHour ?? ''}">
+        <span>Tage pro Woche <button type="button" class="info-btn" data-info="largeLoadUsageDays">&#9432;</button></span>
+        <input class="large-load-usage-days" type="number" step="1" min="1" max="7" value="${usageDays}" data-update="true">
       </label>
+    </div>
+    <div class="field note-box" style="margin-top:0.6rem">
+      <span>Geschätzter Jahresverbrauch</span>
+      <strong class="large-load-annual-kwh">${estimatedAnnualKwh}</strong> kWh/Jahr
     </div>
   `;
 
   largeLoadsContainer.appendChild(card);
+  
+  // Add live update listener
+  card.querySelectorAll('[data-update="true"]').forEach(input => {
+    input.addEventListener('input', () => {
+      const power = Number(card.querySelector('.large-load-power')?.value) || 0;
+      const duration = Number(card.querySelector('.large-load-duration')?.value) || 0;
+      const usageDays = Number(card.querySelector('.large-load-usage-days')?.value) || 5;
+      const annual = (power && duration) ? (power * duration * usageDays * 52).toFixed(0) : '—';
+      card.querySelector('.large-load-annual-kwh').textContent = annual;
+    });
+  });
+  
   renumberLargeLoads();
 }
 
@@ -1268,8 +1408,11 @@ function renumberLargeLoads() {
 function collectLargeLoads() {
   return Array.from(document.querySelectorAll('.large-load')).map((loadNode) => ({
     powerKw: Number(loadNode.querySelector('.large-load-power')?.value),
-    startHour: Number(loadNode.querySelector('.large-load-start')?.value),
-    endHour: Number(loadNode.querySelector('.large-load-end')?.value)
+    dailyDuration_h: Number(loadNode.querySelector('.large-load-duration')?.value),
+    usageDays_perWeek: Number(loadNode.querySelector('.large-load-usage-days')?.value),
+    annualConsumption_kwh: (Number(loadNode.querySelector('.large-load-power')?.value) || 0) * 
+                           (Number(loadNode.querySelector('.large-load-duration')?.value) || 0) * 
+                           (Number(loadNode.querySelector('.large-load-usage-days')?.value) || 0) * 52
   }));
 }
 

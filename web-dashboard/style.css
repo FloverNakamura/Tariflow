@@ -777,6 +777,45 @@ button:not(.info-btn) {
   min-width: 0;
 }
 
+.large-load-profiles {
+  display: grid;
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+
+.large-load-profile-card {
+  border: 1px solid #e6eaf1;
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.large-load-profile-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.large-load-profile-card table thead {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.large-load-profile-card table td,
+.large-load-profile-card table th {
+  padding: 0.6rem;
+  text-align: right;
+}
+
+.large-load-profile-card table th:first-child,
+.large-load-profile-card table td:first-child {
+  text-align: left;
+}
+
+.large-load-profile-card table tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
 .error {
   margin: 0.8rem 0 0;
   padding: 0.7rem 0.8rem;
