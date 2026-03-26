@@ -279,21 +279,21 @@
                   <input id="annualPowerCost" type="number" min="0" step="0.01">
                 </label>
 
-                <label class="field">
-                  <span>Jährlicher Stromverbrauch (kWh) <button type="button" class="info-btn" data-info="annualPowerUse">&#9432;</button></span>
-                  <input id="annualPowerUse" type="number" min="1" step="1">
-                </label>
+                <div class="field note-box">
+                  <span>Jährlicher Stromverbrauch</span>
+                  <small>Wird automatisch aus den vorherigen Eingaben (Haushalt, Wärmepumpe, E-Auto) übernommen.</small>
+                </div>
               </div>
 
               <div class="grid three">
-                <label class="field">
+                <label class="field" id="heatingTypeField">
                   <span>Heizart <button type="button" class="info-btn" data-info="heatingType">&#9432;</button></span>
                   <select id="heatingType">
                     <option value="district" selected>Fernwärme</option>
                     <option value="gas">Gas</option>
                     <option value="oil">Öl</option>
                     <option value="wood">Holz/Pellets</option>
-                    <option value="heatpump">Wärmepumpe</option>
+                    <option value="heatpump" hidden>Wärmepumpe</option>
                   </select>
                   <p id="heatingHint" class="hint"></p>
                 </label>

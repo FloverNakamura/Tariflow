@@ -2122,28 +2122,53 @@ function initEnergyAnalysisSection() {
   }
 
   const heatingTypeEl = byId('heatingType');
+  const heatingTypeField = byId('heatingTypeField');
+  const hasHeatPumpEl = byId('hasHeatPump');
   const syncFromHeatingType = () => {
+    const hasHeatPump = hasHeatPumpEl?.checked === true;
+    if (hasHeatPump && heatingTypeEl) {
+      heatingTypeEl.value = 'heatpump';
+      heatingTypeEl.disabled = true;
+      heatingTypeField?.classList.add('auto-filled');
+    } else if (heatingTypeEl) {
+      heatingTypeEl.disabled = false;
+      heatingTypeField?.classList.remove('auto-filled');
+      if (heatingTypeEl.value === 'heatpump') {
+        heatingTypeEl.value = 'district';
+      }
+    }
+
     const heatingType = heatingTypeEl?.value || 'district';
     const cfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
-    syncEnergyInputVisibility(cfg);
+    syncEnergyInputVisibility(cfg, hasHeatPump);
   };
 
   heatingTypeEl?.addEventListener('change', syncFromHeatingType);
+  hasHeatPumpEl?.addEventListener('change', syncFromHeatingType);
   syncFromHeatingType();
 }
 
 function renderEnergyAnalysis() {
   const areaM2 = eaNum('areaM2', 210);
   const annualPowerCost = eaNum('annualPowerCost', 5800);
-  const annualPowerUse = Math.max(eaNum('annualPowerUse', 20000), 1);
-  const heatingType = byId('heatingType')?.value || 'district';
+  const totalConsumptionFromMain = Number(latestData?.summary?.totalConsumption_kwh);
+  const annualPowerUse = Math.max(
+    Number.isFinite(totalConsumptionFromMain) && totalConsumptionFromMain > 0
+      ? totalConsumptionFromMain
+      : eaNum('annualPowerUse', 20000),
+    1
+  );
+  const hasHeatPump = byId('hasHeatPump')?.checked === true;
+  const heatingType = hasHeatPump ? 'heatpump' : (byId('heatingType')?.value || 'district');
   const heatingCfg = EA_HEATING_TYPES[heatingType] || EA_HEATING_TYPES.district;
 
-  syncEnergyInputVisibility(heatingCfg);
+  syncEnergyInputVisibility(heatingCfg, hasHeatPump);
 
   const avgPowerPrice = annualPowerCost / annualPowerUse;
   const districtBasePrice = eaNum('districtBasePrice', 420);
-  const typedHeatingConsumption = eaNum('heatingConsumption', 0);
+  const typedHeatingConsumption = hasHeatPump
+    ? eaNum('heatPumpConsumption', 0)
+    : eaNum('heatingConsumption', 0);
 
   const heatConsumptionKwh = heatingType === 'district'
     ? areaM2 * EA_REF_HEAT_NEED_KWH_PER_M2
@@ -2190,15 +2215,19 @@ function renderEnergyAnalysis() {
   });
 }
 
-function syncEnergyInputVisibility(cfg) {
+function syncEnergyInputVisibility(cfg, hasHeatPump = false) {
   const hint = byId('heatingHint');
   const consumptionField = byId('consumptionField');
   const districtBaseField = byId('districtBaseField');
   const label = byId('heatingConsumptionLabel');
 
-  if (hint) hint.textContent = cfg.hint;
+  if (hint) {
+    hint.textContent = hasHeatPump
+      ? 'Wärmepumpe wurde bereits oben erfasst und wird hier automatisch übernommen.'
+      : cfg.hint;
+  }
   if (label) label.textContent = cfg.inputLabel;
-  consumptionField?.classList.toggle('hidden', !cfg.needsConsumption);
+  consumptionField?.classList.toggle('hidden', hasHeatPump || !cfg.needsConsumption);
   districtBaseField?.classList.toggle('hidden', !cfg.needsBasePrice);
 }
 
