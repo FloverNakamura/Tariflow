@@ -543,6 +543,59 @@ Object.assign(INFO_TEXTS, {
     title: 'Heizung',
     html: '<p>Hier wird die Heizart und der Heizverbrauch für die Energieanalyse erfasst.</p>'
   },
+  module14aQuestion: {
+    title: '§ 14a EnWG – Steuerbare Verbrauchseinrichtungen',
+    html: `<p>§ 14a des Energiewirtschaftsgesetzes (EnWG) regelt die Steuerung sogenannter steuerbarer Verbrauchseinrichtungen (SteuVE) durch den Netzbetreiber, um Netzengpässe zu vermeiden.</p>
+           <p>Als steuerbare Verbrauchseinrichtungen gelten Geräte mit einer Anschlussleistung ab <strong>4,2 kW</strong>, z.&nbsp;B.:</p>
+           <ul>
+             <li>Wärmepumpen</li>
+             <li>Elektroauto-Wallboxen</li>
+             <li>Klimaanlagen, Durchlauferhitzer, Saunen</li>
+           </ul>
+           <p>Im Gegenzug für die Bereitschaft zur Steuerbarkeit erhalten Betreiber reduzierte Netzentgelte (Module 1–3).</p>
+           <p>Quelle: § 14a EnWG i.V.m. BNetzA Festlegung SteuVE (2023).</p>`
+  },
+  module14aInstallDate: {
+    title: 'Installationsdatum (vor / ab 2024)',
+    html: `<p>Das Installationsdatum ist entscheidend für die Pflicht zur Steuerbarkeit gemäß § 14a EnWG:</p>
+           <ul>
+             <li><strong>Ab 1. Jan. 2024 installiert:</strong> Neue Geräte müssen durch den Netzbetreiber steuerbar sein (Modul 1, 2 oder 3 erforderlich).</li>
+             <li><strong>Vor 2024 installiert (Bestandsanlagen):</strong> Freiwillige Teilnahme an der Steuerung möglich, aber nicht verpflichtend.</li>
+           </ul>
+           <p>Quelle: BNetzA – Festlegung zu steuerbaren Verbrauchseinrichtungen, Az. BK6-22-300 (2023).</p>`
+  },
+  module14aGridControl: {
+    title: 'Bereitschaft zur Netzsteuerung',
+    html: `<p>Der Netzbetreiber darf bei Netzknappheit die Leistung steuerbarer Geräte <strong>kurzfristig reduzieren</strong> – auf mindestens 4,2 kW Restleistung (kein vollständiges Abschalten).</p>
+           <p>Im Gegenzug erhalten Nutzer eines der drei Festlegungsmodule für reduzierte Netzentgelte:</p>
+           <ul>
+             <li><strong>Modul 1:</strong> Pauschaler Abzug, unabhängig vom tatsächlichen Verbrauch.</li>
+             <li><strong>Modul 2:</strong> Reduziertes Netzentgelt für den Verbrauch im definierten Zeitfenster.</li>
+             <li><strong>Modul 3:</strong> Variables Netzentgelt, stündlich angepasst (setzt intelligente Messung voraus).</li>
+           </ul>
+           <p>Quelle: § 14a EnWG; BNetzA Beschlusskammer 6, Festlegung SteuVE.</p>`
+  },
+  module14aConsumption: {
+    title: 'Höhe des steuerbaren Verbrauchs',
+    html: `<p>Die Einschätzung des steuerbaren Verbrauchs bestimmt die Modulempfehlung:</p>
+           <ul>
+             <li><strong>Gering bis normal:</strong> Verbrauch bleibt meist unter dem Schwellwert für Modul 2 → Modul 1 empfohlen.</li>
+             <li><strong>Sehr hoch (z.B. Wärmepumpe):</strong> Großes Einsparpotenzial durch variable Netzentgelte → Modul 2 oder 3 sinnvoll.</li>
+           </ul>
+           <p>Quelle: BDEW – Leitfaden § 14a EnWG, Ausgabe 2024.</p>`
+  },
+  module14aShiftable: {
+    title: 'Zeitliche Verschiebbarkeit des Verbrauchs',
+    html: `<p>Modul 3 (variables Netzentgelt) setzt voraus, dass Lasten in günstige Stunden verschoben werden können.</p>
+           <p>Voraussetzungen für Modul 3:</p>
+           <ul>
+             <li>Intelligentes Messsystem (Smart Meter)</li>
+             <li>Energiemanagementsystem (EMS) oder Smart-Charging-Funktion der Wallbox</li>
+             <li>Bereitschaft, Ladevorgänge / Wärmepumpe zeitlich zu steuern</li>
+           </ul>
+           <p>Ohne aktives Lastmanagement ist Modul 1 oder 2 in der Regel günstiger.</p>
+           <p>Quelle: BNetzA – Festlegung SteuVE, Modul 3 Anforderungen; BDEW Leitfaden 2024.</p>`
+  },
   areaM2: {
     title: 'Wohnfläche (m²)',
     html: `<p>Die Wohnfläche ist die Bezugsbasis für Kosten und Verbräuche pro Quadratmeter.</p>

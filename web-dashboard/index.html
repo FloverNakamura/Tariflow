@@ -51,7 +51,7 @@
 
           <section class="wizard-step" data-step-title="§14a Modulprüfung">
             <fieldset class="moduleDecisionSection">
-              <legend>Gibt es Geräte im Haushalt über 4,2 kW Leistung?</legend>
+              <legend>Gibt es Geräte im Haushalt über 4,2 kW Leistung? <button type="button" class="info-btn" data-info="module14aQuestion">&#9432;</button></legend>
               <input id="hasLargeLoad42" type="checkbox" class="decision-state-input" hidden>
               <div class="decision-toggle" data-toggle-id="hasLargeLoad42">
                 <button type="button" class="decision-btn" data-value="true">Ja, es gibt Geräte über 4,2 kW</button>
@@ -60,7 +60,7 @@
 
               <div id="moduleConditionBlock" class="conditional-block hidden">
                 <label class="field">
-                  <span>Wurden diese Verbraucher vor 2024 installiert?</span>
+                  <span>Wurden diese Verbraucher vor 2024 installiert? <button type="button" class="info-btn" data-info="module14aInstallDate">&#9432;</button></span>
                   <input id="installedBefore2024" type="checkbox" class="decision-state-input" hidden>
                   <div class="decision-toggle" data-toggle-id="installedBefore2024">
                     <button type="button" class="decision-btn" data-value="true">Ja, vor 2024 installiert</button>
@@ -70,7 +70,7 @@
 
                 <div id="controlConsentBlock" class="conditional-block hidden">
                   <label class="field">
-                    <span>Sind Sie bereit, dass der Netzbetreiber bei Netzknappheit steuert?</span>
+                    <span>Sind Sie bereit, dass der Netzbetreiber bei Netzknappheit steuert? <button type="button" class="info-btn" data-info="module14aGridControl">&#9432;</button></span>
                     <input id="allowsGridControl" type="checkbox" class="decision-state-input" hidden>
                     <div class="decision-toggle" data-toggle-id="allowsGridControl">
                       <button type="button" class="decision-btn" data-value="true">Ja, Steuerung ist erlaubt</button>
@@ -81,7 +81,7 @@
 
                 <div id="consumptionChoiceBlock" class="conditional-block hidden">
                   <label class="field">
-                    <span>Wie hoch ist der steuerbare Verbrauch?</span>
+                    <span>Wie hoch ist der steuerbare Verbrauch? <button type="button" class="info-btn" data-info="module14aConsumption">&#9432;</button></span>
                     <input id="moduleConsumptionPattern" type="hidden" value="">
                     <div class="decision-toggle" id="consumptionPatternButtons">
                       <button type="button" class="decision-btn module-choice-btn" data-pattern="low">Gering bis normal</button>
@@ -91,7 +91,7 @@
                   </label>
 
                   <label class="field" style="margin-top:0.6rem">
-                    <span>Verbrauch zeitlich gut verschiebbar? (für variables Netzentgelt)</span>
+                    <span>Verbrauch zeitlich gut verschiebbar? (für variables Netzentgelt) <button type="button" class="info-btn" data-info="module14aShiftable">&#9432;</button></span>
                     <label class="checkbox-row">
                       <input id="moduleShiftable" type="checkbox">
                       <span>Ja, Lasten können in günstige Zeiten verschoben werden (z. B. Smart Charging / EMS)</span>
