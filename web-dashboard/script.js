@@ -1098,14 +1098,16 @@ function buildPayload() {
 
   const consumptionKnown = byId('consumptionKnown')?.checked === true;
   const personsRaw = parseInt(byId('persons').value, 10);
-  const persons = Number.isInteger(personsRaw) ? personsRaw : 2;
+  const persons = Number.isInteger(personsRaw) ? personsRaw : null;
 
   let annualHouseholdConsumption;
   if (consumptionKnown) {
     annualHouseholdConsumption = optionalNumber('householdAnnualConsumption');
   } else {
     const AVG_KWH = [0, 1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500];
-    annualHouseholdConsumption = AVG_KWH[persons] ?? persons * 1000 + 500;
+    annualHouseholdConsumption = Number.isInteger(persons)
+      ? (AVG_KWH[persons] ?? persons * 1000 + 500)
+      : null;
   }
 
   const moduleDecision = determineModuleDecision();
@@ -1156,16 +1158,32 @@ function buildPayload() {
 
 function validatePayload(payload) {
   const plzEl = byId('plz');
+  const areaM2El = byId('areaM2');
+  const annualPowerCostEl = byId('annualPowerCost');
   const personsEl = byId('persons');
   const annualConsumptionEl = byId('householdAnnualConsumption');
   const consumptionKnown = byId('consumptionKnown')?.checked === true;
   plzEl.classList.remove('invalid');
+  areaM2El?.classList.remove('invalid');
+  annualPowerCostEl?.classList.remove('invalid');
   personsEl?.classList.remove('invalid');
   annualConsumptionEl?.classList.remove('invalid');
 
   if (!/^\d{5}$/.test(payload.household.plz)) {
     plzEl.classList.add('invalid');
     return 'Bitte eine gültige 5-stellige PLZ eingeben.';
+  }
+
+  const areaM2Value = Number(areaM2El?.value);
+  if (!Number.isFinite(areaM2Value) || areaM2Value < 10 || areaM2Value > 1000) {
+    areaM2El?.classList.add('invalid');
+    return 'Bitte eine Wohnfläche zwischen 10 und 1000 m² eingeben.';
+  }
+
+  const annualPowerCostValue = Number(annualPowerCostEl?.value);
+  if (!Number.isFinite(annualPowerCostValue) || annualPowerCostValue < 0 || annualPowerCostValue > 50000) {
+    annualPowerCostEl?.classList.add('invalid');
+    return 'Bitte die jährlichen Stromkosten zwischen 0 und 50000 EUR eingeben.';
   }
 
   if (!consumptionKnown) {
@@ -1242,7 +1260,8 @@ function validatePayload(payload) {
 
     const text = el.value.trim();
     if (!text) {
-      continue;
+      el.classList.add('invalid');
+      return `Bitte ${check.label} eingeben.`;
     }
 
     const value = Number(text);
