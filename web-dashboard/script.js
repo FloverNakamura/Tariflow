@@ -121,6 +121,10 @@ const MARKET_TICKER_HISTORY_HOURS = 168;
 const MARKET_TICKER_INTERVAL_MS = 60 * 60 * 1000;
 const MARKET_TICKER_SYNC_DELAY_MS = 1500;
 const WIZARD_ANIMATION_MS = 360;
+const FORM_STATE_STORAGE_KEY = 'tariflow.web-dashboard.form-state.v1';
+
+let formStateRestoreInProgress = false;
+let formStateSaveTimer = null;
 
 // Referenz-Tagesprofil (ct/kWh) fuer EPEX-typische Day-Ahead-Verlaeufe in DE:
 // Nacht guenstig, mittags oft guenstiger (PV), abends klarer Peak.
@@ -977,6 +981,8 @@ function init() {
     });
   });
 
+  runInitStep('Formularspeicher', initFormPersistence);
+
   runInitStep('Backend-Status', () => {
     void checkApiReachability();
   });
@@ -1417,6 +1423,7 @@ function initEvVehicles() {
   addEvBtn.addEventListener('click', () => {
     addEvVehicle();
     updateEvVehicleProfiles();
+    scheduleFormStateSave();
   });
 
   evVehiclesContainer.addEventListener('click', (event) => {
@@ -1432,6 +1439,7 @@ function initEvVehicles() {
       updateEvVehicleProfiles();
     }
     ensureAtLeastOneEvVehicle();
+    scheduleFormStateSave();
   });
 }
 
@@ -1487,6 +1495,7 @@ function addEvVehicle(vehicle = {}) {
   });
   
   renumberEvVehicles();
+  scheduleFormStateSave();
 }
 
 function ensureAtLeastOneEvVehicle() {
@@ -1761,6 +1770,7 @@ function initLargeLoads() {
   addLargeLoadBtn.addEventListener('click', () => {
     addLargeLoad();
     updateLargeLoadProfiles();
+    scheduleFormStateSave();
   });
 
   largeLoadsContainer.addEventListener('click', (event) => {
@@ -1775,6 +1785,7 @@ function initLargeLoads() {
       renumberLargeLoads();
       updateLargeLoadProfiles();
     }
+    scheduleFormStateSave();
   });
 
   largeLoadsContainer.addEventListener('input', () => {
@@ -1851,6 +1862,7 @@ function addLargeLoad(load = {}) {
   });
   
   renumberLargeLoads();
+  scheduleFormStateSave();
 }
 
 function renumberLargeLoads() {
@@ -2088,8 +2100,13 @@ function initModuleDecisionFlow() {
     button.addEventListener('click', () => {
       const pattern = button.dataset.pattern || '';
       moduleConsumptionPattern.value = pattern;
+      const consumptionButtonsGroup = byId('consumptionPatternButtons');
+      if (consumptionButtonsGroup) {
+        consumptionButtonsGroup.dataset.userSelected = 'true';
+      }
       syncModuleConsumptionButtons(pattern);
       syncModuleDecisionFlow();
+      scheduleFormStateSave();
     });
   });
 
@@ -2134,6 +2151,10 @@ function syncModuleDecisionFlow() {
       moduleConsumptionPattern.value = '';
       syncModuleConsumptionButtons('');
     }
+    const consumptionButtonsGroup = byId('consumptionPatternButtons');
+    if (consumptionButtonsGroup) {
+      consumptionButtonsGroup.dataset.userSelected = 'false';
+    }
     if (shiftableToggle) {
       shiftableToggle.checked = false;
     }
@@ -2145,6 +2166,7 @@ function syncModuleDecisionFlow() {
   }
   moduleDecisionResult.textContent = decision.message;
   scheduleWizardHeightSync();
+  scheduleFormStateSave();
 }
 
 function syncModuleConsumptionButtons(pattern) {
@@ -2225,16 +2247,22 @@ function initDecisionButtons() {
     }
 
     const buttons = group.querySelectorAll('.decision-btn');
+    if (!group.dataset.userSelected) {
+      group.dataset.userSelected = 'false';
+    }
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
         const value = button.dataset.value === 'true';
+        group.dataset.userSelected = 'true';
         if (toggle.checked === value) {
           syncDecisionButtons(toggleId, value);
+          scheduleFormStateSave();
           return;
         }
         toggle.checked = value;
         syncDecisionButtons(toggleId, value);
         toggle.dispatchEvent(new Event('change', { bubbles: true }));
+        scheduleFormStateSave();
       });
     });
 
@@ -2415,6 +2443,12 @@ function validateWizardStep(index) {
     return true;
   }
 
+  const requiredDecisionError = validateRequiredDecisionButtons(step);
+  if (requiredDecisionError) {
+    showError(requiredDecisionError);
+    return false;
+  }
+
   const fields = Array.from(step.querySelectorAll('input, select, textarea')).filter((field) => {
     if (field.disabled || field.type === 'hidden') {
       return false;
@@ -2452,6 +2486,247 @@ function validateWizardStep(index) {
   }
 
   return true;
+}
+
+function isElementVisibleForValidation(element) {
+  if (!element) {
+    return false;
+  }
+  if (element.closest('.hidden, .disabled')) {
+    return false;
+  }
+  return element.getClientRects().length > 0;
+}
+
+function validateRequiredDecisionButtons(step) {
+  const decisionGroups = Array.from(step.querySelectorAll('.decision-toggle[data-toggle-id]'));
+  for (const group of decisionGroups) {
+    if (!isElementVisibleForValidation(group)) {
+      continue;
+    }
+    if (group.dataset.userSelected === 'true') {
+      continue;
+    }
+
+    const firstButton = group.querySelector('.decision-btn');
+    firstButton?.focus();
+    return 'Bitte treffen Sie bei allen Auswahl-Buttons eine aktive Auswahl (Ja oder Nein), bevor Sie fortfahren.';
+  }
+
+  const patternButtons = byId('consumptionPatternButtons');
+  const patternContainer = byId('consumptionChoiceBlock');
+  if (
+    patternButtons
+    && patternContainer
+    && !patternContainer.classList.contains('hidden')
+    && isElementVisibleForValidation(patternButtons)
+    && patternButtons.dataset.userSelected !== 'true'
+  ) {
+    patternButtons.querySelector('.module-choice-btn')?.focus();
+    return 'Bitte wählen Sie für den steuerbaren Verbrauch entweder "Gering bis normal" oder "Sehr hoch" aus.';
+  }
+
+  return '';
+}
+
+function initFormPersistence() {
+  if (!form) {
+    return;
+  }
+
+  if (form.dataset.persistenceBound !== 'true') {
+    form.addEventListener('input', scheduleFormStateSave, true);
+    form.addEventListener('change', scheduleFormStateSave, true);
+    form.dataset.persistenceBound = 'true';
+  }
+
+  if (wizardNext && wizardNext.dataset.persistenceBound !== 'true') {
+    wizardNext.addEventListener('click', () => {
+      scheduleFormStateSave();
+    });
+    wizardNext.dataset.persistenceBound = 'true';
+  }
+
+  restoreFormState();
+}
+
+function scheduleFormStateSave() {
+  if (formStateRestoreInProgress) {
+    return;
+  }
+  if (formStateSaveTimer) {
+    clearTimeout(formStateSaveTimer);
+  }
+  formStateSaveTimer = setTimeout(() => {
+    formStateSaveTimer = null;
+    saveFormState();
+  }, 120);
+}
+
+function saveFormState() {
+  if (!form || formStateRestoreInProgress) {
+    return;
+  }
+
+  try {
+    const fields = {};
+    const elements = form.querySelectorAll('input[id], select[id], textarea[id]');
+    elements.forEach((element) => {
+      const id = element.id;
+      if (!id) {
+        return;
+      }
+      if (element.tagName === 'INPUT') {
+        const inputType = (element.type || '').toLowerCase();
+        if (['button', 'submit', 'reset', 'file'].includes(inputType)) {
+          return;
+        }
+        if (inputType === 'checkbox' || inputType === 'radio') {
+          fields[id] = { type: inputType, checked: element.checked };
+          return;
+        }
+      }
+      fields[id] = { type: 'value', value: element.value };
+    });
+
+    const decisionSelections = Array.from(document.querySelectorAll('.decision-toggle[data-toggle-id]'))
+      .filter((group) => group.dataset.userSelected === 'true')
+      .map((group) => group.dataset.toggleId)
+      .filter(Boolean);
+
+    const state = {
+      version: 1,
+      wizardStep: wizardState.currentIndex,
+      fields,
+      decisionSelections,
+      moduleConsumptionSelection: byId('consumptionPatternButtons')?.dataset.userSelected === 'true',
+      evVehicles: collectEvVehicles(),
+      largeLoads: collectLargeLoads(),
+      heatingSources: collectHeatingSources().filter((source) => source.type !== 'heatpump'),
+      wpHeatingSourceManuallyRemoved
+    };
+
+    localStorage.setItem(FORM_STATE_STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Formularstatus konnte nicht gespeichert werden:', error);
+  }
+}
+
+function restoreFormState() {
+  if (!form) {
+    return;
+  }
+
+  let state = null;
+  try {
+    const raw = localStorage.getItem(FORM_STATE_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+    state = JSON.parse(raw);
+  } catch (error) {
+    console.warn('Gespeicherter Formularstatus ist ungültig und wird ignoriert:', error);
+    return;
+  }
+
+  if (!state || typeof state !== 'object') {
+    return;
+  }
+
+  formStateRestoreInProgress = true;
+  try {
+    const fields = state.fields || {};
+    Object.entries(fields).forEach(([id, saved]) => {
+      const element = byId(id);
+      if (!element || !saved || typeof saved !== 'object') {
+        return;
+      }
+      if (saved.type === 'checkbox' || saved.type === 'radio') {
+        element.checked = Boolean(saved.checked);
+      } else if (typeof saved.value === 'string') {
+        element.value = saved.value;
+      }
+    });
+
+    const pvModeKnown = byId('pvModeKnown');
+    const pvModeCalculate = byId('pvModeCalculate');
+    if (pvModeKnown?.checked || pvModeCalculate?.checked) {
+      (pvModeKnown?.checked ? pvModeKnown : pvModeCalculate)?.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    const componentToggles = document.querySelectorAll('.component-toggle');
+    componentToggles.forEach((toggle) => {
+      toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    const decisionSelectionSet = new Set(Array.isArray(state.decisionSelections) ? state.decisionSelections : []);
+    document.querySelectorAll('.decision-toggle[data-toggle-id]').forEach((group) => {
+      const toggleId = group.dataset.toggleId;
+      const toggle = toggleId ? byId(toggleId) : null;
+      if (toggleId && toggle) {
+        syncDecisionButtons(toggleId, toggle.checked);
+      }
+      group.dataset.userSelected = decisionSelectionSet.has(toggleId) ? 'true' : 'false';
+    });
+
+    const consumptionPatternButtons = byId('consumptionPatternButtons');
+    if (consumptionPatternButtons) {
+      consumptionPatternButtons.dataset.userSelected = state.moduleConsumptionSelection ? 'true' : 'false';
+    }
+
+    if (evVehiclesContainer) {
+      evVehiclesContainer.innerHTML = '';
+      const savedVehicles = Array.isArray(state.evVehicles) ? state.evVehicles : [];
+      savedVehicles.forEach((vehicle) => addEvVehicle(vehicle));
+      if (byId('hasEv')?.checked) {
+        ensureAtLeastOneEvVehicle();
+      }
+      renumberEvVehicles();
+    }
+
+    if (largeLoadsContainer) {
+      largeLoadsContainer.innerHTML = '';
+      const savedLoads = Array.isArray(state.largeLoads) ? state.largeLoads : [];
+      savedLoads.forEach((load) => addLargeLoad(load));
+      if (byId('hasOtherLargeLoad')?.checked) {
+        ensureAtLeastOneLargeLoad();
+      }
+      renumberLargeLoads();
+    }
+
+    wpHeatingSourceManuallyRemoved = Boolean(state.wpHeatingSourceManuallyRemoved);
+    const heatingContainer = heatingSourcesContainer();
+    if (heatingContainer) {
+      Array.from(heatingContainer.querySelectorAll('.heating-source:not(.heating-source-wp-info)')).forEach((node) => node.remove());
+      const savedHeatingSources = Array.isArray(state.heatingSources) ? state.heatingSources : [];
+      if (savedHeatingSources.length) {
+        savedHeatingSources.forEach((source) => addHeatingSource(source));
+      } else if (!heatingContainer.querySelector('.heating-source:not(.heating-source-wp-info)')) {
+        addHeatingSource({ type: 'gas' });
+      }
+    }
+
+    byId('consumptionKnown')?.dispatchEvent(new Event('change', { bubbles: true }));
+    syncModuleDecisionFlow();
+    syncWpHeatingCard();
+    updateEvVehicleProfiles();
+    updateLargeLoadProfiles();
+
+    if (Number.isInteger(state.wizardStep)) {
+      const maxIndex = getWizardLastInteractiveIndex();
+      const target = Math.max(0, Math.min(state.wizardStep, maxIndex));
+      if (target !== wizardState.currentIndex) {
+        goToWizardStep(target, target > wizardState.currentIndex ? 'forward' : 'backward');
+      }
+    }
+
+    updateWizardUi();
+    scheduleWizardHeightSync();
+  } catch (error) {
+    console.warn('Formularstatus konnte nicht vollständig wiederhergestellt werden:', error);
+  } finally {
+    formStateRestoreInProgress = false;
+  }
 }
 
 function syncWizardHeight() {
@@ -3257,6 +3532,7 @@ function initHeatingSources() {
         saveHeatingSourcesDraft();
         renumberHeatingSources();
         scheduleWizardHeightSync();
+        scheduleFormStateSave();
       }
     });
     container.dataset.bound = 'true';
@@ -3404,6 +3680,7 @@ function addHeatingSource(source = {}) {
   saveHeatingSourcesDraft();
   renumberHeatingSources();
   scheduleWizardHeightSync();
+  scheduleFormStateSave();
 }
 
 function syncHeatingSourceCard(card) {
