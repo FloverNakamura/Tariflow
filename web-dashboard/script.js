@@ -437,12 +437,11 @@ const INFO_TEXTS = {
            gewichtet. Verluste durch Verschattung oder Wechselrichter sind pauschal mit ~5 % eingerechnet.</p>`
   },
   resSaving: {
-    title: 'Ersparnis gegenüber Strom Pur',
-    html: `<p>Differenz zwischen den Jahreskosten des <strong>Strom Pur</strong>-Basistarifs und dem
-           empfohlenen Tarif-Szenario:</p>
-           <div class="formula">Ersparnis = Kosten(Strom Pur) − Kosten(empfohlener Tarif)</div>
-           <p>Ein positiver Wert bedeutet: Sie sparen mit dem empfohlenen Tarif gegenüber dem Standardangebot.
-           Die Ersparnis steigt typisch mit höherem PV-Eigenverbrauch und flexiblem Verbrauchsprofil.</p>`
+      title: 'Ersparnis gegenüber Referenztarif',
+      html: `<p>Differenz zwischen den Jahreskosten des günstigsten statischen Tarifs und dem
+        empfohlenen Tarif-Szenario:</p>
+        <div class="formula">Ersparnis = Kosten(statischer Referenztarif) − Kosten(empfohlener Tarif)</div>
+        <p>Ein positiver Wert bedeutet: Das empfohlene Szenario ist günstiger als der statische Referenztarif.</p>`
   },
   resCoords: {
     title: 'Standort-Koordinaten',
@@ -519,7 +518,7 @@ const INFO_TEXTS = {
   investmentPaybackChart: {
     title: 'Amortisation PV + Speicher',
       html: `<p>Das Säulendiagramm zeigt je Jahr, wie viel vom Startbetrag noch nicht wieder verdient ist oder bereits als Rendite im Plus liegt.</p>
-           <p>Die Investition wird auf Basis des öffentlich genannten <strong>SachsenEnergie-Basispakets</strong> skaliert:</p>
+           <p>Die Investition wird auf Basis eines hinterlegten Referenzpakets skaliert:</p>
            <div class="formula">13.990 EUR fuer 6,3 kWp PV + 9,6 kWh Speicher</div>
         <p>Startkosten- und Leistungs-Slider sind proportional gekoppelt. Beim Skalieren werden Investition und Ersparnis gemeinsam skaliert, dadurch bleibt die Renditezeit stabil.</p>
            <p>Die Balken starten negativ und wechseln nach der Amortisation in den positiven Bereich.</p>`
@@ -529,11 +528,11 @@ const INFO_TEXTS = {
     html: `<p>Listet alle in der Berechnung verwendeten Quelldaten und Annahmen auf:</p>
            <ul>
              <li><strong>Lastprofil:</strong> BDEW-H0 (normiert, skaliert auf Jahresverbrauch)</li>
-             <li><strong>PV-Ertrag:</strong> Standortprofil aus PLZ, spez. Ertrag ≈950 kWh/kWp (konservativ für Sachsen; PVGIS-Referenz ca. 1.000–1.050 kWh/kWp)</li>
+             <li><strong>PV-Ertrag:</strong> Standortprofil aus PLZ, spez. Ertrag ≈950 kWh/kWp (konservativ; PVGIS-Referenz ca. 1.000–1.050 kWh/kWp)</li>
              <li><strong>Spotpreise:</strong> EPEX Day-Ahead, Live-Stundenwerte via aWATTar API; Fallback: historisches Profil 2025</li>
-             <li><strong>Netzentgelte:</strong> SachsenEnergie / SachsenNetze 2026 (brutto inkl. 19 % MwSt.)</li>
+             <li><strong>Netzentgelte:</strong> Modellwerte gemäß aktuellen Tarifannahmen (brutto inkl. 19 % MwSt.)</li>
              <li><strong>Einspeisevergütung:</strong> EEG 2023, Stand Feb–Jul 2026: 7,78 ct/kWh (≤10 kWp Teileinspeisung), 6,73 ct/kWh (10–40 kWp)</li>
-             <li><strong>Tarifdaten:</strong> Strom Pur / Strom Flex, SachsenEnergie Stand März 2026</li>
+             <li><strong>Tarifdaten:</strong> Einzähler-, Zweizähler- und dynamischer Tarif gemäß hinterlegten Modellparametern</li>
            </ul>
            <p>Alle Werte dienen zur Orientierung und ersetzen keine individuelle Energieberatung.</p>`
   },
@@ -557,13 +556,13 @@ const INFO_TEXTS = {
   tickerDynamicPrice: {
     title: 'Dynamischer Tarifpreis aktuell (absolut)',
     html: `<p>Der vollständige Arbeitspreis des dynamischen Tarifs für die aktuelle Stunde:</p>
-           <div class="formula">Dynamischer Preis = Spotpreis + Aufschlag + Umlagen/Abgaben</div>
+           <div class="formula">Dynamischer Preis = Spotpreis + 22,83 ct/kWh</div>
            <ul>
              <li><strong>Spotpreis:</strong> aktueller EPEX-Day-Ahead-Marktwert</li>
-             <li><strong>Aufschlag:</strong> Basisverbrauchspreis (2,98 ct/kWh)</li>
-             <li><strong>Umlagen:</strong> Steuern, Abgaben und Netzentgeltanteile</li>
+             <li><strong>Fixer Anteil:</strong> 22,83 ct/kWh (AP statisch inkl. Abgaben/Netzanteile)</li>
+             <li><strong>Messstelle:</strong> jährliche Messkosten separat nach Zählertyp</li>
            </ul>
-           <p>Dieser Wert entspricht dem, was Sie beim dynamischen Tarif <em>Strom Flex</em> pro kWh Netzbezug zahlen.</p>`
+           <p>Dieser Wert entspricht dem kWh-Arbeitspreis des dynamischen Tarifs für den aktuellen Zeitraum.</p>`
   },
   tickerChange: {
     title: 'Änderung zum letzten Wert',
@@ -658,7 +657,13 @@ Object.assign(INFO_TEXTS, {
   },
   powerTariff: {
     title: 'Aktueller Stromtarif',
-    html: '<p>Der Tariftyp dient der Einordnung. Der tatsächliche Durchschnittspreis wird aus Kosten und Verbrauch berechnet.</p>'
+    html: `<p>Der ausgewählte Tariftyp bestimmt die Kostenlogik:</p>
+           <ul>
+             <li><strong>Einzähler:</strong> C = 122,96 + (W × 0,3571)</li>
+             <li><strong>Zweizähler:</strong> C = 159,4 + (WHT × 0,3571) + (WNT × 0,3039)</li>
+             <li><strong>Dynamisch:</strong> C = (119,52 + Messstelle) + W × (0,2283 + Spotpreis)</li>
+           </ul>
+           <p>Mit WHT = W × 0,66666 und WNT = W × 0,33333 (wenn keine separaten HT/NT-Werte vorliegen).</p>`
   },
   annualPowerCost: {
     title: 'Jährliche Stromkosten (EUR)',
@@ -729,7 +734,7 @@ Object.assign(INFO_TEXTS, {
   },
   resultsOverview: {
     title: 'Energieanalyse: Ergebnisse',
-    html: '<p>Zeigt Kennzahlen zu Strom, Heizung, Effizienzklasse und Kostenvergleich alternativer Heizsysteme.</p>'
+    html: '<p>Zeigt Kennzahlen zu Strom, Heizung, Effizienzklasse (A bis G) und Kostenvergleich alternativer Heizsysteme.</p>'
   },
   resPowerUse: {
     title: 'Gesamtstromverbrauch/Jahr',
@@ -759,13 +764,13 @@ Object.assign(INFO_TEXTS, {
     title: 'Effizienzbewertung (Energieklasse)',
     html: `<p>Klasse A bis G basierend auf dem Wärmebedarf pro Quadratmeter:</p>
            <ul>
-             <li><strong>A</strong> ≤ 30 kWh/(m²·a) – Sehr gut</li>
-             <li><strong>B</strong> ≤ 50 kWh/(m²·a) – Gut</li>
-             <li><strong>C</strong> ≤ 75 kWh/(m²·a) – Befriedigend</li>
-             <li><strong>D</strong> ≤ 100 kWh/(m²·a) – Mittel</li>
-             <li><strong>E</strong> ≤ 130 kWh/(m²·a) – Niedrig</li>
-             <li><strong>F</strong> ≤ 160 kWh/(m²·a) – Sehr niedrig</li>
-             <li><strong>G</strong> &gt; 160 kWh/(m²·a) – Sehr niedrig (schlechteste Klasse)</li>
+             <li><strong>A</strong> ≤ 30 kWh/(m²·a) – Sehr effizient</li>
+             <li><strong>B</strong> ≤ 50 kWh/(m²·a) – Effizient</li>
+             <li><strong>C</strong> ≤ 75 kWh/(m²·a) – Eher effizient</li>
+             <li><strong>D</strong> ≤ 100 kWh/(m²·a) – Durchschnittlich</li>
+             <li><strong>E</strong> ≤ 130 kWh/(m²·a) – Eher ineffizient</li>
+             <li><strong>F</strong> ≤ 160 kWh/(m²·a) – Ineffizient</li>
+             <li><strong>G</strong> &gt; 160 kWh/(m²·a) – Sehr ineffizient (schlechteste Klasse)</li>
            </ul>
            <p>Quelle: Energieausweis-Anforderungen nach GEG 2023 / EnEV.</p>`
   },
@@ -4437,13 +4442,13 @@ function toEnergyHeatNeedKwh(heatingType, annualConsumptionKwh) {
 }
 
 function classifyEnergyHeatNeed(heatNeedPerM2) {
-  if (heatNeedPerM2 <= 30) return { grade: 'A', label: 'sehr gut', className: 'verygood' };
-  if (heatNeedPerM2 <= 50) return { grade: 'B', label: 'gut', className: 'good' };
-  if (heatNeedPerM2 <= 75) return { grade: 'C', label: 'befriedigend', className: 'medium' };
-  if (heatNeedPerM2 <= 100) return { grade: 'D', label: 'mittel', className: 'medium' };
-  if (heatNeedPerM2 <= 130) return { grade: 'E', label: 'niedrig', className: 'bad' };
-  if (heatNeedPerM2 <= 160) return { grade: 'F', label: 'sehr niedrig', className: 'verybad' };
-  return { grade: 'G', label: 'sehr niedrig', className: 'verybad' };
+  if (heatNeedPerM2 <= 30) return { grade: 'A', label: 'sehr effizient', className: 'verygood' };
+  if (heatNeedPerM2 <= 50) return { grade: 'B', label: 'effizient', className: 'good' };
+  if (heatNeedPerM2 <= 75) return { grade: 'C', label: 'eher effizient', className: 'medium' };
+  if (heatNeedPerM2 <= 100) return { grade: 'D', label: 'durchschnittlich', className: 'medium' };
+  if (heatNeedPerM2 <= 130) return { grade: 'E', label: 'eher ineffizient', className: 'bad' };
+  if (heatNeedPerM2 <= 160) return { grade: 'F', label: 'ineffizient', className: 'verybad' };
+  return { grade: 'G', label: 'sehr ineffizient', className: 'verybad' };
 }
 
 function renderEnergyComparisonTable({
