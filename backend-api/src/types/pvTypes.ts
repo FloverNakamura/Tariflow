@@ -222,6 +222,9 @@ export interface CalculationResponse {
       recommendedTariff: string;
       recommendedModule: TarifModul14a;
       recommendedModuleLabel: string;
+      storageSavingsPotential_pct?: number;
+      avgPowerPrice_ct_per_kwh?: number;
+      avgPowerPriceAfterStorage_ct_per_kwh?: number;
       annualSavingVsStatic_eur: number;
       uncertaintyBand_eur: {
         bestCase: number;

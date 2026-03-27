@@ -621,6 +621,11 @@ function computeSelfAndAutarky(totalSelf: number, totalConsumption: number): { s
 }
 
 function getAllowedModules(request: CalculationRequest): TarifModul14a[] {
+	const selectedModule = request.tariff.module14a || 'none';
+	if (selectedModule !== 'none') {
+		return ['none', selectedModule];
+	}
+
 	const flexibilityExists =
 		request.heatPump.use14aModule ||
 		request.tariff.largeLoadOver42kw ||
@@ -628,6 +633,81 @@ function getAllowedModules(request: CalculationRequest): TarifModul14a[] {
 	return flexibilityExists
 		? ['none', 'modul1', 'modul2', 'modul3']
 		: ['none'];
+}
+
+interface StorageSavingsEstimate {
+	savingsPct: number;
+	source: string;
+	note: string;
+}
+
+function estimateStorageSavingsPotential(request: CalculationRequest): StorageSavingsEstimate {
+	const hasStorage = Boolean(request.storage.hasStorage);
+	const capacity = Math.max(0, Number(request.storage.capacity_kwh || 0));
+	const pvKwp = Math.max(0, Number(request.pv.peakpower_kwp || 0));
+
+	if (!hasStorage || capacity <= 0) {
+		return {
+			savingsPct: 0,
+			source: 'kein Speicher aktiv',
+			note: 'Ohne aktiven Batteriespeicher wird kein zusaetzlicher Speichereffekt angesetzt.',
+		};
+	}
+
+	// Approximation from publicly available guidance:
+	// - Typical direct PV self-consumption without storage is ~25-35%
+	// - With storage and flexible operation values above ~70% are possible
+	// - Sizing guideline around 1.2-1.5 kWh usable capacity per 1 kWp PV for good utilization
+	const ratioKwhPerKwp = pvKwp > 0 ? capacity / pvKwp : 0;
+	const sizeFactor = pvKwp > 0
+		? clamp((ratioKwhPerKwp - 0.4) / (1.5 - 0.4), 0, 1)
+		: clamp(capacity / 12, 0, 1);
+
+	const baseSavingsPct = request.pv.hasPv
+		? (4 + sizeFactor * 16)
+		: (2 + sizeFactor * 6);
+
+	const dynamicBonusPct = request.storage.useDynamicOptimization !== false
+		? (2 + sizeFactor * 4)
+		: 0;
+
+	const savingsPct = round(Math.min(26, baseSavingsPct + dynamicBonusPct), 1);
+
+	return {
+		savingsPct,
+		source: 'energie-experten.org (Eigenverbrauch 25-35% ohne Speicher, >70% mit Speicher/Flex), Faustregel 1.2-1.5 kWh/kWp',
+		note: `Schaetzung aus Speicher-zu-PV-Verhaeltnis (${round(ratioKwhPerKwp, 2)} kWh/kWp) und Dynamiknutzung.`,
+	};
+}
+
+function selectBestTariff(results: TariffResult[], request: CalculationRequest): TariffResult | undefined {
+	if (!results.length) {
+		return undefined;
+	}
+
+	const sorted = [...results].sort((a, b) => a.netCost_eur - b.netCost_eur);
+	const cheapest = sorted[0];
+
+	const hasStorageFlex = Boolean(request.storage.hasStorage)
+		&& Number(request.storage.capacity_kwh || 0) > 0
+		&& request.storage.useDynamicOptimization !== false;
+
+	if (!hasStorageFlex) {
+		return cheapest;
+	}
+
+	const bestDynamic = sorted.find((entry) => entry.tariffType === 'dynamic');
+	if (!bestDynamic) {
+		return cheapest;
+	}
+
+	// If dynamic is within 2.5% of the cheapest option, prefer it for storage-enabled households.
+	const dynamicToleranceFactor = 1.025;
+	if (bestDynamic.netCost_eur <= cheapest.netCost_eur * dynamicToleranceFactor) {
+		return bestDynamic;
+	}
+
+	return cheapest;
 }
 
 function evaluateTariffs(
@@ -765,7 +845,7 @@ function evaluateTariffs(
 	}
 
 	const sorted = [...results].sort((a, b) => a.netCost_eur - b.netCost_eur);
-	const best = sorted[0];
+	const best = selectBestTariff(sorted, request);
 
 	return results.map((result) => ({
 		...result,
@@ -1122,6 +1202,9 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 
 	const annualSavingVsStatic = bestStatic.netCost_eur - recommended.netCost_eur;
 	const sachsenComparison = buildSachsenTariffComparison(request, totalConsumption, inferredSteerableConsumption);
+	const storageSavingsEstimate = estimateStorageSavingsPotential(request);
+	const avgPriceCtPerKwh = totalConsumption > 0 ? (recommended.netCost_eur / totalConsumption) * 100 : 0;
+	const avgPriceAfterStorageCtPerKwh = avgPriceCtPerKwh * (1 - storageSavingsEstimate.savingsPct / 100);
 
 	return {
 		success: true,
@@ -1151,6 +1234,12 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 					note: 'Bei API-Ausfall wird ein saisonales Ersatzprofil verwendet.',
 				},
 				{
+					category: 'Speicher-Einsparpotenzial',
+					status: 'modeled',
+					source: storageSavingsEstimate.source,
+					note: storageSavingsEstimate.note,
+				},
+				{
 					category: 'Marktpreise',
 					status: 'modeled',
 					source: 'Lokales Spotpreis-Modell fuer 2025',
@@ -1169,6 +1258,9 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 				recommendedTariff: recommended.name,
 				recommendedModule: recommended.module14a,
 				recommendedModuleLabel: moduleLabel,
+				storageSavingsPotential_pct: storageSavingsEstimate.savingsPct,
+				avgPowerPrice_ct_per_kwh: round(avgPriceCtPerKwh, 2),
+				avgPowerPriceAfterStorage_ct_per_kwh: round(avgPriceAfterStorageCtPerKwh, 2),
 				annualSavingVsStatic_eur: round(annualSavingVsStatic),
 				uncertaintyBand_eur: {
 					bestCase: round(annualSavingVsStatic * 1.25),

@@ -2963,16 +2963,20 @@ function renderResults(data) {
     : null;
   const householdConsumptionKwh = getHouseholdConsumptionForDisplay(summary);
   const moduleDecision = determineModuleDecision();
-  const recommendedTariff = sachsenBest?.label || best?.label || summary.recommendedTariff || '-';
-  const recommendedModule = sachsenBest ? 'Basierend auf SachsenEnergie + §14a Vergleich' : formatSelectedModuleLabel(moduleDecision.module);
-  const staticTariff = visibleTariffs.find((tariff) => tariff.tariffType === 'static' && tariff.module14a === 'none') || null;
-  const dynamicTariff = visibleTariffs.find((tariff) => tariff.tariffType === 'dynamic' && tariff.module14a === 'none') || null;
+  const recommendedTariff = best?.label || summary.recommendedTariff || '-';
+  const recommendedModule = formatSelectedModuleLabel(moduleDecision.module);
+  const staticTariff = [...visibleTariffs]
+    .filter((tariff) => tariff.tariffType === 'static')
+    .sort((a, b) => Number(a.netCost_eur) - Number(b.netCost_eur))[0] || null;
+  const dynamicTariff = [...visibleTariffs]
+    .filter((tariff) => tariff.tariffType === 'dynamic')
+    .sort((a, b) => Number(a.netCost_eur) - Number(b.netCost_eur))[0] || null;
 
   byId('resRecommendation').innerHTML = `<strong>${escapeHtml(recommendedTariff)}</strong><span class="result-recommendation-sub">${escapeHtml(recommendedModule)}</span>`;
   setText(
     'resSummaryReason',
-    sachsenComparison?.recommendation
-      || eligibility?.mainReason
+    eligibility?.mainReason
+      || sachsenComparison?.recommendation
       || 'Die Empfehlung basiert auf Voraussetzungen und Kostenvergleich.',
   );
   byId('resConsumption').textContent = `${formatNumber(householdConsumptionKwh)} kWh`;
@@ -3007,24 +3011,16 @@ function getVisibleTariffsForSelectedModule(tariffs) {
   const hasLargeLoad = byId('hasLargeLoad42')?.checked === true;
   const normalized = Array.isArray(tariffs) ? tariffs : [];
 
-  // If no module applies, show only non-14a variants.
+  // If no module applies, show only baseline variants (module none).
   if (!hasLargeLoad || selectedModule === 'none') {
-    return normalized.filter((tariff) => !String(tariff?.label || '').includes('§14a Modul'));
+    const noneRows = normalized.filter((tariff) => (tariff?.module14a || 'none') === 'none');
+    return noneRows.length ? noneRows : normalized;
   }
-
-  const selectedNeedle = selectedModule === 'modul1'
-    ? 'Modul 1'
-    : selectedModule === 'modul2'
-      ? 'Modul 2'
-      : 'Modul 3';
 
   // Keep baseline variants plus the explicitly selected module.
   const filtered = normalized.filter((tariff) => {
-    const label = String(tariff?.label || '');
-    if (!label.includes('§14a Modul')) {
-      return true;
-    }
-    return label.includes(selectedNeedle);
+    const moduleKey = tariff?.module14a || 'none';
+    return moduleKey === 'none' || moduleKey === selectedModule;
   });
 
   return filtered.length ? filtered : normalized;
@@ -3033,6 +3029,11 @@ function getVisibleTariffsForSelectedModule(tariffs) {
 function pickBestTariff(tariffs) {
   if (!Array.isArray(tariffs) || !tariffs.length) {
     return null;
+  }
+
+  const explicitlyRecommended = tariffs.find((entry) => entry?.recommended);
+  if (explicitlyRecommended) {
+    return explicitlyRecommended;
   }
 
   // Immer tatsächlich günstigsten sichtbaren Tarif wählen.
