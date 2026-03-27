@@ -110,6 +110,7 @@ let monthlyChart = null;
 let balanceChart = null;
 let monthlyHourlyDiffChart = null;
 let marketDailyCurveChart = null;
+let investmentPaybackChart = null;
 let marketTickerTimer = null;
 let marketTickerSamples = [];
 let marketTickerBusy = false;
@@ -143,6 +144,16 @@ const wizardState = {
   steps: [],
   currentIndex: 0
 };
+
+const SACHSENENERGIE_SOLAR_REFERENCE = Object.freeze({
+  packagePriceEur: 13990,
+  pvKwp: 6.3,
+  storageKwh: 9.6,
+  pvWeight: 0.6,
+  storageWeight: 0.4,
+  minPvKwp: 6.3,
+  sourceLabel: 'SachsenEnergie Basispaket: 6,3 kWp PV + 9,6 kWh Speicher ab 13.990 EUR inkl. Planung, Material und Installation'
+});
 
 let wizardResizeObserver = null;
 let wizardMutationObserver = null;
@@ -508,6 +519,14 @@ const INFO_TEXTS = {
            <p>Wert je Stunde: <strong>PV-Erzeugung minus Verbrauch</strong> als Monatsmittel der jeweiligen Stunde.</p>
            <div class="formula">Differenz(h) = PV(h) - Verbrauch(h)</div>
            <p>Positive Werte bedeuten typischen Überschuss (Einspeisung), negative Werte typischen Netzbedarf.</p>`
+  },
+  investmentPaybackChart: {
+    title: 'Amortisation PV + Speicher',
+    html: `<p>Dieses Diagramm zeigt, ab wann sich die gewählte PV-Leistung und Speicherkapazität wirtschaftlich auszahlen.</p>
+           <p>Die Investition wird auf Basis des öffentlich genannten <strong>SachsenEnergie-Basispakets</strong> skaliert:</p>
+           <div class="formula">13.990 EUR fuer 6,3 kWp PV + 9,6 kWh Speicher</div>
+           <p>Da SachsenEnergie auf der Website kein offenes Preisraster fuer mehrere Paketgroessen veroeffentlicht, wird die Investition proportional aus dem Referenzpaket angenaehert.</p>
+           <p>Die kumulierte Ersparnis basiert auf Ihrer aktuellen Stromkosten-Angabe und den simulierten Jahreskosten mit der gewaehlten PV-/Speicher-Konfiguration.</p>`
   },
   transparency: {
     title: 'Daten-Transparenz',
@@ -2996,6 +3015,7 @@ function renderResults(data) {
   renderTariffTable(visibleTariffs, best?.name || '');
   renderSachsenComparison(sachsenComparison, sachsenRowsVisible, sachsenBest?.key || '');
   renderMonthlyHourlyDiffChart(data.monthlyHourlyDiffProfiles || []);
+  renderInvestmentPaybackChart(data, best);
   renderTransparency(data.dataTransparency || []);
   if (data.eligibilityReport) {
     renderEligibilityReport(data.eligibilityReport);
@@ -3632,6 +3652,168 @@ function renderCharts(data) {
             color: (ctx) => ctx.tick.value === 0 ? '#E3223A' : '#E4E9F0',
             lineWidth: (ctx) => ctx.tick.value === 0 ? 2 : 1
           }
+        }
+      }
+    }
+  });
+}
+
+function getSelectedPvAndStorageSizing() {
+  const hasPv = byId('hasPv')?.checked === true;
+  const hasStorage = byId('hasStorage')?.checked === true;
+  const pvMode = document.querySelector('input[name="pvMode"]:checked')?.value || 'known';
+
+  let pvKwp = 0;
+  if (hasPv) {
+    if (pvMode === 'known') {
+      pvKwp = Math.max(0, Number(optionalNumber('peakpower') || 0));
+    } else {
+      const roofArea = Number(optionalNumber('roofArea') || 0);
+      const moduleEfficiency = Number(optionalNumber('moduleEfficiency') || 0);
+      pvKwp = Math.max(0, roofArea * (moduleEfficiency / 100));
+    }
+  }
+
+  const storageKwh = hasStorage ? Math.max(0, Number(optionalNumber('storageCapacity') || 0)) : 0;
+  return { pvKwp, storageKwh, hasPv, hasStorage };
+}
+
+function estimateSachsenEnergieInvestment({ pvKwp, storageKwh }) {
+  const ref = SACHSENENERGIE_SOLAR_REFERENCE;
+  if (pvKwp <= 0 && storageKwh <= 0) {
+    return null;
+  }
+
+  const effectivePvRatio = pvKwp > 0 ? pvKwp / ref.pvKwp : 0;
+  const effectiveStorageRatio = storageKwh > 0 ? storageKwh / ref.storageKwh : 0;
+  const scaledFactor = (effectivePvRatio * ref.pvWeight) + (effectiveStorageRatio * ref.storageWeight);
+  const estimatedInvestment = ref.packagePriceEur * scaledFactor;
+
+  return {
+    estimatedInvestmentEur: Math.max(0, estimatedInvestment),
+    referenceText: ref.sourceLabel,
+    scalingText: `Skalierung: ${(ref.pvWeight * 100).toFixed(0)} % PV-Anteil / ${(ref.storageWeight * 100).toFixed(0)} % Speicher-Anteil aus dem Basispaket.`,
+  };
+}
+
+function buildInvestmentProjection({ annualSavingEur, investmentEur, years = 20 }) {
+  const labels = [];
+  const cumulativeSavings = [];
+  const investmentLine = [];
+  let cumulative = 0;
+  let paybackYear = null;
+
+  for (let year = 0; year <= years; year += 1) {
+    labels.push(year === 0 ? 'Start' : `Jahr ${year}`);
+    if (year === 0) {
+      cumulativeSavings.push(0);
+      investmentLine.push(investmentEur);
+      continue;
+    }
+
+    const netSavingThisYear = annualSavingEur * Math.pow(1.018, year - 1);
+    cumulative += netSavingThisYear;
+    cumulativeSavings.push(Number(cumulative.toFixed(2)));
+    investmentLine.push(investmentEur);
+
+    if (paybackYear == null && cumulative >= investmentEur) {
+      paybackYear = year;
+    }
+  }
+
+  return { labels, cumulativeSavings, investmentLine, paybackYear };
+}
+
+function renderInvestmentPaybackChart(data, bestTariff) {
+  if (typeof Chart === 'undefined') {
+    return;
+  }
+
+  const canvas = byId('investmentPaybackChart');
+  const info = byId('investmentPaybackInfo');
+  if (!canvas || !info) {
+    return;
+  }
+
+  if (investmentPaybackChart) {
+    investmentPaybackChart.destroy();
+  }
+
+  const sizing = getSelectedPvAndStorageSizing();
+  const investment = estimateSachsenEnergieInvestment(sizing);
+  const currentAnnualCost = Math.max(0, Number(optionalNumber('annualPowerCost') || 0));
+  const projectedAnnualCost = Math.max(0, Number(bestTariff?.netCost_eur || data?.summary?.recommendedNetCost_eur || 0));
+  const annualSavingEur = Math.max(0, currentAnnualCost - projectedAnnualCost);
+
+  if (!investment || sizing.pvKwp <= 0) {
+    info.textContent = 'Bitte PV-Leistung und optional Speicherkapazität angeben, damit die Investitionskurve berechnet werden kann.';
+    investmentPaybackChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels: ['Start'], datasets: [] },
+      options: { responsive: true }
+    });
+    return;
+  }
+
+  const projection = buildInvestmentProjection({
+    annualSavingEur,
+    investmentEur: investment.estimatedInvestmentEur,
+    years: 20,
+  });
+
+  const paybackText = projection.paybackYear != null
+    ? `Amortisation voraussichtlich in Jahr ${projection.paybackYear}.`
+    : 'Innerhalb von 20 Jahren wird die Investition mit den aktuellen Annahmen nicht vollstaendig erreicht.';
+
+  info.textContent = `${investment.referenceText}. Gewaehlt: ${formatNumber(sizing.pvKwp)} kWp und ${formatNumber(sizing.storageKwh)} kWh. Geschätzte Investition: ${formatEuro(investment.estimatedInvestmentEur)}. Erwartete Ersparnis im 1. Jahr: ${formatEuro(annualSavingEur)}. ${paybackText}`;
+
+  investmentPaybackChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: projection.labels,
+      datasets: [
+        {
+          label: 'Kumulierte Ersparnis',
+          data: projection.cumulativeSavings,
+          borderColor: '#0B8F6A',
+          backgroundColor: 'rgba(11,143,106,0.12)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 2,
+        },
+        {
+          label: 'Investition SachsenEnergie',
+          data: projection.investmentLine,
+          borderColor: '#E3223A',
+          borderDash: [6, 6],
+          backgroundColor: 'transparent',
+          fill: false,
+          pointRadius: 0,
+          tension: 0,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#334155' } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${formatEuro(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#334155', maxRotation: 0, autoSkip: true, maxTicksLimit: 7 },
+          grid: { color: '#E4E9F0' }
+        },
+        y: {
+          ticks: {
+            color: '#334155',
+            callback: (value) => formatEuro(value)
+          },
+          grid: { color: '#E4E9F0' }
         }
       }
     }
