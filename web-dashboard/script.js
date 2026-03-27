@@ -1223,10 +1223,9 @@ function buildPayload() {
   if (consumptionKnown) {
     annualHouseholdConsumption = optionalNumber('householdAnnualConsumption');
   } else {
-    const AVG_KWH = [0, 1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500];
-    annualHouseholdConsumption = Number.isInteger(persons)
-      ? (AVG_KWH[persons] ?? persons * 1000 + 500)
-      : null;
+    // No manual annual value in persons mode: backend derives household base from persons
+    // and adds optional components (e.g. large loads) on top.
+    annualHouseholdConsumption = null;
   }
 
   const moduleDecision = determineModuleDecision();
@@ -4563,12 +4562,12 @@ function buildSuccessMessage(data) {
 }
 
 function getHouseholdConsumptionForDisplay(summary = {}) {
+  const annualLargeLoads = getActiveLargeLoadAnnualConsumption();
   const consumptionKnown = byId('consumptionKnown')?.checked === true;
 
   if (consumptionKnown) {
     const absoluteTotal = optionalNumber('householdAnnualConsumption');
     if (Number.isFinite(absoluteTotal)) {
-      const annualLargeLoads = getActiveLargeLoadAnnualConsumption();
       return Math.max(0, absoluteTotal - annualLargeLoads);
     }
   }
@@ -4576,7 +4575,8 @@ function getHouseholdConsumptionForDisplay(summary = {}) {
   const personsRaw = parseInt(byId('persons')?.value || '', 10);
   if (Number.isInteger(personsRaw)) {
     const AVG_KWH = [0, 1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500];
-    return AVG_KWH[personsRaw] ?? (personsRaw * 1000 + 500);
+    const baseConsumption = AVG_KWH[personsRaw] ?? (personsRaw * 1000 + 500);
+    return Math.max(0, baseConsumption + annualLargeLoads);
   }
 
   return Number(summary.totalConsumption_kwh) || 0;
