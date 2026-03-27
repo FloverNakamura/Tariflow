@@ -57,6 +57,7 @@ export interface HeatPumpConfig {
   annualConsumption_kwh?: number;     // jährlicher Verbrauch WP
   cop?: number;                       // COP-Wert
   use14aModule?: boolean;             // §14a-Modul nutzen
+  usageMode?: 'hotWater' | 'heating' | 'both';
 }
 
 export interface EMobilityConfig {

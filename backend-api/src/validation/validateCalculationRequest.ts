@@ -85,6 +85,13 @@ function toBuildingType(value: unknown): 'EFH' | 'MFH' | 'Gewerbe' {
   return 'EFH';
 }
 
+function toHeatPumpUsageMode(value: unknown): 'hotWater' | 'heating' | 'both' {
+  if (value === 'hotWater' || value === 'heating' || value === 'both') {
+    return value;
+  }
+  return 'both';
+}
+
 function sanitizeLargeLoads(value: unknown): LargeLoadConfig[] {
   if (!Array.isArray(value)) {
     return [];
@@ -185,6 +192,7 @@ export function validateAndSanitize(body: unknown): CalculationRequest {
       : 0,
     cop:           clamp(toNum(hpRaw.cop, 3), 1.5, 8),
     use14aModule:  toBool(hpRaw.use14aModule, false),
+    usageMode:     toHeatPumpUsageMode(hpRaw.usageMode),
   };
 
   // ── E-Mobility ─────────────────────────────────────────────────────────────

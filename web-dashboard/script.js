@@ -2847,15 +2847,27 @@ function renderResults(data) {
   const summary = data.summary || {};
   const used = data.usedParams || {};
   const eligibility = data.eligibilityReport || null;
+  const sachsenComparison = data.sachsenComparison || null;
+  const sachsenRowsVisible = Array.isArray(sachsenComparison?.rows)
+    ? getVisibleSachsenRowsForSelectedModule(sachsenComparison.rows)
+    : [];
+  const sachsenBest = sachsenRowsVisible.length
+    ? [...sachsenRowsVisible].sort((a, b) => Number(a.annualCost_eur) - Number(b.annualCost_eur))[0]
+    : null;
   const householdConsumptionKwh = getHouseholdConsumptionForDisplay(summary);
   const moduleDecision = determineModuleDecision();
-  const recommendedTariff = best?.label || summary.recommendedTariff || '-';
-  const recommendedModule = formatSelectedModuleLabel(moduleDecision.module);
+  const recommendedTariff = sachsenBest?.label || best?.label || summary.recommendedTariff || '-';
+  const recommendedModule = sachsenBest ? 'Basierend auf SachsenEnergie + §14a Vergleich' : formatSelectedModuleLabel(moduleDecision.module);
   const staticTariff = visibleTariffs.find((tariff) => tariff.tariffType === 'static' && tariff.module14a === 'none') || null;
   const dynamicTariff = visibleTariffs.find((tariff) => tariff.tariffType === 'dynamic' && tariff.module14a === 'none') || null;
 
   byId('resRecommendation').innerHTML = `<strong>${escapeHtml(recommendedTariff)}</strong><span class="result-recommendation-sub">${escapeHtml(recommendedModule)}</span>`;
-  setText('resSummaryReason', eligibility?.mainReason || 'Die Empfehlung basiert auf Voraussetzungen und Kostenvergleich.');
+  setText(
+    'resSummaryReason',
+    sachsenComparison?.recommendation
+      || eligibility?.mainReason
+      || 'Die Empfehlung basiert auf Voraussetzungen und Kostenvergleich.',
+  );
   byId('resConsumption').textContent = `${formatNumber(householdConsumptionKwh)} kWh`;
   byId('resYield').textContent = `${formatNumber(summary.pvYield_kwh)} kWh`;
   byId('resSaving').textContent = formatEuro(summary.annualSavingVsStatic_eur);
@@ -2871,7 +2883,7 @@ function renderResults(data) {
   byId('resUncertainty').textContent = `${formatEuro(ub.bestCase)} / ${formatEuro(ub.expected)} / ${formatEuro(ub.worstCase)}`;
 
   renderTariffTable(visibleTariffs, best?.name || '');
-  renderSachsenComparison(data.sachsenComparison || null);
+  renderSachsenComparison(sachsenComparison, sachsenRowsVisible, sachsenBest?.key || '');
   renderTransparency(data.dataTransparency || []);
   if (data.eligibilityReport) {
     renderEligibilityReport(data.eligibilityReport);
@@ -3234,7 +3246,22 @@ function renderTariffTable(tariffs, recommendedName = '') {
   });
 }
 
-function renderSachsenComparison(comparison) {
+function getVisibleSachsenRowsForSelectedModule(rows) {
+  const normalized = Array.isArray(rows) ? rows : [];
+  const moduleDecision = determineModuleDecision();
+  const selectedModule = moduleDecision.module || 'none';
+  const hasLargeLoad = byId('hasLargeLoad42')?.checked === true;
+
+  if (!hasLargeLoad || selectedModule === 'none') {
+    const noneRows = normalized.filter((row) => row?.module === 'none');
+    return noneRows.length ? noneRows : normalized;
+  }
+
+  const selectedRows = normalized.filter((row) => row?.module === selectedModule);
+  return selectedRows.length ? selectedRows : normalized;
+}
+
+function renderSachsenComparison(comparison, visibleRows = [], recommendedKey = '') {
   const tbody = document.querySelector('#sachsenComparisonTable tbody');
   const meta = byId('sachsenComparisonMeta');
   if (!tbody || !meta) {
@@ -3260,12 +3287,15 @@ function renderSachsenComparison(comparison) {
   }
   meta.textContent = noteParts.join(' | ');
 
+  const rowsToRender = visibleRows.length ? visibleRows : comparison.rows;
+
   tbody.innerHTML = '';
-  comparison.rows.forEach((row) => {
+  rowsToRender.forEach((row) => {
     const tr = document.createElement('tr');
-    if (row.recommended) tr.classList.add('best');
+    const isRecommended = recommendedKey ? row.key === recommendedKey : Boolean(row.recommended);
+    if (isRecommended) tr.classList.add('best');
     tr.innerHTML = `
-      <td>${escapeHtml(row.label)}${row.recommended ? ' (Empfohlen)' : ''}</td>
+      <td>${escapeHtml(row.label)}${isRecommended ? ' (Empfohlen)' : ''}</td>
       <td>${formatEuro(row.annualCost_eur)}</td>
       <td>${formatEuro(row.savingVsCurrent_eur)}</td>
     `;

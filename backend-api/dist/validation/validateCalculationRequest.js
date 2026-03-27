@@ -80,6 +80,12 @@ function toBuildingType(value) {
         return value;
     return 'EFH';
 }
+function toHeatPumpUsageMode(value) {
+    if (value === 'hotWater' || value === 'heating' || value === 'both') {
+        return value;
+    }
+    return 'both';
+}
 function sanitizeLargeLoads(value) {
     if (!Array.isArray(value)) {
         return [];
@@ -164,6 +170,7 @@ function validateAndSanitize(body) {
             : 0,
         cop: clamp(toNum(hpRaw.cop, 3), 1.5, 8),
         use14aModule: toBool(hpRaw.use14aModule, false),
+        usageMode: toHeatPumpUsageMode(hpRaw.usageMode),
     };
     // ── E-Mobility ─────────────────────────────────────────────────────────────
     const evRaw = (b.emobility && typeof b.emobility === 'object') ? b.emobility : {};

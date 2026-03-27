@@ -778,6 +778,12 @@ function buildScenarioResults(tariffs: TariffResult[]): ScenarioResult[] {
 	});
 }
 
+function getHeatPumpUsageFactor(usageMode: CalculationRequest['heatPump']['usageMode']): number {
+	if (usageMode === 'hotWater') return 0.35;
+	if (usageMode === 'heating') return 0.75;
+	return 1;
+}
+
 function calcDynamicMeterFeeEur(annualConsumptionKwh: number): number {
 	if (annualConsumptionKwh < 6000) return 30;
 	if (annualConsumptionKwh < 20000) return 40;
@@ -936,8 +942,11 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 		household.buildingType || 'EFH',
 	);
 
+	const heatPumpUsageFactor = getHeatPumpUsageFactor(request.heatPump.usageMode);
+	const effectiveHeatPumpAnnual = Math.max(0, (request.heatPump.annualConsumption_kwh || 0) * heatPumpUsageFactor);
+
 	const heatPumpAnnual = !manualAnnualGiven && request.heatPump.hasHeatPump
-		? Math.max(0, request.heatPump.annualConsumption_kwh || 0)
+		? effectiveHeatPumpAnnual
 		: 0;
 
 	const evAnnualFromVehicles = (request.emobility.vehicles || []).reduce((acc, vehicle) => {
@@ -952,7 +961,7 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 		: 0;
 
 	const inferredSteerableConsumption =
-		Math.max(0, request.heatPump.hasHeatPump ? (request.heatPump.annualConsumption_kwh || 0) : 0)
+		Math.max(0, request.heatPump.hasHeatPump ? effectiveHeatPumpAnnual : 0)
 		+ Math.max(0, evAnnualFromVehicles || evAnnualLegacy)
 		+ Math.max(0, (request.tariff.largeLoadDailyCurveKw || []).reduce((acc, value) => acc + Math.max(0, value), 0) * 365);
 

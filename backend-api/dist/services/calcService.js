@@ -578,6 +578,13 @@ function buildScenarioResults(tariffs) {
         };
     });
 }
+function getHeatPumpUsageFactor(usageMode) {
+    if (usageMode === 'hotWater')
+        return 0.35;
+    if (usageMode === 'heating')
+        return 0.75;
+    return 1;
+}
 function calcDynamicMeterFeeEur(annualConsumptionKwh) {
     if (annualConsumptionKwh < 6000)
         return 30;
@@ -702,8 +709,10 @@ async function runCalculation(request) {
     const coords = (0, geocodeService_1.getCoordsFromPlz)(household.plz);
     const manualAnnualGiven = Number.isFinite(household.annualConsumption_kwh) && (household.annualConsumption_kwh || 0) > 0;
     const householdEstimatedAnnual = buildBaseHouseholdAnnualConsumption(household.persons, household.buildingType || 'EFH');
+    const heatPumpUsageFactor = getHeatPumpUsageFactor(request.heatPump.usageMode);
+    const effectiveHeatPumpAnnual = Math.max(0, (request.heatPump.annualConsumption_kwh || 0) * heatPumpUsageFactor);
     const heatPumpAnnual = !manualAnnualGiven && request.heatPump.hasHeatPump
-        ? Math.max(0, request.heatPump.annualConsumption_kwh || 0)
+        ? effectiveHeatPumpAnnual
         : 0;
     const evAnnualFromVehicles = (request.emobility.vehicles || []).reduce((acc, vehicle) => {
         const annualKm = Number(vehicle.annualKm || 0);
@@ -714,7 +723,7 @@ async function runCalculation(request) {
     const evAnnual = !manualAnnualGiven && request.emobility.hasEV
         ? Math.max(0, evAnnualFromVehicles || evAnnualLegacy)
         : 0;
-    const inferredSteerableConsumption = Math.max(0, request.heatPump.hasHeatPump ? (request.heatPump.annualConsumption_kwh || 0) : 0)
+    const inferredSteerableConsumption = Math.max(0, request.heatPump.hasHeatPump ? effectiveHeatPumpAnnual : 0)
         + Math.max(0, evAnnualFromVehicles || evAnnualLegacy)
         + Math.max(0, (request.tariff.largeLoadDailyCurveKw || []).reduce((acc, value) => acc + Math.max(0, value), 0) * 365);
     const largeLoadDaily = (request.tariff.largeLoadDailyCurveKw || []).reduce((acc, value) => acc + Math.max(0, value), 0);
