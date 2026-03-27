@@ -2973,13 +2973,6 @@ function renderResults(data) {
   const summary = data.summary || {};
   const used = data.usedParams || {};
   const eligibility = data.eligibilityReport || null;
-  const sachsenComparison = data.sachsenComparison || null;
-  const sachsenRowsVisible = Array.isArray(sachsenComparison?.rows)
-    ? getVisibleSachsenRowsForSelectedModule(sachsenComparison.rows)
-    : [];
-  const sachsenBest = sachsenRowsVisible.length
-    ? [...sachsenRowsVisible].sort((a, b) => Number(a.annualCost_eur) - Number(b.annualCost_eur))[0]
-    : null;
   const householdConsumptionKwh = getHouseholdConsumptionForDisplay(summary);
   const moduleDecision = determineModuleDecision();
   const recommendedTariff = best?.label || summary.recommendedTariff || '-';
@@ -2995,7 +2988,6 @@ function renderResults(data) {
   setText(
     'resSummaryReason',
     eligibility?.mainReason
-      || sachsenComparison?.recommendation
       || 'Die Empfehlung basiert auf Voraussetzungen und Kostenvergleich.',
   );
   byId('resConsumption').textContent = `${formatNumber(householdConsumptionKwh)} kWh`;
@@ -3013,13 +3005,9 @@ function renderResults(data) {
   byId('resUncertainty').textContent = `${formatEuro(ub.bestCase)} / ${formatEuro(ub.expected)} / ${formatEuro(ub.worstCase)}`;
 
   renderTariffTable(visibleTariffs, best?.name || '');
-  renderSachsenComparison(sachsenComparison, sachsenRowsVisible, sachsenBest?.key || '');
   renderMonthlyHourlyDiffChart(data.monthlyHourlyDiffProfiles || []);
   renderInvestmentPaybackChart(data, best);
   renderTransparency(data.dataTransparency || []);
-  if (data.eligibilityReport) {
-    renderEligibilityReport(data.eligibilityReport);
-  }
   renderCharts(data);
   renderMarketDailyCurveChart();
   startMarketTicker();
