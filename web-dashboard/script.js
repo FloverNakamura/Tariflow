@@ -152,7 +152,7 @@ const SACHSENENERGIE_SOLAR_REFERENCE = Object.freeze({
   pvWeight: 0.6,
   storageWeight: 0.4,
   minPvKwp: 6.3,
-  sourceLabel: 'SachsenEnergie Basispaket: 6,3 kWp PV + 9,6 kWh Speicher ab 13.990 EUR inkl. Planung, Material und Installation'
+  sourceLabel: 'Referenzpaket: 6,3 kWp PV + 9,6 kWh Speicher ab 13.990 EUR inkl. Planung, Material und Installation'
 });
 
 let wizardResizeObserver = null;
@@ -194,7 +194,7 @@ const INFO_TEXTS = {
            der zuerst den Eigenbedarf deckt. Überschuss wird wahlweise im Speicher zwischengelagert oder ins Netz eingespeist.</p>
            <p>Der stündliche Ertrag ergibt sich aus:</p>
            <div class="formula">Ertrag [kWh/h] = kWp × spez. Jahresertrag × Stunden-Profil-Faktor</div>
-           <p>Als Basis-Jahresertrag werden <strong>950 kWh/kWp</strong> (typisch für Sachsen/Mitteldeutschland) angesetzt, 
+           <p>Als Basis-Jahresertrag werden <strong>950 kWh/kWp</strong> (konservativer deutschlandweiter Richtwert) angesetzt,
            skaliert mit dem monatlichen Sonnenprofil des Standorts.</p>`
   },
   peakpower: {
@@ -3352,7 +3352,7 @@ function renderMarketDailyCurveChart() {
 
   if (marketDailyCurveInfo) {
     const sourceLabel = marketTickerSamples.length
-      ? `Online-Daten aus ${marketTickerSamples.length} Marktwerten (aWATTar/EPEX, wie bei Vattenfall ausgewiesen).`
+      ? `Online-Daten aus ${marketTickerSamples.length} Marktwerten (aWATTar/EPEX).`
       : 'Fallback-Profil aktiv, bis Online-Marktdaten geladen sind.';
     marketDailyCurveInfo.textContent = `Tageslastkurve nach aktuellem Börsenprofil. ${sourceLabel}`;
   }
