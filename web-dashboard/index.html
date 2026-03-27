@@ -495,43 +495,20 @@
       </details>
 
       <details class="result-disclosure">
-        <summary>Renditeanalyse (unabhängig)</summary>
+        <summary>Renditeanalyse</summary>
         <div class="result-disclosure-body">
           <article class="chart-card">
             <h3>Amortisation PV + Speicher <button type="button" class="info-btn" data-info="investmentPaybackChart">&#9432;</button></h3>
-            <p class="chart-note">Diese Analyse nutzt nur die unten eingetragenen Werte und ist komplett von den restlichen Formularangaben entkoppelt.</p>
+            <p class="chart-note">Balken starten im Minus (Startkosten) und gehen ins Plus, sobald die Investition wieder drin ist.</p>
 
             <div class="investment-input-grid">
               <label>
-                Aktuelle Stromkosten/Jahr (EUR)
-                <input id="investmentStandaloneAnnualCost" type="number" min="0" step="10" value="2500">
-              </label>
-              <label>
-                Erwartete Stromkosten/Jahr mit PV/Speicher (EUR)
-                <input id="investmentStandaloneProjectedCost" type="number" min="0" step="10" value="1500">
-              </label>
-              <label>
-                Startkosten Paket (EUR)
+                Paketgröße (Startkosten, proportional skaliert)
                 <input id="investmentScaleCostRange" type="range" min="6000" max="35000" step="250" value="13990">
                 <span class="investment-range-value" id="investmentScaleCostValue">13.990 EUR</span>
-              </label>
-              <label>
-                PV-Leistung Paket (kWp)
-                <input id="investmentScalePowerRange" type="range" min="2.5" max="16" step="0.1" value="6.3">
                 <span class="investment-range-value" id="investmentScalePowerValue">6,3 kWp</span>
-              </label>
-              <label>
-                Speicher Paket (kWh, proportional)
                 <span class="investment-range-value" id="investmentScaleStorageValue">9,6 kWh</span>
               </label>
-              <label>
-                Betrachtungsjahre
-                <input id="investmentStandaloneYears" type="number" min="5" max="40" step="1" value="20">
-              </label>
-            </div>
-
-            <div class="investment-actions">
-              <button type="button" id="investmentStandaloneRunBtn" class="secondary">Rendite berechnen</button>
             </div>
 
             <p id="investmentPaybackInfo" class="chart-note">Investitionskurve wird berechnet ...</p>

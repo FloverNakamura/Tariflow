@@ -526,7 +526,7 @@ const INFO_TEXTS = {
            <p>Die Investition wird auf Basis des öffentlich genannten <strong>SachsenEnergie-Basispakets</strong> skaliert:</p>
            <div class="formula">13.990 EUR fuer 6,3 kWp PV + 9,6 kWh Speicher</div>
         <p>Startkosten- und Leistungs-Slider sind proportional gekoppelt. Beim Skalieren werden Investition und Ersparnis gemeinsam skaliert, dadurch bleibt die Renditezeit stabil.</p>
-        <p>Die Berechnung im separaten Rendite-Tab ist vollstaendig unabhaengig vom restlichen Tarif-Formular und nutzt nur die dort eingetragenen Werte.</p>`
+           <p>Die Balken starten negativ und wechseln nach der Amortisation in den positiven Bereich.</p>`
   },
   transparency: {
     title: 'Daten-Transparenz',
@@ -3695,19 +3695,15 @@ function renderCharts(data) {
 }
 
 function getStandaloneInvestmentInputs() {
-  const annualCost = Math.max(0, Number(byId('investmentStandaloneAnnualCost')?.value || 0));
-  const projectedCost = Math.max(0, Number(byId('investmentStandaloneProjectedCost')?.value || 0));
   const startCostEur = Math.max(0, Number(byId('investmentScaleCostRange')?.value || 0));
   const packageScaleFactor = SACHSENENERGIE_SOLAR_REFERENCE.packagePriceEur > 0
     ? startCostEur / SACHSENENERGIE_SOLAR_REFERENCE.packagePriceEur
     : 0;
   const pvKwp = Math.max(0, SACHSENENERGIE_SOLAR_REFERENCE.pvKwp * packageScaleFactor);
   const storageKwh = Math.max(0, SACHSENENERGIE_SOLAR_REFERENCE.storageKwh * packageScaleFactor);
-  const years = Math.min(40, Math.max(5, Number(byId('investmentStandaloneYears')?.value || 20)));
+  const years = 20;
 
   return {
-    annualCost,
-    projectedCost,
     startCostEur,
     packageScaleFactor,
     pvKwp,
@@ -3779,7 +3775,7 @@ function renderInvestmentPaybackChart() {
   }
 
   const sizing = getStandaloneInvestmentInputs();
-  const annualSavingBaseEur = Math.max(0, sizing.annualCost - sizing.projectedCost);
+  const annualSavingBaseEur = 1000;
   const annualSavingEur = annualSavingBaseEur * sizing.packageScaleFactor;
   const investment = {
     estimatedInvestmentEur: sizing.startCostEur,
@@ -3807,7 +3803,7 @@ function renderInvestmentPaybackChart() {
     ? `Amortisation voraussichtlich in Jahr ${projection.paybackYear}.`
     : `Innerhalb von ${sizing.years} Jahren wird die Investition mit den aktuellen Annahmen nicht vollstaendig erreicht.`;
 
-  info.textContent = `${investment.referenceText}. Gewaehlt: ${formatNumber(sizing.pvKwp)} kWp und ${formatNumber(sizing.storageKwh)} kWh. Startkosten: ${formatEuro(investment.estimatedInvestmentEur)}. Ersparnis im 1. Jahr (proportional skaliert): ${formatEuro(annualSavingEur)}. ${investment.scalingText} ${paybackText}`;
+  info.textContent = `${investment.referenceText}. Paket: ${formatNumber(sizing.pvKwp)} kWp und ${formatNumber(sizing.storageKwh)} kWh. Startkosten: ${formatEuro(investment.estimatedInvestmentEur)}. Ersparnis im 1. Jahr (proportional skaliert): ${formatEuro(annualSavingEur)}. ${investment.scalingText} ${paybackText}`;
 
   investmentPaybackChart = new Chart(canvas, {
     type: 'bar',
@@ -3868,22 +3864,14 @@ function renderInvestmentPaybackChart() {
   });
 }
 
-function syncInvestmentScaleControls(source) {
+function syncInvestmentScaleControls() {
   const ref = SACHSENENERGIE_SOLAR_REFERENCE;
   const costRange = byId('investmentScaleCostRange');
-  const powerRange = byId('investmentScalePowerRange');
-  if (!costRange || !powerRange) {
+  if (!costRange) {
     return;
   }
 
-  let factor = 1;
-  if (source === 'power') {
-    factor = Number(powerRange.value) / ref.pvKwp;
-    costRange.value = String(Math.round(ref.packagePriceEur * factor));
-  } else {
-    factor = Number(costRange.value) / ref.packagePriceEur;
-    powerRange.value = String(Number((ref.pvKwp * factor).toFixed(1)));
-  }
+  const factor = Number(costRange.value) / ref.packagePriceEur;
 
   const derivedStorage = ref.storageKwh * factor;
   const costValue = byId('investmentScaleCostValue');
@@ -3894,7 +3882,7 @@ function syncInvestmentScaleControls(source) {
     costValue.textContent = `${formatEuro(Number(costRange.value))}`;
   }
   if (powerValue) {
-    powerValue.textContent = `${formatNumber(Number(powerRange.value), 1)} kWp`;
+    powerValue.textContent = `${formatNumber(ref.pvKwp * factor)} kWp`;
   }
   if (storageValue) {
     storageValue.textContent = `${formatNumber(derivedStorage)} kWh`;
@@ -3902,36 +3890,14 @@ function syncInvestmentScaleControls(source) {
 }
 
 function initInvestmentStandaloneTab() {
-  const runBtn = byId('investmentStandaloneRunBtn');
   const costRange = byId('investmentScaleCostRange');
-  const powerRange = byId('investmentScalePowerRange');
-  const inputIds = [
-    'investmentStandaloneAnnualCost',
-    'investmentStandaloneProjectedCost',
-    'investmentStandaloneYears',
-  ];
-
-  runBtn?.addEventListener('click', () => {
-    renderInvestmentPaybackChart();
-  });
-
-  inputIds.forEach((id) => {
-    byId(id)?.addEventListener('change', () => {
-      renderInvestmentPaybackChart();
-    });
-  });
 
   costRange?.addEventListener('input', () => {
-    syncInvestmentScaleControls('cost');
+    syncInvestmentScaleControls();
     renderInvestmentPaybackChart();
   });
 
-  powerRange?.addEventListener('input', () => {
-    syncInvestmentScaleControls('power');
-    renderInvestmentPaybackChart();
-  });
-
-  syncInvestmentScaleControls('cost');
+  syncInvestmentScaleControls();
 
   renderInvestmentPaybackChart();
 }
