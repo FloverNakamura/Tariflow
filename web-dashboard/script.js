@@ -1288,11 +1288,11 @@ function validatePayload(payload) {
       return 'Bitte den absoluten Haushaltsverbrauch in kWh/Jahr eingeben.';
     }
     const annualTotal = optionalNumber('householdAnnualConsumption');
-    const annualLargeLoads = estimateAnnualLargeLoadConsumption(collectLargeLoads());
+    const annualLargeLoads = getActiveLargeLoadAnnualConsumption();
     const annual = Number(payload.household.annualConsumption_kwh);
-    if (Number.isFinite(annualTotal) && annualTotal < annualLargeLoads) {
+    if (Number.isFinite(annualTotal) && annualTotal <= annualLargeLoads) {
       annualConsumptionEl?.classList.add('invalid');
-      return 'Der absolute Gesamtverbrauch muss mindestens so hoch sein wie die Summe der Großverbraucher.';
+      return 'Der absolute Gesamtverbrauch muss groesser sein als die Summe der konfigurierten Grossverbraucher.';
     }
     if (!Number.isFinite(annual) || annual < 100 || annual > 200000) {
       annualConsumptionEl?.classList.add('invalid');
@@ -1862,6 +1862,19 @@ function initLargeLoads() {
 
   largeLoadsContainer.addEventListener('input', () => {
     updateLargeLoadProfiles();
+    syncHouseholdConsumptionLowerBound();
+  });
+
+  largeLoadsContainer.addEventListener('change', () => {
+    syncHouseholdConsumptionLowerBound();
+  });
+
+  byId('hasOtherLargeLoad')?.addEventListener('change', () => {
+    syncHouseholdConsumptionLowerBound();
+  });
+
+  byId('hasLargeLoad42')?.addEventListener('change', () => {
+    syncHouseholdConsumptionLowerBound();
   });
 
   byId('hasHeatPump')?.addEventListener('change', () => {
@@ -1970,6 +1983,41 @@ function estimateAnnualLargeLoadConsumption(loads) {
     const annual = Number(load?.annualConsumption_kwh);
     return sum + (Number.isFinite(annual) ? annual : 0);
   }, 0);
+}
+
+function getActiveLargeLoadAnnualConsumption() {
+  const hasLargeLoad42 = byId('hasLargeLoad42')?.checked === true;
+  const hasOtherLargeLoad = byId('hasOtherLargeLoad')?.checked === true;
+  if (!hasLargeLoad42 || !hasOtherLargeLoad) {
+    return 0;
+  }
+  return estimateAnnualLargeLoadConsumption(collectLargeLoads());
+}
+
+function syncHouseholdConsumptionLowerBound() {
+  const annualConsumptionInput = byId('householdAnnualConsumption');
+  const consumptionKnownEl = byId('consumptionKnown');
+  if (!annualConsumptionInput || !consumptionKnownEl?.checked) {
+    return;
+  }
+
+  const largeLoadAnnual = getActiveLargeLoadAnnualConsumption();
+  const strictMin = Math.max(100, Math.floor(largeLoadAnnual) + 1);
+  annualConsumptionInput.min = String(strictMin);
+
+  const current = Number(annualConsumptionInput.value);
+  const tooSmall = Number.isFinite(current) && current <= largeLoadAnnual;
+  annualConsumptionInput.setCustomValidity(
+    tooSmall
+      ? `Der Wert muss groesser als ${Math.ceil(largeLoadAnnual)} kWh/Jahr sein.`
+      : ''
+  );
+
+  if (tooSmall) {
+    annualConsumptionInput.classList.add('invalid');
+  } else {
+    annualConsumptionInput.classList.remove('invalid');
+  }
 }
 
 function buildLargeLoadDailyCurveKw(loads) {
@@ -2170,8 +2218,17 @@ function initHouseholdConsumptionMode() {
 
     personsInput.required = !known;
     annualConsumptionInput.required = known;
+    syncHouseholdConsumptionLowerBound();
     scheduleWizardHeightSync();
   };
+
+  annualConsumptionInput.addEventListener('input', () => {
+    syncHouseholdConsumptionLowerBound();
+  });
+
+  annualConsumptionInput.addEventListener('change', () => {
+    syncHouseholdConsumptionLowerBound();
+  });
 
   consumptionKnownEl.addEventListener('change', sync);
   sync();
@@ -4228,7 +4285,7 @@ function getHouseholdConsumptionForDisplay(summary = {}) {
   if (consumptionKnown) {
     const absoluteTotal = optionalNumber('householdAnnualConsumption');
     if (Number.isFinite(absoluteTotal)) {
-      const annualLargeLoads = estimateAnnualLargeLoadConsumption(collectLargeLoads());
+      const annualLargeLoads = getActiveLargeLoadAnnualConsumption();
       return Math.max(0, absoluteTotal - annualLargeLoads);
     }
   }
