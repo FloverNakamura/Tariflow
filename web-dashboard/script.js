@@ -402,15 +402,13 @@ const INFO_TEXTS = {
   },
   dynamicTariff: {
     title: 'Dynamischer Stromtarif',
-    html: `<p>Beim dynamischen Tarif (<em>Strom Flex</em>) richtet sich der Arbeitspreis stündlich nach dem
+    html: `<p>Beim dynamischen Tarif richtet sich der Arbeitspreis stündlich nach dem
            <strong>EPEX-Spot-Marktpreis</strong> (Day-Ahead, €/MWh).</p>
-           <div class="formula">Strompreis [ct/kWh] = EPEX-Spot + 2,98 ct Basisverbrauchspreis + Umlagen/Abgaben</div>
+           <div class="formula">Strompreis [ct/kWh] = EPEX-Spot + Aufschlag + Umlagen/Abgaben</div>
            <p>Die Simulation verwendet historische Spotpreisdaten 2025 (8.760 Stunden).
            Bei Aktivierung wird für jede Stunde der günstigste Beschaffungszeitpunkt ermittelt –
            besonders wirksam in Kombination mit Speicher und E-Auto.</p>
-           <p>Grundpreis (SachsenEnergie): 83,82 EUR/Jahr + 35,70 EUR/Jahr Netznutzungs-Grundpreis,
-           Messsystemkosten je nach Zählertyp (im Modell bei iMSys typischerweise 30 EUR/Jahr,
-           bei §14a pauschal 50 EUR/Jahr).</p>`
+           <p>Grundpreis: 132 EUR/Jahr + 54 EUR/Jahr Messkosten.</p>`
   },
 
   // ── Ergebnis-Bereich ────────────────────────────────────────────────────
