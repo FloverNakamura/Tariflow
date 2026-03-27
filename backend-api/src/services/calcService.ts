@@ -4,6 +4,7 @@ import {
 	CalculationRequest,
 	CalculationResponse,
 	EVehicleConfig,
+	MonthlyHourlyDiffProfile,
 	MonthlyEnergy,
 	SachsenTariffComparisonResult,
 	ScenarioResult,
@@ -586,6 +587,33 @@ function createMonthlySummary(
 	}));
 }
 
+function createMonthlyHourlyDiffProfiles(
+	consumption: number[],
+	pv: number[],
+): MonthlyHourlyDiffProfile[] {
+	const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+	const accum = Array.from({ length: 12 }, () => Array.from({ length: 24 }, () => 0));
+	const counts = Array.from({ length: 12 }, () => Array.from({ length: 24 }, () => 0));
+
+	for (let h = 0; h < HOURS_PER_YEAR; h++) {
+		const date = new Date(Date.UTC(YEAR, 0, 1, 0, 0, 0));
+		date.setUTCHours(date.getUTCHours() + h);
+		const month = date.getUTCMonth();
+		const hour = date.getUTCHours();
+		const diff = (pv[h] || 0) - (consumption[h] || 0);
+		accum[month][hour] += diff;
+		counts[month][hour] += 1;
+	}
+
+	return names.map((month, monthIdx) => ({
+		month,
+		hourlyDiff_kwh: accum[monthIdx].map((sumValue, hourIdx) => {
+			const cnt = counts[monthIdx][hourIdx] || 1;
+			return round(sumValue / cnt, 3);
+		}),
+	}));
+}
+
 function computeSelfAndAutarky(totalSelf: number, totalConsumption: number): { selfRate: number; autarky: number } {
 	const ratio = totalConsumption > 0 ? totalSelf / totalConsumption : 0;
 	const pctValue = round(ratio * 100);
@@ -1070,6 +1098,7 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 		storageResult.gridFeed,
 		finalGridDraw,
 	);
+	const monthlyHourlyDiffProfiles = createMonthlyHourlyDiffProfiles(totalLoad, pvHourly);
 
 	const dynamicBest = tariffs
 		.filter((entry) => entry.tariffType === 'dynamic')
@@ -1098,6 +1127,7 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 		success: true,
 		data: {
 			monthly,
+			monthlyHourlyDiffProfiles,
 			tariffs,
 			scenarios,
 			spotPrices_ct_per_kwh: spotPrices.map((value) => round(value, 3)),

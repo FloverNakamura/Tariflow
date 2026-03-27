@@ -419,6 +419,27 @@ function createMonthlySummary(consumption, pv, selfConsumption, gridFeed, gridDr
         gridDraw_kwh: round(entry.gridDraw_kwh),
     }));
 }
+function createMonthlyHourlyDiffProfiles(consumption, pv) {
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const accum = Array.from({ length: 12 }, () => Array.from({ length: 24 }, () => 0));
+    const counts = Array.from({ length: 12 }, () => Array.from({ length: 24 }, () => 0));
+    for (let h = 0; h < HOURS_PER_YEAR; h++) {
+        const date = new Date(Date.UTC(YEAR, 0, 1, 0, 0, 0));
+        date.setUTCHours(date.getUTCHours() + h);
+        const month = date.getUTCMonth();
+        const hour = date.getUTCHours();
+        const diff = (pv[h] || 0) - (consumption[h] || 0);
+        accum[month][hour] += diff;
+        counts[month][hour] += 1;
+    }
+    return names.map((month, monthIdx) => ({
+        month,
+        hourlyDiff_kwh: accum[monthIdx].map((sumValue, hourIdx) => {
+            const cnt = counts[monthIdx][hourIdx] || 1;
+            return round(sumValue / cnt, 3);
+        }),
+    }));
+}
 function computeSelfAndAutarky(totalSelf, totalConsumption) {
     const ratio = totalConsumption > 0 ? totalSelf / totalConsumption : 0;
     const pctValue = round(ratio * 100);
@@ -792,6 +813,7 @@ async function runCalculation(request) {
     const dynamicTaxes = Number(tariffData.dynamicTariff.taxes_and_levies_ct_per_kwh || 0);
     const dynamicPriceSeries = spotPrices.map((spot) => round(spot + dynamicMarkup + dynamicTaxes, 3));
     const monthly = createMonthlySummary(totalLoad, pvHourly, storageResult.selfConsumption, storageResult.gridFeed, finalGridDraw);
+    const monthlyHourlyDiffProfiles = createMonthlyHourlyDiffProfiles(totalLoad, pvHourly);
     const dynamicBest = tariffs
         .filter((entry) => entry.tariffType === 'dynamic')
         .sort((a, b) => a.netCost_eur - b.netCost_eur)[0];
@@ -816,6 +838,7 @@ async function runCalculation(request) {
         success: true,
         data: {
             monthly,
+            monthlyHourlyDiffProfiles,
             tariffs,
             scenarios,
             spotPrices_ct_per_kwh: spotPrices.map((value) => round(value, 3)),

@@ -501,6 +501,13 @@ const INFO_TEXTS = {
            <p>Die hervorgehobene X-Achsen-Linie markiert den Nullpunkt (Ausgeglichenheit).
            Im Sommer dominieren typisch positive, im Winter negative Werte.</p>`
   },
+  monthlyHourlyDiff: {
+    title: 'Stündliche Differenz je Monat',
+    html: `<p>Die Tabelle zeigt für jeden Monat ein 24-Stunden-Profil als dünnen Liniengraph.</p>
+           <p>Wert je Stunde: <strong>PV-Erzeugung minus Verbrauch</strong> als Monatsmittel der jeweiligen Stunde.</p>
+           <div class="formula">Differenz(h) = PV(h) - Verbrauch(h)</div>
+           <p>Positive Werte bedeuten typischen Überschuss (Einspeisung), negative Werte typischen Netzbedarf.</p>`
+  },
   transparency: {
     title: 'Daten-Transparenz',
     html: `<p>Listet alle in der Berechnung verwendeten Quelldaten und Annahmen auf:</p>
@@ -2917,6 +2924,7 @@ function renderResults(data) {
 
   renderTariffTable(visibleTariffs, best?.name || '');
   renderSachsenComparison(sachsenComparison, sachsenRowsVisible, sachsenBest?.key || '');
+  renderMonthlyHourlyDiffTable(data.monthlyHourlyDiffProfiles || []);
   renderTransparency(data.dataTransparency || []);
   if (data.eligibilityReport) {
     renderEligibilityReport(data.eligibilityReport);
@@ -3559,6 +3567,64 @@ function renderCharts(data) {
         }
       }
     }
+  });
+}
+
+function createSparklineSvg(values, width = 260, height = 34) {
+  const safe = Array.isArray(values) && values.length ? values.map((v) => Number(v) || 0) : Array.from({ length: 24 }, () => 0);
+  const min = Math.min(...safe);
+  const max = Math.max(...safe);
+  const range = Math.max(0.0001, max - min);
+  const stepX = width / Math.max(1, safe.length - 1);
+
+  const points = safe.map((value, index) => {
+    const x = index * stepX;
+    const y = height - ((value - min) / range) * height;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(' ');
+
+  const zeroY = (0 < min || 0 > max)
+    ? null
+    : (height - ((0 - min) / range) * height);
+
+  const zeroLine = zeroY == null
+    ? ''
+    : `<line x1="0" y1="${zeroY.toFixed(2)}" x2="${width}" y2="${zeroY.toFixed(2)}" stroke="#cbd5e1" stroke-width="1" />`;
+
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="24-Stunden-Differenzprofil">
+    ${zeroLine}
+    <polyline fill="none" stroke="#1c6dd0" stroke-width="1.2" points="${points}" />
+  </svg>`;
+}
+
+function renderMonthlyHourlyDiffTable(profiles) {
+  const tbody = document.querySelector('#monthlyHourlyDiffTable tbody');
+  if (!tbody) {
+    return;
+  }
+
+  const rows = Array.isArray(profiles) ? profiles : [];
+  tbody.innerHTML = '';
+
+  if (!rows.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="3">Keine stündlichen Monatsprofile verfügbar.</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+
+  rows.forEach((entry) => {
+    const values = Array.isArray(entry?.hourlyDiff_kwh) ? entry.hourlyDiff_kwh.slice(0, 24) : [];
+    const min = values.length ? Math.min(...values) : 0;
+    const max = values.length ? Math.max(...values) : 0;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(entry?.month || '-')}</td>
+      <td>${createSparklineSvg(values)}</td>
+      <td>${formatNumber(min)} / ${formatNumber(max)} kWh</td>
+    `;
+    tbody.appendChild(tr);
   });
 }
 

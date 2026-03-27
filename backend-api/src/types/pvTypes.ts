@@ -132,6 +132,11 @@ export interface MonthlyEnergy {
   gridDraw_kwh: number;
 }
 
+export interface MonthlyHourlyDiffProfile {
+  month: string;
+  hourlyDiff_kwh: number[]; // 24 Werte: Mittelwert je Stunde (PV - Verbrauch)
+}
+
 export interface TariffResult {
   name: string;
   label: string;
@@ -189,6 +194,7 @@ export interface CalculationResponse {
   success: boolean;
   data: {
     monthly: MonthlyEnergy[];
+    monthlyHourlyDiffProfiles?: MonthlyHourlyDiffProfile[];
     tariffs: TariffResult[];
     scenarios: ScenarioResult[];
     spotPrices_ct_per_kwh: number[];
