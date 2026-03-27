@@ -758,13 +758,15 @@ Object.assign(INFO_TEXTS, {
   },
   resEfficiency: {
     title: 'Effizienzbewertung (Energieklasse)',
-    html: `<p>Klasse A bis E basierend auf dem Wärmebedarf pro Quadratmeter:</p>
+    html: `<p>Klasse A bis G basierend auf dem Wärmebedarf pro Quadratmeter:</p>
            <ul>
-             <li><strong>A</strong> ≤ 40 kWh/(m²·a) – Sehr gut (Neubau/Passivhaus)</li>
-             <li><strong>B</strong> ≤ 70 kWh/(m²·a) – Gut (KfW-55)</li>
-             <li><strong>C</strong> ≤ 110 kWh/(m²·a) – Mittel (sanierter Altbau)</li>
-             <li><strong>D</strong> ≤ 160 kWh/(m²·a) – Schlecht</li>
-             <li><strong>E</strong> &gt; 160 kWh/(m²·a) – Sehr schlecht (unsanierter Altbau)</li>
+             <li><strong>A</strong> ≤ 30 kWh/(m²·a) – Sehr gut</li>
+             <li><strong>B</strong> ≤ 50 kWh/(m²·a) – Gut</li>
+             <li><strong>C</strong> ≤ 75 kWh/(m²·a) – Solide</li>
+             <li><strong>D</strong> ≤ 100 kWh/(m²·a) – Mittel</li>
+             <li><strong>E</strong> ≤ 130 kWh/(m²·a) – Erhöht</li>
+             <li><strong>F</strong> ≤ 160 kWh/(m²·a) – Hoch</li>
+             <li><strong>G</strong> &gt; 160 kWh/(m²·a) – Sehr hoch</li>
            </ul>
            <p>Quelle: Energieausweis-Anforderungen nach GEG 2023 / EnEV.</p>`
   },
@@ -4436,11 +4438,13 @@ function toEnergyHeatNeedKwh(heatingType, annualConsumptionKwh) {
 }
 
 function classifyEnergyHeatNeed(heatNeedPerM2) {
-  if (heatNeedPerM2 <= 40) return { grade: 'A', label: 'sehr gut', className: 'verygood' };
-  if (heatNeedPerM2 <= 70) return { grade: 'B', label: 'gut', className: 'good' };
-  if (heatNeedPerM2 <= 110) return { grade: 'C', label: 'mittel', className: 'medium' };
-  if (heatNeedPerM2 <= 160) return { grade: 'D', label: 'schlecht', className: 'bad' };
-  return { grade: 'E', label: 'sehr schlecht', className: 'verybad' };
+  if (heatNeedPerM2 <= 30) return { grade: 'A', label: 'sehr gut', className: 'verygood' };
+  if (heatNeedPerM2 <= 50) return { grade: 'B', label: 'gut', className: 'good' };
+  if (heatNeedPerM2 <= 75) return { grade: 'C', label: 'solide', className: 'medium' };
+  if (heatNeedPerM2 <= 100) return { grade: 'D', label: 'mittel', className: 'medium' };
+  if (heatNeedPerM2 <= 130) return { grade: 'E', label: 'erhoeht', className: 'bad' };
+  if (heatNeedPerM2 <= 160) return { grade: 'F', label: 'hoch', className: 'verybad' };
+  return { grade: 'G', label: 'sehr hoch', className: 'verybad' };
 }
 
 function renderEnergyComparisonTable({
