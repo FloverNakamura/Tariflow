@@ -495,19 +495,36 @@ function selectBestTariff(results, request) {
     }
     const sorted = [...results].sort((a, b) => a.netCost_eur - b.netCost_eur);
     const cheapest = sorted[0];
-    const hasStorageFlex = Boolean(request.storage.hasStorage)
-        && Number(request.storage.capacity_kwh || 0) > 0
-        && request.storage.useDynamicOptimization !== false;
-    if (!hasStorageFlex) {
+    const hasStorage = Boolean(request.storage.hasStorage)
+        && Number(request.storage.capacity_kwh || 0) > 0;
+    const hasPV = Boolean(request.pv.peakpower_kwp)
+        && Number(request.pv.peakpower_kwp) > 0;
+    const useDynamicOptimization = request.storage.useDynamicOptimization !== false;
+    const hasDynamicOptimization = hasStorage && useDynamicOptimization;
+    // If no storage or optimization, prefer static tariffs for stability
+    if (!hasDynamicOptimization) {
+        const bestStatic = sorted.find((entry) => entry.tariffType === 'static');
+        if (bestStatic) {
+            const dynamicOption = sorted.find((entry) => entry.tariffType === 'dynamic');
+            if (dynamicOption) {
+                // Only recommend dynamic if it saves >5% vs. static
+                if (dynamicOption.netCost_eur < bestStatic.netCost_eur * 0.95) {
+                    return dynamicOption;
+                }
+            }
+            return bestStatic;
+        }
         return cheapest;
     }
+    // For storage-enabled households with optimization:
     const bestDynamic = sorted.find((entry) => entry.tariffType === 'dynamic');
     if (!bestDynamic) {
         return cheapest;
     }
-    // If dynamic is within 2.5% of the cheapest option, prefer it for storage-enabled households.
-    const dynamicToleranceFactor = 1.025;
-    if (bestDynamic.netCost_eur <= cheapest.netCost_eur * dynamicToleranceFactor) {
+    // With storage+PV: be more aggressive with dynamic (2.5% tolerance)
+    // With storage only: require 5% savings for dynamic
+    const tolerance = hasPV ? 1.025 : 1.05;
+    if (bestDynamic.netCost_eur <= cheapest.netCost_eur * tolerance) {
         return bestDynamic;
     }
     return cheapest;

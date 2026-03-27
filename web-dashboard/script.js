@@ -2822,12 +2822,6 @@ function restoreFormState() {
     return;
   }
 
-  // Initialize default state for hasLargeLoad42 (Nein/false)
-  const hasLargeLoad42Elem = byId('hasLargeLoad42');
-  if (hasLargeLoad42Elem) {
-    hasLargeLoad42Elem.checked = false;
-  }
-
   let state = null;
   try {
     const raw = localStorage.getItem(FORM_STATE_STORAGE_KEY);
@@ -2847,15 +2841,6 @@ function restoreFormState() {
   formStateRestoreInProgress = true;
   try {
     const fields = state.fields || {};
-    
-    // Set default for hasLargeLoad42 to false (Nein) if not in saved state
-    if (!fields.hasOwnProperty('hasLargeLoad42')) {
-      const hasLargeLoad42 = byId('hasLargeLoad42');
-      if (hasLargeLoad42) {
-        hasLargeLoad42.checked = false;
-      }
-    }
-    
     Object.entries(fields).forEach(([id, saved]) => {
       const element = byId(id);
       if (!element || !saved || typeof saved !== 'object') {
