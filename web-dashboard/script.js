@@ -695,7 +695,7 @@ Object.assign(INFO_TEXTS, {
            <div class="formula">Kosten = (Grundpreis + Messstelle) + Verbrauch × (0,2283 + Spotpreis)</div>`
   },
   sachsenComparison: {
-    title: 'SachsenEnergie Tarif + §14a Vergleich',
+    title: 'Tarif + §14a Vergleich',
     html: `<p>Vergleicht alle Kombinationen aus Tarifart und §14a-Modul:</p>
            <ul>
              <li>Einzähler, Zweizähler, Dynamisch</li>
@@ -761,11 +761,11 @@ Object.assign(INFO_TEXTS, {
            <ul>
              <li><strong>A</strong> ≤ 30 kWh/(m²·a) – Sehr gut</li>
              <li><strong>B</strong> ≤ 50 kWh/(m²·a) – Gut</li>
-             <li><strong>C</strong> ≤ 75 kWh/(m²·a) – Solide</li>
+             <li><strong>C</strong> ≤ 75 kWh/(m²·a) – Befriedigend</li>
              <li><strong>D</strong> ≤ 100 kWh/(m²·a) – Mittel</li>
-             <li><strong>E</strong> ≤ 130 kWh/(m²·a) – Erhöht</li>
-             <li><strong>F</strong> ≤ 160 kWh/(m²·a) – Hoch</li>
-             <li><strong>G</strong> &gt; 160 kWh/(m²·a) – Sehr hoch</li>
+             <li><strong>E</strong> ≤ 130 kWh/(m²·a) – Niedrig</li>
+             <li><strong>F</strong> ≤ 160 kWh/(m²·a) – Sehr niedrig</li>
+             <li><strong>G</strong> &gt; 160 kWh/(m²·a) – Sehr niedrig (schlechteste Klasse)</li>
            </ul>
            <p>Quelle: Energieausweis-Anforderungen nach GEG 2023 / EnEV.</p>`
   },
@@ -4439,11 +4439,11 @@ function toEnergyHeatNeedKwh(heatingType, annualConsumptionKwh) {
 function classifyEnergyHeatNeed(heatNeedPerM2) {
   if (heatNeedPerM2 <= 30) return { grade: 'A', label: 'sehr gut', className: 'verygood' };
   if (heatNeedPerM2 <= 50) return { grade: 'B', label: 'gut', className: 'good' };
-  if (heatNeedPerM2 <= 75) return { grade: 'C', label: 'solide', className: 'medium' };
+  if (heatNeedPerM2 <= 75) return { grade: 'C', label: 'befriedigend', className: 'medium' };
   if (heatNeedPerM2 <= 100) return { grade: 'D', label: 'mittel', className: 'medium' };
-  if (heatNeedPerM2 <= 130) return { grade: 'E', label: 'erhoeht', className: 'bad' };
-  if (heatNeedPerM2 <= 160) return { grade: 'F', label: 'hoch', className: 'verybad' };
-  return { grade: 'G', label: 'sehr hoch', className: 'verybad' };
+  if (heatNeedPerM2 <= 130) return { grade: 'E', label: 'niedrig', className: 'bad' };
+  if (heatNeedPerM2 <= 160) return { grade: 'F', label: 'sehr niedrig', className: 'verybad' };
+  return { grade: 'G', label: 'sehr niedrig', className: 'verybad' };
 }
 
 function renderEnergyComparisonTable({
