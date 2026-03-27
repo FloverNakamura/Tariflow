@@ -1514,6 +1514,12 @@ td.bad {
   font-size: 0.83rem;
 }
 
+.investment-range-value {
+  color: #1f2937;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .investment-actions {
   margin-bottom: 0.7rem;
 }
