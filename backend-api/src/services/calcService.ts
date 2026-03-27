@@ -77,6 +77,7 @@ interface TariffData {
 		network_ct_per_kwh: number;
 		base_eur_per_year: number;
 		meter_eur_per_year: number;
+		largeConsumer_grundpreis_ct_per_kwh?: number;
 		allowedModules?: TarifModul14a[];
 	};
 	modules14a: Record<string, {
@@ -802,13 +803,18 @@ function evaluateTariffs(
 		? dynamic.allowedModules
 		: moduleKeys;
 
+	const hasLargeConsumer = Boolean(request.tariff.largeLoadOver42kw) || (request.tariff.largeLoadCount || 0) > 0;
+	const largeConsumerGrundpreis = Number(dynamic.largeConsumer_grundpreis_ct_per_kwh || 0);
+
 	for (const moduleKey of moduleKeys) {
 		if (!allowedDynamicModules.includes(moduleKey)) {
 			continue;
 		}
 
 		const dynamicEnergyCtSeries = spotPricesCtPerKwh.map(
-			(spotCt) => spotCt + dynamic.spotMarkup_ct_per_kwh + dynamic.taxes_and_levies_ct_per_kwh,
+			(spotCt) => hasLargeConsumer && largeConsumerGrundpreis > 0
+				? spotCt + largeConsumerGrundpreis
+				: spotCt + dynamic.spotMarkup_ct_per_kwh + dynamic.taxes_and_levies_ct_per_kwh,
 		);
 
 		let energyCost = 0;
@@ -1169,7 +1175,13 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 
 	const dynamicMarkup = Number(tariffData.dynamicTariff.spotMarkup_ct_per_kwh || 0);
 	const dynamicTaxes = Number(tariffData.dynamicTariff.taxes_and_levies_ct_per_kwh || 0);
-	const dynamicPriceSeries = spotPrices.map((spot) => round(spot + dynamicMarkup + dynamicTaxes, 3));
+	const dynamicLargeConsumerGrundpreis = Number(tariffData.dynamicTariff.largeConsumer_grundpreis_ct_per_kwh || 0);
+	const hasLargeConsumerForSeries = Boolean(request.tariff.largeLoadOver42kw) || (request.tariff.largeLoadCount || 0) > 0;
+	const dynamicPriceSeries = spotPrices.map((spot) =>
+		hasLargeConsumerForSeries && dynamicLargeConsumerGrundpreis > 0
+			? round(spot + dynamicLargeConsumerGrundpreis, 3)
+			: round(spot + dynamicMarkup + dynamicTaxes, 3),
+	);
 
 	const monthly = createMonthlySummary(
 		totalLoad,

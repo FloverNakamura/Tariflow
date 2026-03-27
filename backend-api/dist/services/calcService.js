@@ -589,11 +589,15 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
     const allowedDynamicModules = (dynamic.allowedModules && dynamic.allowedModules.length)
         ? dynamic.allowedModules
         : moduleKeys;
+    const hasLargeConsumer = Boolean(request.tariff.largeLoadOver42kw) || (request.tariff.largeLoadCount || 0) > 0;
+    const largeConsumerGrundpreis = Number(dynamic.largeConsumer_grundpreis_ct_per_kwh || 0);
     for (const moduleKey of moduleKeys) {
         if (!allowedDynamicModules.includes(moduleKey)) {
             continue;
         }
-        const dynamicEnergyCtSeries = spotPricesCtPerKwh.map((spotCt) => spotCt + dynamic.spotMarkup_ct_per_kwh + dynamic.taxes_and_levies_ct_per_kwh);
+        const dynamicEnergyCtSeries = spotPricesCtPerKwh.map((spotCt) => hasLargeConsumer && largeConsumerGrundpreis > 0
+            ? spotCt + largeConsumerGrundpreis
+            : spotCt + dynamic.spotMarkup_ct_per_kwh + dynamic.taxes_and_levies_ct_per_kwh);
         let energyCost = 0;
         let networkBeforeDiscount = 0;
         const networkByHour = createHoursTemplate();
@@ -870,7 +874,11 @@ async function runCalculation(request) {
     const moduleLabel = tariffData.modules14a?.[recommended.module14a]?.label || recommended.module14a;
     const dynamicMarkup = Number(tariffData.dynamicTariff.spotMarkup_ct_per_kwh || 0);
     const dynamicTaxes = Number(tariffData.dynamicTariff.taxes_and_levies_ct_per_kwh || 0);
-    const dynamicPriceSeries = spotPrices.map((spot) => round(spot + dynamicMarkup + dynamicTaxes, 3));
+    const dynamicLargeConsumerGrundpreis = Number(tariffData.dynamicTariff.largeConsumer_grundpreis_ct_per_kwh || 0);
+    const hasLargeConsumerForSeries = Boolean(request.tariff.largeLoadOver42kw) || (request.tariff.largeLoadCount || 0) > 0;
+    const dynamicPriceSeries = spotPrices.map((spot) => hasLargeConsumerForSeries && dynamicLargeConsumerGrundpreis > 0
+        ? round(spot + dynamicLargeConsumerGrundpreis, 3)
+        : round(spot + dynamicMarkup + dynamicTaxes, 3));
     const monthly = createMonthlySummary(totalLoad, pvHourly, storageResult.selfConsumption, storageResult.gridFeed, finalGridDraw);
     const monthlyHourlyDiffProfiles = createMonthlyHourlyDiffProfiles(totalLoad, pvHourly);
     const dynamicBest = tariffs

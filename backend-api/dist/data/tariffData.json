@@ -65,6 +65,7 @@
 		"network_ct_per_kwh": 10.9,
 		"base_eur_per_year": 132,
 		"meter_eur_per_year": 54,
+		"largeConsumer_grundpreis_ct_per_kwh": 22.83,
 		"allowedModules": [
 			"none",
 			"modul1",
