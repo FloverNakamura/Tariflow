@@ -402,13 +402,11 @@ const INFO_TEXTS = {
   },
   dynamicTariff: {
     title: 'Dynamischer Stromtarif',
-    html: `<p>Beim dynamischen Tarif richtet sich der Arbeitspreis stündlich nach dem
-           <strong>EPEX-Spot-Marktpreis</strong> (Day-Ahead, €/MWh).</p>
-           <div class="formula">Strompreis [ct/kWh] = EPEX-Spot + Aufschlag + Umlagen/Abgaben</div>
-           <p>Die Simulation verwendet historische Spotpreisdaten 2025 (8.760 Stunden).
-           Bei Aktivierung wird für jede Stunde der günstigste Beschaffungszeitpunkt ermittelt –
-           besonders wirksam in Kombination mit Speicher und E-Auto.</p>
-           <p>Grundpreis: 132 EUR/Jahr + 54 EUR/Jahr Messkosten.</p>`
+        html: `<p>Beim dynamischen Tarif richtet sich der Arbeitspreis stündlich nach dem
+          <strong>EPEX-Spot-Marktpreis</strong> (Day-Ahead, €/MWh).</p>
+          <div class="formula">C = (119,52 EUR + Messstelle) + Verbrauch × (0,2283 + Börsenpreis)</div>
+          <p>22,83 ct/kWh = fixer Arbeitspreis (Abgaben + Netzentgelt). Ein Smart Meter ist für diesen Tarif verpflichtend.</p>
+          <p>Die Simulation verwendet historische Spotpreisdaten 2025 (8.760 Stunden).</p>`
   },
 
   // ── Ergebnis-Bereich ────────────────────────────────────────────────────
@@ -673,13 +671,16 @@ Object.assign(INFO_TEXTS, {
   },
   meteringPointType: {
     title: 'Messstelle',
-    html: `<p>Gibt den vorhandenen Zählertyp an:</p>
+    html: `<p>Jährliche Messstellenkosten nach Zählertyp:</p>
            <ul>
-             <li><strong>Konventionell:</strong> klassischer Ferraris- oder elektronischer Standardzähler.</li>
-             <li><strong>Modern:</strong> moderne Messeinrichtung ohne Gateway.</li>
-             <li><strong>Smart Meter:</strong> intelligentes Messsystem mit Kommunikationsmodul.</li>
+             <li><strong>Konventionell:</strong> 16,33 EUR/Jahr</li>
+             <li><strong>Modern (MME):</strong> 25,00 EUR/Jahr</li>
+             <li><strong>Smart Meter (iMSys) – für dynamischen Tarif verpflichtend:</strong><br>
+               bis 6.000 kWh: 30 EUR/Jahr | 6.001–20.000 kWh: 40 EUR/Jahr |
+               20.001–50.000 kWh: 110 EUR/Jahr | 50.001–100.000 kWh: 140 EUR/Jahr
+             </li>
            </ul>
-           <p>Für dynamische Tarife wird ein Smart Meter benötigt. Beim Wechsel kann einmalig ein Einbaupreis anfallen.</p>`
+           <p>Einmaliger Einbaupreis bei Neuinstallation eines iMSys: ca. 100 EUR.</p>`
   },
   steerableConsumption: {
     title: 'Steuerbarer Verbrauch (kWh/Jahr)',

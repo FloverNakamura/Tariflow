@@ -520,6 +520,10 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
     const totalFeed = sum(gridFeed);
     const moduleKeys = getAllowedModules(request);
     const results = [];
+    const meteringType = request.tariff.meteringPointType || 'conventional';
+    const totalGridDraw = sum(gridDraw);
+    const staticMeterCost = computeMeterCostEur(meteringType, totalGridDraw);
+    const dynamicMeterCost = computeMeterCostEur('smart', totalGridDraw);
     for (const tariff of tariffData.staticTariffs || []) {
         for (const moduleKey of moduleKeys) {
             const energyCost = sum(gridDraw) * tariff.energy_ct_per_kwh / 100;
@@ -527,7 +531,7 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
             const networkBeforeDiscount = sum(gridDraw) * tariff.network_ct_per_kwh / 100;
             const moduleDiscount = calculateModuleDiscountEur(moduleKey, networkByHour, gridDraw);
             const networkCost = Math.max(0, networkBeforeDiscount - moduleDiscount);
-            const annualCost = energyCost + networkCost + tariff.base_eur_per_year + tariff.meter_eur_per_year;
+            const annualCost = energyCost + networkCost + tariff.base_eur_per_year + staticMeterCost;
             const feedInRevenue = totalFeed * feedInCt / 100;
             const netCost = annualCost - feedInRevenue;
             results.push({
@@ -538,7 +542,7 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
                 annualCost_eur: round(annualCost),
                 energyCost_eur: round(energyCost),
                 networkCost_eur: round(networkCost),
-                meterCost_eur: round(tariff.meter_eur_per_year),
+                meterCost_eur: round(staticMeterCost),
                 feedInRevenue_eur: round(feedInRevenue),
                 netCost_eur: round(netCost),
                 selfConsumptionRate_pct: selfConsumptionRatePct,
@@ -565,7 +569,7 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
             }
             const moduleDiscount = calculateModuleDiscountEur(moduleKey, networkByHour, gridDraw);
             const networkCost = Math.max(0, networkBeforeDiscount - moduleDiscount);
-            const annualCost = energyCost + networkCost + tariff.base_eur_per_year + tariff.meter_eur_per_year;
+            const annualCost = energyCost + networkCost + tariff.base_eur_per_year + staticMeterCost;
             const feedInRevenue = totalFeed * feedInCt / 100;
             const netCost = annualCost - feedInRevenue;
             results.push({
@@ -576,7 +580,7 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
                 annualCost_eur: round(annualCost),
                 energyCost_eur: round(energyCost),
                 networkCost_eur: round(networkCost),
-                meterCost_eur: round(tariff.meter_eur_per_year),
+                meterCost_eur: round(staticMeterCost),
                 feedInRevenue_eur: round(feedInRevenue),
                 netCost_eur: round(netCost),
                 selfConsumptionRate_pct: selfConsumptionRatePct,
@@ -589,15 +593,11 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
     const allowedDynamicModules = (dynamic.allowedModules && dynamic.allowedModules.length)
         ? dynamic.allowedModules
         : moduleKeys;
-    const hasLargeConsumer = Boolean(request.tariff.largeLoadOver42kw) || (request.tariff.largeLoadCount || 0) > 0;
-    const largeConsumerGrundpreis = Number(dynamic.largeConsumer_grundpreis_ct_per_kwh || 0);
     for (const moduleKey of moduleKeys) {
         if (!allowedDynamicModules.includes(moduleKey)) {
             continue;
         }
-        const dynamicEnergyCtSeries = spotPricesCtPerKwh.map((spotCt) => hasLargeConsumer && largeConsumerGrundpreis > 0
-            ? spotCt + largeConsumerGrundpreis
-            : spotCt + dynamic.spotMarkup_ct_per_kwh + dynamic.taxes_and_levies_ct_per_kwh);
+        const dynamicEnergyCtSeries = spotPricesCtPerKwh.map((spotCt) => spotCt + dynamic.spotMarkup_ct_per_kwh + dynamic.taxes_and_levies_ct_per_kwh);
         let energyCost = 0;
         let networkBeforeDiscount = 0;
         const networkByHour = createHoursTemplate();
@@ -609,7 +609,7 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
         }
         const moduleDiscount = calculateModuleDiscountEur(moduleKey, networkByHour, gridDraw);
         const networkCost = Math.max(0, networkBeforeDiscount - moduleDiscount);
-        const annualCost = energyCost + networkCost + dynamic.base_eur_per_year + dynamic.meter_eur_per_year;
+        const annualCost = energyCost + networkCost + dynamic.base_eur_per_year + dynamicMeterCost;
         const feedInRevenue = totalFeed * feedInCt / 100;
         const netCost = annualCost - feedInRevenue;
         results.push({
@@ -620,7 +620,7 @@ function evaluateTariffs(request, gridDraw, gridFeed, selfConsumptionRatePct, au
             annualCost_eur: round(annualCost),
             energyCost_eur: round(energyCost),
             networkCost_eur: round(networkCost),
-            meterCost_eur: round(dynamic.meter_eur_per_year),
+            meterCost_eur: round(dynamicMeterCost),
             feedInRevenue_eur: round(feedInRevenue),
             netCost_eur: round(netCost),
             selfConsumptionRate_pct: selfConsumptionRatePct,
@@ -669,27 +669,30 @@ function getHeatPumpUsageFactor(usageMode) {
         return 0.75;
     return 1;
 }
-function calcDynamicMeterFeeEur(annualConsumptionKwh) {
-    if (annualConsumptionKwh < 6000)
-        return 30;
-    if (annualConsumptionKwh < 20000)
-        return 40;
-    if (annualConsumptionKwh < 50000)
-        return 110;
-    if (annualConsumptionKwh < 100000)
+function computeMeterCostEur(meterType, annualKwh) {
+    if (meterType === 'modern')
+        return 25;
+    if (meterType === 'smart') {
+        if (annualKwh <= 6000)
+            return 30;
+        if (annualKwh <= 20000)
+            return 40;
+        if (annualKwh <= 50000)
+            return 110;
         return 140;
-    return 140;
+    }
+    return 16.33; // conventional
 }
-function calcSachsenTariffBaseCostEur(tariff, annualConsumptionKwh, spotPriceEurPerKwh) {
+function calcSachsenTariffBaseCostEur(tariff, annualConsumptionKwh, spotPriceEurPerKwh, meteringType) {
+    const meterFee = computeMeterCostEur(tariff === 'dynamic' ? 'smart' : meteringType, annualConsumptionKwh);
     if (tariff === 'single') {
-        return 122.96 + annualConsumptionKwh * 0.3571;
+        return 122.96 + meterFee + annualConsumptionKwh * 0.3571;
     }
     if (tariff === 'twoRate') {
-        const wHT = annualConsumptionKwh * 0.666;
-        const wNT = annualConsumptionKwh * 0.333;
-        return 159.40 + (wHT * 0.3571) + (wNT * 0.3039);
+        const wHT = annualConsumptionKwh * (2 / 3);
+        const wNT = annualConsumptionKwh * (1 / 3);
+        return 159.40 + meterFee + (wHT * 0.3571) + (wNT * 0.3039);
     }
-    const meterFee = calcDynamicMeterFeeEur(annualConsumptionKwh);
     return (119.52 + meterFee) + annualConsumptionKwh * (0.2283 + spotPriceEurPerKwh);
 }
 function buildSachsenTariffComparison(request, annualConsumptionKwh, inferredSteerableConsumptionKwh) {
@@ -725,16 +728,13 @@ function buildSachsenTariffComparison(request, annualConsumptionKwh, inferredSte
     }
     const currentStateCost = currentAnnualCostInput > 0
         ? currentAnnualCostInput
-        : calcSachsenTariffBaseCostEur(currentTariffType === 'newCustomer' ? 'single' : currentTariffType, annualConsumptionKwh, spotPrice);
+        : calcSachsenTariffBaseCostEur(currentTariffType === 'newCustomer' ? 'single' : currentTariffType, annualConsumptionKwh, spotPrice, meteringPointType);
     const tariffs = ['single', 'twoRate', 'dynamic'];
     const modules = ['none', 'modul1', 'modul2'];
     const rows = [];
     for (const tariff of tariffs) {
         for (const module of modules) {
-            let annualCost = calcSachsenTariffBaseCostEur(tariff, annualConsumptionKwh, spotPrice);
-            if (tariff === 'dynamic' && meteringPointType !== 'smart') {
-                annualCost += 100;
-            }
+            let annualCost = calcSachsenTariffBaseCostEur(tariff, annualConsumptionKwh, spotPrice, meteringPointType);
             if (module === 'modul1') {
                 annualCost -= 165;
             }
@@ -874,11 +874,7 @@ async function runCalculation(request) {
     const moduleLabel = tariffData.modules14a?.[recommended.module14a]?.label || recommended.module14a;
     const dynamicMarkup = Number(tariffData.dynamicTariff.spotMarkup_ct_per_kwh || 0);
     const dynamicTaxes = Number(tariffData.dynamicTariff.taxes_and_levies_ct_per_kwh || 0);
-    const dynamicLargeConsumerGrundpreis = Number(tariffData.dynamicTariff.largeConsumer_grundpreis_ct_per_kwh || 0);
-    const hasLargeConsumerForSeries = Boolean(request.tariff.largeLoadOver42kw) || (request.tariff.largeLoadCount || 0) > 0;
-    const dynamicPriceSeries = spotPrices.map((spot) => hasLargeConsumerForSeries && dynamicLargeConsumerGrundpreis > 0
-        ? round(spot + dynamicLargeConsumerGrundpreis, 3)
-        : round(spot + dynamicMarkup + dynamicTaxes, 3));
+    const dynamicPriceSeries = spotPrices.map((spot) => round(spot + dynamicMarkup + dynamicTaxes, 3));
     const monthly = createMonthlySummary(totalLoad, pvHourly, storageResult.selfConsumption, storageResult.gridFeed, finalGridDraw);
     const monthlyHourlyDiffProfiles = createMonthlyHourlyDiffProfiles(totalLoad, pvHourly);
     const dynamicBest = tariffs
