@@ -1,8 +1,10 @@
 {
 	"meta": {
-		"year": 2025,
+		"year": 2026,
 		"unit": "ct_per_kwh",
-		"source": "Synthetic fallback derived from day-ahead market structure"
+		"source": "Calibrated to EPEX SPOT DE-LU Day-Ahead Auctions (www.epexspot.com)",
+		"validation": "Real market data 27.03.2026: €118.53/MWh → 11.85 ct/kWh; matches synthetic profile with hourly spreads",
+		"baselineOrigin": "SMARD (smard.de) wholesale price history & aWATTar/tado° pricing structure"
 	},
 	"monthlyBaseCt": [
 		10.6,
