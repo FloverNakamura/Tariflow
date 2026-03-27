@@ -17,14 +17,6 @@
 			"network_ct_per_kwh": 11.8,
 			"base_eur_per_year": 168,
 			"meter_eur_per_year": 32
-		},
-		{
-			"name": "basis_plus",
-			"label": "Fixstrom Plus",
-			"energy_ct_per_kwh": 30.2,
-			"network_ct_per_kwh": 12.1,
-			"base_eur_per_year": 192,
-			"meter_eur_per_year": 34
 		}
 	],
 	"twoRateTariffs": [

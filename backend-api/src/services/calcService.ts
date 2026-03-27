@@ -741,7 +741,7 @@ function evaluateTariffs(
 
 			results.push({
 				name: `${tariff.name}_${moduleKey}`,
-				label: `${tariff.label} (${moduleKey})`,
+				label: `${tariff.label} (${moduleKey === 'none' ? 'kein Modul' : moduleKey})`,
 				tariffType: 'static',
 				module14a: moduleKey,
 				annualCost_eur: round(annualCost),
@@ -782,7 +782,7 @@ function evaluateTariffs(
 
 			results.push({
 				name: `${tariff.name}_${moduleKey}`,
-				label: `${tariff.label} (${moduleKey})`,
+				label: `${tariff.label} (${moduleKey === 'none' ? 'kein Modul' : moduleKey})`,
 				tariffType: 'twoRate',
 				module14a: moduleKey,
 				annualCost_eur: round(annualCost),
@@ -835,7 +835,7 @@ function evaluateTariffs(
 
 		results.push({
 			name: `${dynamic.name}_${moduleKey}`,
-			label: `${dynamic.label} (${moduleKey})`,
+			label: `${dynamic.label} (${moduleKey === 'none' ? 'kein Modul' : moduleKey})`,
 			tariffType: 'dynamic',
 			module14a: moduleKey,
 			annualCost_eur: round(annualCost),
