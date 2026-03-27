@@ -126,7 +126,7 @@ const FORM_STATE_STORAGE_KEY = 'tariflow.web-dashboard.form-state.v1';
 let formStateRestoreInProgress = false;
 let formStateSaveTimer = null;
 
-// Referenz-Tagesprofil (ct/kWh) fuer EPEX-typische Day-Ahead-Verlaeufe in DE:
+// Referenz-Tagesprofil (ct/kWh) für EPEX-typische Day-Ahead-Verläufe in DE:
 // Nacht guenstig, mittags oft guenstiger (PV), abends klarer Peak.
 const REFERENCE_HOURLY_SPOT_CT = [
   12.0, 11.8, 11.6, 11.5, 11.8, 13.5,
@@ -645,6 +645,37 @@ Object.assign(INFO_TEXTS, {
     title: 'Jährlicher Stromverbrauch (kWh)',
     html: '<p>Gesamter Haushaltsstromverbrauch pro Jahr in kWh.</p>'
   },
+  meteringPointType: {
+    title: 'Messstelle',
+    html: `<p>Gibt den vorhandenen Zählertyp an:</p>
+           <ul>
+             <li><strong>Konventionell:</strong> klassischer Ferraris- oder elektronischer Standardzähler.</li>
+             <li><strong>Modern:</strong> moderne Messeinrichtung ohne Gateway.</li>
+             <li><strong>Smart Meter:</strong> intelligentes Messsystem mit Kommunikationsmodul.</li>
+           </ul>
+           <p>Für dynamische Tarife wird ein Smart Meter benötigt. Beim Wechsel kann einmalig ein Einbaupreis anfallen.</p>`
+  },
+  steerableConsumption: {
+    title: 'Steuerbarer Verbrauch (kWh/Jahr)',
+    html: `<p>Hier erfassen Sie den jährlichen Verbrauch Ihrer steuerbaren Einrichtungen (z.B. Wärmepumpe, Wallbox).</p>
+           <p>Dieser Wert wird für die §14a-Berechnung von Modul 2 verwendet.</p>
+           <div class="formula">Modul 2 Ersparnis = steuerbarer Verbrauch × Netzentgelt × 60 %</div>`
+  },
+  dynamicSpotPrice: {
+    title: 'Spotpreis für Dynamik (EUR/kWh)',
+    html: `<p>Verwendeter Spotpreis für die Berechnung des dynamischen Tarifs.</p>
+           <p>Wenn Sie keinen individuellen Wert haben, bleibt der Standard bei <strong>0,08 EUR/kWh</strong>.</p>
+           <div class="formula">Kosten = (Grundpreis + Messstelle) + Verbrauch × (0,2283 + Spotpreis)</div>`
+  },
+  sachsenComparison: {
+    title: 'SachsenEnergie Tarif + §14a Vergleich',
+    html: `<p>Vergleicht alle Kombinationen aus Tarifart und §14a-Modul:</p>
+           <ul>
+             <li>Einzähler, Zweizähler, Dynamisch</li>
+             <li>ohne Modul, Modul 1 (Pauschale), Modul 2 (prozentuale Reduktion)</li>
+           </ul>
+           <p>Die Tabelle zeigt die jährlichen Gesamtkosten und die Ersparnis gegenüber Ihrem Ist-Zustand.</p>`
+  },
   heatingType: {
     title: 'Heizart',
     html: `<p>Abhängig von der Heizart werden unterschiedliche Kostenmodelle und Wirkungsgrade genutzt:</p>
@@ -905,7 +936,7 @@ function init() {
   runInitStep('Energieanalyse', initEnergyAnalysisSection);
   runInitStep('Haushaltsverbrauch', initHouseholdConsumptionMode);
   runInitStep('E-Autos', initEvVehicles);
-  runInitStep('Grossverbraucher', initLargeLoads);
+  runInitStep('Großverbraucher', initLargeLoads);
 
   runInitStep('Komponenten-Toggles', () => {
     const componentToggles = document.querySelectorAll('.component-toggle');
@@ -2839,7 +2870,7 @@ function renderResults(data) {
   const ub = summary.uncertaintyBand_eur || {};
   byId('resUncertainty').textContent = `${formatEuro(ub.bestCase)} / ${formatEuro(ub.expected)} / ${formatEuro(ub.worstCase)}`;
 
-  renderTariffTable(visibleTariffs);
+  renderTariffTable(visibleTariffs, best?.name || '');
   renderSachsenComparison(data.sachsenComparison || null);
   renderTransparency(data.dataTransparency || []);
   if (data.eligibilityReport) {
@@ -2884,11 +2915,7 @@ function pickBestTariff(tariffs) {
     return null;
   }
 
-  const flagged = tariffs.find((tariff) => tariff.recommended);
-  if (flagged) {
-    return flagged;
-  }
-
+  // Immer tatsächlich günstigsten sichtbaren Tarif wählen.
   return tariffs.reduce((best, current) => {
     if (!best) return current;
     const bestCost = Number(best.netCost_eur);
@@ -3186,16 +3213,17 @@ function setTickerStatus(message) {
   marketTickerStatus.textContent = message;
 }
 
-function renderTariffTable(tariffs) {
+function renderTariffTable(tariffs, recommendedName = '') {
   const tbody = document.querySelector('#tariffTable tbody');
   tbody.innerHTML = '';
 
   tariffs.forEach((tariff) => {
     const tr = document.createElement('tr');
-    if (tariff.recommended) tr.classList.add('best');
+    const isRecommended = recommendedName ? tariff.name === recommendedName : Boolean(tariff.recommended);
+    if (isRecommended) tr.classList.add('best');
 
     tr.innerHTML = `
-      <td>${escapeHtml(tariff.label)}${tariff.recommended ? ' (Empfohlen)' : ''}</td>
+      <td>${escapeHtml(tariff.label)}${isRecommended ? ' (Empfohlen)' : ''}</td>
       <td>${formatEuro(tariff.netCost_eur)}</td>
       <td>${formatEuro(tariff.energyCost_eur)}</td>
       <td>${formatEuro(tariff.networkCost_eur)}</td>
@@ -3255,7 +3283,7 @@ function renderEligibilityReport(report) {
   header.className = 'eligibility-header';
   header.classList.add(report.recommendedTariff === 'dynamic' ? 'is-dynamic' : 'is-static');
 
-  const icon = report.recommendedTariff === 'dynamic' ? '✅' : 'ℹ️';
+  const icon = report.recommendedTariff === 'dynamic' ? 'Hinweis:' : 'Info:';
   const recommendation = report.recommendedTariff === 'dynamic'
     ? 'Dynamischer Tarif empfohlen'
     : 'Statischer Tarif empfohlen';
@@ -3287,17 +3315,17 @@ function renderEligibilityReport(report) {
   statusLines.forEach(([name, met]) => {
     const item = document.createElement('div');
     item.className = `eligibility-status-item ${met ? 'ok' : 'fail'}`;
-    item.innerHTML = `<span>${met ? '✓' : '✗'}</span><strong>${escapeHtml(name)}</strong>`;
+    item.innerHTML = `<span>${met ? 'OK' : 'Nein'}</span><strong>${escapeHtml(name)}</strong>`;
     statusBar.appendChild(item);
   });
 
   container.appendChild(statusBar);
 
   const categories = [
-    { key: 'requirements', label: '📋 Mindestvoraussetzungen', color: '#1976D2' },
-    { key: 'technical', label: '⚙️ Technische Voraussetzungen', color: '#388E3C' },
-    { key: 'exclusions', label: '🚫 Ausschlussregeln', color: '#D32F2F' },
-    { key: 'economic', label: '💰 Wirtschaftliche Rentabilität', color: '#F57C00' }
+    { key: 'requirements', label: 'Mindestvoraussetzungen', color: '#1976D2' },
+    { key: 'technical', label: 'Technische Voraussetzungen', color: '#388E3C' },
+    { key: 'exclusions', label: 'Ausschlussregeln', color: '#D32F2F' },
+    { key: 'economic', label: 'Wirtschaftliche Rentabilität', color: '#F57C00' }
   ];
 
   categories.forEach(({ key, label, color }) => {
@@ -3320,7 +3348,7 @@ function renderEligibilityReport(report) {
       const li = document.createElement('li');
       li.className = `eligibility-check ${check.satisfied ? 'ok' : 'fail'}${check.importance === 'critical' ? ' critical' : ''}`;
 
-      const icon = check.satisfied ? '✓' : '✗';
+      const icon = check.satisfied ? 'OK' : 'Nein';
       const valueStr = check.value
         ? ` <span class="eligibility-check-value">${escapeHtml(String(check.value))}</span>`
         : '';
@@ -3770,7 +3798,7 @@ function renumberHeatingSources() {
     const title = card.querySelector('.heating-source-title');
     if (title) title.textContent = `Heizquelle ${i + 1}`;
     const removeBtn = card.querySelector('.heating-source-remove-btn');
-    if (removeBtn) removeBtn.disabled = regularCards.length <= 1;
+    if (removeBtn) removeBtn.disabled = false;
   });
 }
 
