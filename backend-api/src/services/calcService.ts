@@ -185,7 +185,7 @@ function buildGeneralLoadProfile(annualKwh: number): number[] {
 	return normalized.map((weight) => annualKwh * weight);
 }
 
-function buildHeatPumpProfile(annualKwh: number): number[] {
+function buildHeatPumpProfile(annualKwh: number, cop?: number): number[] {
 	const profiles = getLoadProfiles();
 	const monthFactors = normalize(profiles.heatPump?.monthFactors || []);
 	const hourFactors = normalize(profiles.heatPump?.hourFactors || []);
@@ -198,10 +198,23 @@ function buildHeatPumpProfile(annualKwh: number): number[] {
 	}
 
 	const normalized = normalize(raw);
-	return normalized.map((weight) => annualKwh * weight);
+	const basePower = normalized.map((weight) => annualKwh * weight);
+
+	// Integriere COP (Coefficient of Performance) für Effizienzberechnung
+	// COP = 3.0 bedeutet: 3 kWh Wärmeleistung pro 1 kWh Strom
+	const effectiveCop = Math.max(2.5, Math.min(cop || 3.5, 5.0)); // Bereiche 2.5-5.0
+	const copFactor = effectiveCop / 3.5; // Normalisierung auf Standard-COP
+
+	// Höherer COP = bessere Effizienz = geringerer Stromverbrauch
+	return basePower.map((power) => power / copFactor);
 }
 
-function buildEvProfile(annualKwh: number, preferNightCharging: boolean): number[] {
+function buildEvProfile(
+	annualKwh: number,
+	preferNightCharging: boolean,
+	wallboxPower_kw?: number,
+	batteryCapacity_kwh?: number,
+): number[] {
 	const profiles = getLoadProfiles();
 	const shape = preferNightCharging
 		? profiles.ev?.nightHourFactors || []
@@ -218,7 +231,19 @@ function buildEvProfile(annualKwh: number, preferNightCharging: boolean): number
 	}
 
 	const normalized = normalize(raw);
-	return normalized.map((weight) => annualKwh * weight);
+	const profile = normalized.map((weight) => annualKwh * weight);
+
+	// Integriere Wallbox-Leistung: limitiere Spitzenlast
+	const maxWallboxPower = Math.max(0.1, wallboxPower_kw || 11); // Default 11 kW
+	const batteryBuffer = Math.max(0.1, batteryCapacity_kwh || 60); // Default 60 kWh
+
+	for (let h = 0; h < profile.length; h++) {
+		// Limitiere Peak auf Wallbox-Leistung, aber erlaube Burst für größere Batterien
+		const peakLimit = maxWallboxPower * (1 + Math.min(batteryBuffer / 100, 0.3)); // bis +30% Peak-Boost
+		profile[h] = Math.min(profile[h], peakLimit);
+	}
+
+	return profile;
 }
 
 function buildLargeLoadProfile(annualKwh: number, curveKw: number[]): number[] {
@@ -231,6 +256,7 @@ function buildLargeLoadProfile(annualKwh: number, curveKw: number[]): number[] {
 		return createHoursTemplate();
 	}
 
+	// Integriere die tatsächliche 24h-Kurve direkt (nicht aggregiert!)
 	const dayShape = normalize(hourlyCurve.map((value) => Math.max(0, value)));
 	const monthly = normalize([1.04, 1.03, 1.01, 0.98, 0.97, 0.95, 0.94, 0.95, 0.99, 1.01, 1.02, 1.02]);
 
@@ -238,7 +264,14 @@ function buildLargeLoadProfile(annualKwh: number, curveKw: number[]): number[] {
 	for (let h = 0; h < HOURS_PER_YEAR; h++) {
 		const date = new Date(Date.UTC(YEAR, 0, 1, 0, 0, 0));
 		date.setUTCHours(date.getUTCHours() + h);
-		raw[h] = dayShape[date.getUTCHours()] * (monthly[date.getUTCMonth()] || 0);
+		const dayOfYear = Math.floor(h / 24);
+		const hourOfDay = date.getUTCHours();
+		const month = date.getUTCMonth();
+
+		// Nutze spezifische Stundenkurve mit Saisonalität
+		const hourShape = dayShape[hourOfDay] || 0;
+		const seasonalFactor = monthly[month] || 0;
+		raw[h] = hourShape * seasonalFactor;
 	}
 
 	const normalized = normalize(raw);
@@ -724,8 +757,19 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 		: householdEstimatedAnnual + heatPumpAnnual + evAnnual + largeLoadAnnual;
 
 	const baseLoad = buildGeneralLoadProfile(manualAnnualGiven ? annualTarget : householdEstimatedAnnual);
-	const heatPumpLoad = manualAnnualGiven ? createHoursTemplate() : buildHeatPumpProfile(heatPumpAnnual);
-	const evLoad = manualAnnualGiven ? createHoursTemplate() : buildEvProfile(evAnnual, request.emobility.preferNightCharging !== false);
+	const heatPumpLoad = manualAnnualGiven ? createHoursTemplate() : buildHeatPumpProfile(heatPumpAnnual, request.heatPump.cop);
+	const evLoad = manualAnnualGiven ? createHoursTemplate() : buildEvProfile(
+		evAnnual,
+		request.emobility.preferNightCharging !== false,
+		request.emobility.chargingPower_kw,
+		(() => {
+			// Ermittle Batterie-Kapazität aus Fahrzeugflotte oder Legacy
+			if (request.emobility.vehicles?.length) {
+				return (request.emobility.vehicles[0]?.batteryCapacity_kwh || 60);
+			}
+			return 60; // Default
+		})(),
+	);
 	const largeLoad = manualAnnualGiven ? createHoursTemplate() : buildLargeLoadProfile(largeLoadAnnual, request.tariff.largeLoadDailyCurveKw || []);
 
 	const totalLoad = createHoursTemplate();
