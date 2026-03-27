@@ -108,6 +108,7 @@ const moduleDecisionResult = byId('moduleDecisionResult');
 let latestData = null;
 let monthlyChart = null;
 let balanceChart = null;
+let monthlyHourlyDiffChart = null;
 let marketDailyCurveChart = null;
 let marketTickerTimer = null;
 let marketTickerSamples = [];
@@ -2933,7 +2934,7 @@ function renderResults(data) {
 
   renderTariffTable(visibleTariffs, best?.name || '');
   renderSachsenComparison(sachsenComparison, sachsenRowsVisible, sachsenBest?.key || '');
-  renderMonthlyHourlyDiffTable(data.monthlyHourlyDiffProfiles || []);
+  renderMonthlyHourlyDiffChart(data.monthlyHourlyDiffProfiles || []);
   renderTransparency(data.dataTransparency || []);
   if (data.eligibilityReport) {
     renderEligibilityReport(data.eligibilityReport);
@@ -3579,61 +3580,72 @@ function renderCharts(data) {
   });
 }
 
-function createSparklineSvg(values, width = 260, height = 34) {
-  const safe = Array.isArray(values) && values.length ? values.map((v) => Number(v) || 0) : Array.from({ length: 24 }, () => 0);
-  const min = Math.min(...safe);
-  const max = Math.max(...safe);
-  const range = Math.max(0.0001, max - min);
-  const stepX = width / Math.max(1, safe.length - 1);
-
-  const points = safe.map((value, index) => {
-    const x = index * stepX;
-    const y = height - ((value - min) / range) * height;
-    return `${x.toFixed(2)},${y.toFixed(2)}`;
-  }).join(' ');
-
-  const zeroY = (0 < min || 0 > max)
-    ? null
-    : (height - ((0 - min) / range) * height);
-
-  const zeroLine = zeroY == null
-    ? ''
-    : `<line x1="0" y1="${zeroY.toFixed(2)}" x2="${width}" y2="${zeroY.toFixed(2)}" stroke="#cbd5e1" stroke-width="1" />`;
-
-  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="24-Stunden-Differenzprofil">
-    ${zeroLine}
-    <polyline fill="none" stroke="#1c6dd0" stroke-width="1.2" points="${points}" />
-  </svg>`;
-}
-
-function renderMonthlyHourlyDiffTable(profiles) {
-  const tbody = document.querySelector('#monthlyHourlyDiffTable tbody');
-  if (!tbody) {
+function renderMonthlyHourlyDiffChart(profiles) {
+  if (typeof Chart === 'undefined') {
     return;
+  }
+
+  const canvas = byId('monthlyHourlyDiffChart');
+  if (!canvas) {
+    return;
+  }
+
+  if (monthlyHourlyDiffChart) {
+    monthlyHourlyDiffChart.destroy();
   }
 
   const rows = Array.isArray(profiles) ? profiles : [];
-  tbody.innerHTML = '';
+  const labels = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
 
   if (!rows.length) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="3">Keine stündlichen Monatsprofile verfügbar.</td>';
-    tbody.appendChild(tr);
+    monthlyHourlyDiffChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets: [] },
+      options: { responsive: true }
+    });
     return;
   }
 
-  rows.forEach((entry) => {
-    const values = Array.isArray(entry?.hourlyDiff_kwh) ? entry.hourlyDiff_kwh.slice(0, 24) : [];
-    const min = values.length ? Math.min(...values) : 0;
-    const max = values.length ? Math.max(...values) : 0;
+  const colors = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+    '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', '#005f73', '#9b2226'
+  ];
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(entry?.month || '-')}</td>
-      <td>${createSparklineSvg(values)}</td>
-      <td>${formatNumber(min)} / ${formatNumber(max)} kWh</td>
-    `;
-    tbody.appendChild(tr);
+  const datasets = rows.map((entry, index) => ({
+    label: entry?.month || `Monat ${index + 1}`,
+    data: Array.isArray(entry?.hourlyDiff_kwh) ? entry.hourlyDiff_kwh.slice(0, 24).map((v) => Number(v) || 0) : Array.from({ length: 24 }, () => 0),
+    borderColor: colors[index % colors.length],
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    pointRadius: 0,
+    tension: 0.2
+  }));
+
+  monthlyHourlyDiffChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#334155', boxWidth: 12 } }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#334155', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          grid: { color: '#E4E9F0' }
+        },
+        y: {
+          ticks: { color: '#334155' },
+          grid: {
+            color: (ctx) => Number(ctx.tick?.value) === 0 ? '#94a3b8' : '#E4E9F0',
+            lineWidth: (ctx) => Number(ctx.tick?.value) === 0 ? 1.4 : 1
+          }
+        }
+      }
+    }
   });
 }
 
