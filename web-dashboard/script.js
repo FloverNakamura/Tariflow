@@ -2078,6 +2078,15 @@ function hardenNumberInput(input) {
   });
 
   input.addEventListener('blur', () => {
+    // Heizquellen-Felder nicht automatisch überschreiben,
+    // damit eingegebene Werte beim Verlassen stabil bleiben.
+    if (
+      input.classList.contains('heating-source-consumption')
+      || input.classList.contains('heating-source-baseprice')
+    ) {
+      return;
+    }
+
     if (input.value === '') {
       return;
     }
