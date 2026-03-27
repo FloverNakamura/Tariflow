@@ -1485,6 +1485,10 @@ td.bad {
   margin-top: 1rem;
 }
 
+#marketDailyCurveChart {
+  height: 320px !important;
+}
+
 .chart-card canvas {
   display: block;
   width: 100% !important;
@@ -1609,6 +1613,10 @@ td.bad {
 
   .chart-card canvas {
     height: 220px !important;
+  }
+
+  #marketDailyCurveChart {
+    height: 260px !important;
   }
 
   .ghost {

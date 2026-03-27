@@ -939,6 +939,12 @@ document.addEventListener('click', (e) => {
   }
   e.preventDefault();
   details.open = !details.open;
+
+  if (details.open && details.contains(marketDailyCurveCanvas)) {
+	setTimeout(() => {
+		renderMarketDailyCurveChart();
+	}, 16);
+	}
 });
 
 // Close via × button
@@ -3267,6 +3273,9 @@ function renderMarketDailyCurveChart() {
 
   const curve = getCurrentDailySpotCurveCt();
   const labels = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
+  const minValue = Math.min(...curve);
+  const maxValue = Math.max(...curve);
+  const padding = Math.max(2, (maxValue - minValue) * 0.18);
 
   if (marketDailyCurveChart) {
     marketDailyCurveChart.destroy();
@@ -3280,20 +3289,45 @@ function renderMarketDailyCurveChart() {
         label: 'Ø Spotpreis je Stunde (ct/kWh)',
         data: curve,
         borderColor: '#1c6dd0',
-        backgroundColor: 'rgba(28,109,208,0.15)',
+        backgroundColor: 'rgba(28,109,208,0.10)',
         fill: true,
-        tension: 0.25,
-        pointRadius: 2
+        tension: 0.35,
+        cubicInterpolationMode: 'monotone',
+        borderWidth: 3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHitRadius: 14
       }]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       plugins: {
-        legend: { labels: { color: '#334155' } }
+        legend: { labels: { color: '#334155' } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(2)} ct/kWh`
+          }
+        }
       },
       scales: {
-        x: { ticks: { color: '#334155', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#E4E9F0' } },
-        y: { ticks: { color: '#334155' }, grid: { color: '#E4E9F0' } }
+        x: {
+          ticks: { color: '#334155', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+          grid: { color: '#E4E9F0' }
+        },
+        y: {
+          min: Math.max(0, Math.floor(minValue - padding)),
+          max: Math.ceil(maxValue + padding),
+          ticks: {
+            color: '#334155',
+            callback: (value) => `${value} ct`
+          },
+          grid: { color: '#E4E9F0' }
+        }
       }
     }
   });
