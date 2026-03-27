@@ -428,7 +428,7 @@ function createMonthlyHourlyDiffProfiles(consumption, pv) {
         date.setUTCHours(date.getUTCHours() + h);
         const month = date.getUTCMonth();
         const hour = date.getUTCHours();
-        const diff = (pv[h] || 0) - (consumption[h] || 0);
+        const diff = (consumption[h] || 0) - (pv[h] || 0);
         accum[month][hour] += diff;
         counts[month][hour] += 1;
     }

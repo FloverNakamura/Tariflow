@@ -1486,13 +1486,36 @@ td.bad {
 }
 
 #marketDailyCurveChart {
-  height: 320px !important;
+  height: 360px !important;
 }
 
 .chart-card canvas {
   display: block;
   width: 100% !important;
-  height: 260px !important;
+  height: 320px !important;
+}
+
+#monthlyHourlyDiffChart,
+#investmentPaybackChart {
+  height: 360px !important;
+}
+
+.investment-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.investment-input-grid label {
+  display: grid;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: 0.83rem;
+}
+
+.investment-actions {
+  margin-bottom: 0.7rem;
 }
 
 .transparency-list {
@@ -1612,11 +1635,20 @@ td.bad {
   }
 
   .chart-card canvas {
-    height: 220px !important;
+    height: 260px !important;
   }
 
   #marketDailyCurveChart {
-    height: 260px !important;
+    height: 300px !important;
+  }
+
+  #monthlyHourlyDiffChart,
+  #investmentPaybackChart {
+    height: 300px !important;
+  }
+
+  .investment-input-grid {
+    grid-template-columns: 1fr;
   }
 
   .ghost {

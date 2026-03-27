@@ -516,17 +516,17 @@ const INFO_TEXTS = {
   monthlyHourlyDiff: {
     title: 'Stündliche Differenz je Monat',
     html: `<p>Die Tabelle zeigt für jeden Monat ein 24-Stunden-Profil als dünnen Liniengraph.</p>
-           <p>Wert je Stunde: <strong>PV-Erzeugung minus Verbrauch</strong> als Monatsmittel der jeweiligen Stunde.</p>
-           <div class="formula">Differenz(h) = PV(h) - Verbrauch(h)</div>
-           <p>Positive Werte bedeuten typischen Überschuss (Einspeisung), negative Werte typischen Netzbedarf.</p>`
+        <p>Wert je Stunde: <strong>Verbrauch minus PV-Erzeugung</strong> als Monatsmittel der jeweiligen Stunde.</p>
+        <div class="formula">Differenz(h) = Verbrauch(h) - PV(h)</div>
+        <p>Positive Werte bedeuten typischen Netzbedarf, negative Werte typischen Überschuss (Einspeisung).</p>`
   },
   investmentPaybackChart: {
     title: 'Amortisation PV + Speicher',
-    html: `<p>Dieses Diagramm zeigt, ab wann sich die gewählte PV-Leistung und Speicherkapazität wirtschaftlich auszahlen.</p>
+      html: `<p>Dieses Diagramm zeigt, ab wann sich die gewählte PV-Leistung und Speicherkapazität wirtschaftlich auszahlen.</p>
            <p>Die Investition wird auf Basis des öffentlich genannten <strong>SachsenEnergie-Basispakets</strong> skaliert:</p>
            <div class="formula">13.990 EUR fuer 6,3 kWp PV + 9,6 kWh Speicher</div>
            <p>Da SachsenEnergie auf der Website kein offenes Preisraster fuer mehrere Paketgroessen veroeffentlicht, wird die Investition proportional aus dem Referenzpaket angenaehert.</p>
-           <p>Die kumulierte Ersparnis basiert auf Ihrer aktuellen Stromkosten-Angabe und den simulierten Jahreskosten mit der gewaehlten PV-/Speicher-Konfiguration.</p>`
+        <p>Die Berechnung im separaten Rendite-Tab ist vollstaendig unabhaengig vom restlichen Tarif-Formular und nutzt nur die dort eingetragenen Werte.</p>`
   },
   transparency: {
     title: 'Daten-Transparenz',
@@ -940,11 +940,22 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   details.open = !details.open;
 
-  if (details.open && details.contains(marketDailyCurveCanvas)) {
-	setTimeout(() => {
-		renderMarketDailyCurveChart();
-	}, 16);
-	}
+  if (details.open) {
+    setTimeout(() => {
+      if (details.contains(marketDailyCurveCanvas)) {
+        renderMarketDailyCurveChart();
+      }
+      if (details.contains(byId('monthlyHourlyDiffChart')) && latestData) {
+        renderMonthlyHourlyDiffChart(latestData.monthlyHourlyDiffProfiles || []);
+      }
+      if ((details.contains(byId('monthlyChart')) || details.contains(byId('balanceChart'))) && latestData) {
+        renderCharts(latestData);
+      }
+      if (details.contains(byId('investmentPaybackChart'))) {
+        renderInvestmentPaybackChart();
+      }
+    }, 16);
+  }
 });
 
 // Close via × button
@@ -974,6 +985,7 @@ function init() {
   runInitStep('Entscheidungsbuttons', initDecisionButtons);
   runInitStep('14a-Modulfluss', initModuleDecisionFlow);
   runInitStep('Energieanalyse', initEnergyAnalysisSection);
+  runInitStep('Rendite-Tab', initInvestmentStandaloneTab);
   runInitStep('Haushaltsverbrauch', initHouseholdConsumptionMode);
   runInitStep('E-Autos', initEvVehicles);
   runInitStep('Großverbraucher', initLargeLoads);
@@ -3012,7 +3024,7 @@ function renderResults(data) {
 
   renderTariffTable(visibleTariffs, best?.name || '');
   renderMonthlyHourlyDiffChart(data.monthlyHourlyDiffProfiles || []);
-  renderInvestmentPaybackChart(data, best);
+  renderInvestmentPaybackChart();
   renderTransparency(data.dataTransparency || []);
   renderCharts(data);
   renderMarketDailyCurveChart();
@@ -3621,6 +3633,7 @@ function renderCharts(data) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { labels: { color: '#334155' } }
       },
@@ -3648,6 +3661,7 @@ function renderCharts(data) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -3680,24 +3694,20 @@ function renderCharts(data) {
   });
 }
 
-function getSelectedPvAndStorageSizing() {
-  const hasPv = byId('hasPv')?.checked === true;
-  const hasStorage = byId('hasStorage')?.checked === true;
-  const pvMode = document.querySelector('input[name="pvMode"]:checked')?.value || 'known';
+function getStandaloneInvestmentInputs() {
+  const annualCost = Math.max(0, Number(byId('investmentStandaloneAnnualCost')?.value || 0));
+  const projectedCost = Math.max(0, Number(byId('investmentStandaloneProjectedCost')?.value || 0));
+  const pvKwp = Math.max(0, Number(byId('investmentStandalonePvKwp')?.value || 0));
+  const storageKwh = Math.max(0, Number(byId('investmentStandaloneStorageKwh')?.value || 0));
+  const years = Math.min(40, Math.max(5, Number(byId('investmentStandaloneYears')?.value || 20)));
 
-  let pvKwp = 0;
-  if (hasPv) {
-    if (pvMode === 'known') {
-      pvKwp = Math.max(0, Number(optionalNumber('peakpower') || 0));
-    } else {
-      const roofArea = Number(optionalNumber('roofArea') || 0);
-      const moduleEfficiency = Number(optionalNumber('moduleEfficiency') || 0);
-      pvKwp = Math.max(0, roofArea * (moduleEfficiency / 100));
-    }
-  }
-
-  const storageKwh = hasStorage ? Math.max(0, Number(optionalNumber('storageCapacity') || 0)) : 0;
-  return { pvKwp, storageKwh, hasPv, hasStorage };
+  return {
+    annualCost,
+    projectedCost,
+    pvKwp,
+    storageKwh,
+    years,
+  };
 }
 
 function estimateSachsenEnergieInvestment({ pvKwp, storageKwh }) {
@@ -3746,7 +3756,7 @@ function buildInvestmentProjection({ annualSavingEur, investmentEur, years = 20 
   return { labels, cumulativeSavings, investmentLine, paybackYear };
 }
 
-function renderInvestmentPaybackChart(data, bestTariff) {
+function renderInvestmentPaybackChart() {
   if (typeof Chart === 'undefined') {
     return;
   }
@@ -3761,18 +3771,16 @@ function renderInvestmentPaybackChart(data, bestTariff) {
     investmentPaybackChart.destroy();
   }
 
-  const sizing = getSelectedPvAndStorageSizing();
+  const sizing = getStandaloneInvestmentInputs();
   const investment = estimateSachsenEnergieInvestment(sizing);
-  const currentAnnualCost = Math.max(0, Number(optionalNumber('annualPowerCost') || 0));
-  const projectedAnnualCost = Math.max(0, Number(bestTariff?.netCost_eur || data?.summary?.recommendedNetCost_eur || 0));
-  const annualSavingEur = Math.max(0, currentAnnualCost - projectedAnnualCost);
+  const annualSavingEur = Math.max(0, sizing.annualCost - sizing.projectedCost);
 
   if (!investment || sizing.pvKwp <= 0) {
     info.textContent = 'Bitte PV-Leistung und optional Speicherkapazität angeben, damit die Investitionskurve berechnet werden kann.';
     investmentPaybackChart = new Chart(canvas, {
       type: 'line',
       data: { labels: ['Start'], datasets: [] },
-      options: { responsive: true }
+      options: { responsive: true, maintainAspectRatio: false }
     });
     return;
   }
@@ -3780,12 +3788,12 @@ function renderInvestmentPaybackChart(data, bestTariff) {
   const projection = buildInvestmentProjection({
     annualSavingEur,
     investmentEur: investment.estimatedInvestmentEur,
-    years: 20,
+    years: sizing.years,
   });
 
   const paybackText = projection.paybackYear != null
     ? `Amortisation voraussichtlich in Jahr ${projection.paybackYear}.`
-    : 'Innerhalb von 20 Jahren wird die Investition mit den aktuellen Annahmen nicht vollstaendig erreicht.';
+    : `Innerhalb von ${sizing.years} Jahren wird die Investition mit den aktuellen Annahmen nicht vollstaendig erreicht.`;
 
   info.textContent = `${investment.referenceText}. Gewaehlt: ${formatNumber(sizing.pvKwp)} kWp und ${formatNumber(sizing.storageKwh)} kWh. Geschätzte Investition: ${formatEuro(investment.estimatedInvestmentEur)}. Erwartete Ersparnis im 1. Jahr: ${formatEuro(annualSavingEur)}. ${paybackText}`;
 
@@ -3801,6 +3809,7 @@ function renderInvestmentPaybackChart(data, bestTariff) {
           backgroundColor: 'rgba(11,143,106,0.12)',
           fill: true,
           tension: 0.25,
+          borderWidth: 2,
           pointRadius: 2,
         },
         {
@@ -3817,6 +3826,11 @@ function renderInvestmentPaybackChart(data, bestTariff) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       plugins: {
         legend: { labels: { color: '#334155' } },
         tooltip: {
@@ -3842,6 +3856,29 @@ function renderInvestmentPaybackChart(data, bestTariff) {
   });
 }
 
+function initInvestmentStandaloneTab() {
+  const runBtn = byId('investmentStandaloneRunBtn');
+  const inputIds = [
+    'investmentStandaloneAnnualCost',
+    'investmentStandaloneProjectedCost',
+    'investmentStandalonePvKwp',
+    'investmentStandaloneStorageKwh',
+    'investmentStandaloneYears',
+  ];
+
+  runBtn?.addEventListener('click', () => {
+    renderInvestmentPaybackChart();
+  });
+
+  inputIds.forEach((id) => {
+    byId(id)?.addEventListener('change', () => {
+      renderInvestmentPaybackChart();
+    });
+  });
+
+  renderInvestmentPaybackChart();
+}
+
 function renderMonthlyHourlyDiffChart(profiles) {
   if (typeof Chart === 'undefined') {
     return;
@@ -3863,7 +3900,7 @@ function renderMonthlyHourlyDiffChart(profiles) {
     monthlyHourlyDiffChart = new Chart(canvas, {
       type: 'line',
       data: { labels, datasets: [] },
-      options: { responsive: true }
+      options: { responsive: true, maintainAspectRatio: false }
     });
     return;
   }
@@ -3878,9 +3915,9 @@ function renderMonthlyHourlyDiffChart(profiles) {
     data: Array.isArray(entry?.hourlyDiff_kwh) ? entry.hourlyDiff_kwh.slice(0, 24).map((v) => Number(v) || 0) : Array.from({ length: 24 }, () => 0),
     borderColor: colors[index % colors.length],
     backgroundColor: 'transparent',
-    borderWidth: 1,
+    borderWidth: 1.6,
     pointRadius: 0,
-    tension: 0.2
+    tension: 0.28
   }));
 
   monthlyHourlyDiffChart = new Chart(canvas, {
@@ -3891,6 +3928,11 @@ function renderMonthlyHourlyDiffChart(profiles) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       plugins: {
         legend: { labels: { color: '#334155', boxWidth: 12 } }
       },
@@ -3901,6 +3943,11 @@ function renderMonthlyHourlyDiffChart(profiles) {
         },
         y: {
           ticks: { color: '#334155' },
+          title: {
+            display: true,
+            text: 'Verbrauch - PV (kWh)',
+            color: '#334155'
+          },
           grid: {
             color: (ctx) => Number(ctx.tick?.value) === 0 ? '#94a3b8' : '#E4E9F0',
             lineWidth: (ctx) => Number(ctx.tick?.value) === 0 ? 1.4 : 1

@@ -483,20 +483,54 @@
           </div>
 
           <article class="chart-card">
-            <h3>Stündliche Differenz je Monat (PV - Verbrauch) <button type="button" class="info-btn" data-info="monthlyHourlyDiff">&#9432;</button></h3>
+            <h3>Stündliche Differenz je Monat (Verbrauch - PV) <button type="button" class="info-btn" data-info="monthlyHourlyDiff">&#9432;</button></h3>
             <canvas id="monthlyHourlyDiffChart"></canvas>
-          </article>
-
-          <article class="chart-card">
-            <h3>Amortisation PV + Speicher <button type="button" class="info-btn" data-info="investmentPaybackChart">&#9432;</button></h3>
-            <p id="investmentPaybackInfo" class="chart-note">Investitionskurve wird berechnet ...</p>
-            <canvas id="investmentPaybackChart"></canvas>
           </article>
 
           <div class="table-wrap compact-wrap">
             <h3>Daten-Transparenz <button type="button" class="info-btn" data-info="transparency">&#9432;</button></h3>
             <div id="transparencyList" class="transparency-list"></div>
           </div>
+        </div>
+      </details>
+
+      <details class="result-disclosure">
+        <summary>Renditeanalyse (unabhängig)</summary>
+        <div class="result-disclosure-body">
+          <article class="chart-card">
+            <h3>Amortisation PV + Speicher <button type="button" class="info-btn" data-info="investmentPaybackChart">&#9432;</button></h3>
+            <p class="chart-note">Diese Analyse nutzt nur die unten eingetragenen Werte und ist komplett von den restlichen Formularangaben entkoppelt.</p>
+
+            <div class="investment-input-grid">
+              <label>
+                Aktuelle Stromkosten/Jahr (EUR)
+                <input id="investmentStandaloneAnnualCost" type="number" min="0" step="10" value="2500">
+              </label>
+              <label>
+                Erwartete Stromkosten/Jahr mit PV/Speicher (EUR)
+                <input id="investmentStandaloneProjectedCost" type="number" min="0" step="10" value="1500">
+              </label>
+              <label>
+                PV-Leistung (kWp)
+                <input id="investmentStandalonePvKwp" type="number" min="0" step="0.1" value="8.0">
+              </label>
+              <label>
+                Speicher (kWh)
+                <input id="investmentStandaloneStorageKwh" type="number" min="0" step="0.1" value="8.0">
+              </label>
+              <label>
+                Betrachtungsjahre
+                <input id="investmentStandaloneYears" type="number" min="5" max="40" step="1" value="20">
+              </label>
+            </div>
+
+            <div class="investment-actions">
+              <button type="button" id="investmentStandaloneRunBtn" class="secondary">Rendite berechnen</button>
+            </div>
+
+            <p id="investmentPaybackInfo" class="chart-note">Investitionskurve wird berechnet ...</p>
+            <canvas id="investmentPaybackChart"></canvas>
+          </article>
         </div>
       </details>
     </section>
