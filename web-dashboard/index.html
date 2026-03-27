@@ -469,6 +469,29 @@
       </details>
 
       <details class="result-disclosure">
+        <summary>Renditeanalyse</summary>
+        <div class="result-disclosure-body">
+          <article class="chart-card">
+            <h3>Amortisation PV + Speicher <button type="button" class="info-btn" data-info="investmentPaybackChart">&#9432;</button></h3>
+            <p class="chart-note">Balken starten im Minus (Startkosten) und gehen ins Plus, sobald die Investition wieder drin ist.</p>
+
+            <div class="investment-input-grid">
+              <label>
+                Paketgröße (Startkosten, proportional skaliert)
+                <input id="investmentScaleCostRange" type="range" min="6000" max="35000" step="250" value="13990">
+                <span class="investment-range-value" id="investmentScaleCostValue">13.990 EUR</span>
+                <span class="investment-range-value" id="investmentScalePowerValue">6,3 kWp</span>
+                <span class="investment-range-value" id="investmentScaleStorageValue">9,6 kWh</span>
+              </label>
+            </div>
+
+            <p id="investmentPaybackInfo" class="chart-note">Investitionskurve wird berechnet ...</p>
+            <canvas id="investmentPaybackChart"></canvas>
+          </article>
+        </div>
+      </details>
+
+      <details class="result-disclosure">
         <summary>Diagramme und Transparenz</summary>
         <div class="result-disclosure-body">
           <div class="charts compact-charts">
@@ -491,29 +514,6 @@
             <h3>Daten-Transparenz <button type="button" class="info-btn" data-info="transparency">&#9432;</button></h3>
             <div id="transparencyList" class="transparency-list"></div>
           </div>
-        </div>
-      </details>
-
-      <details class="result-disclosure">
-        <summary>Renditeanalyse</summary>
-        <div class="result-disclosure-body">
-          <article class="chart-card">
-            <h3>Amortisation PV + Speicher <button type="button" class="info-btn" data-info="investmentPaybackChart">&#9432;</button></h3>
-            <p class="chart-note">Balken starten im Minus (Startkosten) und gehen ins Plus, sobald die Investition wieder drin ist.</p>
-
-            <div class="investment-input-grid">
-              <label>
-                Paketgröße (Startkosten, proportional skaliert)
-                <input id="investmentScaleCostRange" type="range" min="6000" max="35000" step="250" value="13990">
-                <span class="investment-range-value" id="investmentScaleCostValue">13.990 EUR</span>
-                <span class="investment-range-value" id="investmentScalePowerValue">6,3 kWp</span>
-                <span class="investment-range-value" id="investmentScaleStorageValue">9,6 kWh</span>
-              </label>
-            </div>
-
-            <p id="investmentPaybackInfo" class="chart-note">Investitionskurve wird berechnet ...</p>
-            <canvas id="investmentPaybackChart"></canvas>
-          </article>
         </div>
       </details>
     </section>
