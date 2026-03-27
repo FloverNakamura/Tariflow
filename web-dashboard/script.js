@@ -1670,36 +1670,49 @@ function updateEvVehicleProfiles() {
     const battery = vehicle.batteryCapacity_kwh || 60;
     const startHour = normalizeHour(vehicle.chargingStartHour, 22);
     const endHour = normalizeHour(vehicle.chargingEndHour, 6);
-    
-    // Ladedauer in Stunden bei typischem Laden (z.B. 60 kWh / 11 kW = ~5.5h)
-    const chargeTimeHours = battery / Math.max(wallboxPower, 0.1);
-    
-    // Jahresladezyklen aus Laufleistung: ~300 km Reichweite pro Vollladung
-    const annualChargingEvents = Math.round((vehicle.annualKm || 12000) / 300);
-    
+    const annualKwh = ((vehicle.annualKm || 12000) * 20) / 100;
+
+    // Python: ladungen_pro_woche = annualKwh / 52 / battery
+    const chargesPerWeek = annualKwh / (52 * Math.max(battery, 1));
+    const annualChargingEvents = Math.round(chargesPerWeek * 52);
+
+    // Python: tagesbedarf = kap × (ladungen_pro_woche / 7.0)
+    const tagesbedarf = battery * chargesPerWeek / 7;
+    // Python: dauer = ceil(tagesbedarf / wallbox)
+    const dauer = Math.max(1, Math.ceil(tagesbedarf / Math.max(wallboxPower, 0.1)));
+
     const hoursArray = getActiveHours(startHour, endHour);
-    
     const currentCurve = getCurrentDailySpotCurveCt();
 
-    // Berechne Kosten pro Stunde
-    const hourlyData = hoursArray.map(hour => ({
-      hour,
-      price: currentCurve[hour] || 20,
-      power: wallboxPower,
-      energyKwh: wallboxPower,
-      cost: (wallboxPower * (currentCurve[hour] || 20) / 100)
-    }));
-    
-    // Kosten pro Ladesession (Vollladung)
-    const costPerSession = hourlyData.reduce((sum, h) => sum + h.cost, 0);
-    // Jahreskosten rein aus km-basierter Anzahl Ladevorgänge
-    const yearlyCost = costPerSession * annualChargingEvents;
-    
+    // Python: beste_stunden = sorted(verf_preise, key=price)[:dauer]
+    const availableWithPrices = hoursArray.map(h => ({ hour: h, price: currentCurve[h] || 20 }));
+    const sortedByPrice = [...availableWithPrices].sort((a, b) => a.price - b.price);
+    const chargeHourSet = new Set(sortedByPrice.slice(0, Math.min(dauer, hoursArray.length)).map(x => x.hour));
+
+    // Alle verfügbaren Stunden mit Laden-Flag
+    const hourlyData = hoursArray.map(hour => {
+      const price = currentCurve[hour] || 20;
+      const charging = chargeHourSet.has(hour);
+      return {
+        hour,
+        price,
+        power: wallboxPower,
+        charging,
+        cost: charging ? (wallboxPower * price / 100) : 0
+      };
+    });
+
+    // Tageskosten nur für Ladestunden
+    const dailyChargingCost = hourlyData.filter(h => h.charging).reduce((s, h) => s + h.cost, 0);
+    const energyPerDay = dauer * wallboxPower; // kWh geladen pro Tag
+    const costPerKwh = energyPerDay > 0 ? dailyChargingCost / energyPerDay : 0;
+    const yearlyCost = annualKwh * costPerKwh;
+
     const profileDiv = document.createElement('div');
     profileDiv.className = 'large-load-profile-card';
     profileDiv.innerHTML = `
-      <h3 style="margin:0.5rem 0; font-size:1rem">E-Auto ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr | ca. ${annualChargingEvents} Ladevorgänge/Jahr</h3>
-      <p style="margin:0.3rem 0; font-size:0.85rem; color:#666">Batterie: ${battery} kWh | Wallbox: ${wallboxPower} kW | Ladedauer: ~${chargeTimeHours.toFixed(1)}h | Laufleistung: ${vehicle.annualKm || 12000} km/Jahr</p>
+      <h3 style="margin:0.5rem 0; font-size:1rem">E-Auto ${idx + 1}: ${startHour}:00 - ${endHour}:00 Uhr | ${annualChargingEvents} Vollladungen/Jahr</h3>
+      <p style="margin:0.3rem 0; font-size:0.85rem; color:#666">Batterie: ${battery} kWh | Wallbox: ${wallboxPower} kW | Tägl. Ladebedarf: ${tagesbedarf.toFixed(1)} kWh (${dauer}h) | ${vehicle.annualKm || 12000} km/Jahr</p>
       <details style="margin-top:0.5rem">
         <summary style="cursor:pointer; padding:0.4rem 0.6rem; background:#f0f0f0; border-radius:4px; font-size:0.85rem; user-select:none">Stundenprofil anzeigen ▾</summary>
         <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.4rem">
@@ -1707,23 +1720,23 @@ function updateEvVehicleProfiles() {
             <tr style="border-bottom:1px solid #ccc; background:#f9f9f9">
               <th style="text-align:center; padding:0.4rem; width:10%">Stunde</th>
               <th style="text-align:right; padding:0.4rem; width:20%">Preis (ct/kWh)</th>
-              <th style="text-align:right; padding:0.4rem; width:20%">Leistung</th>
+              <th style="text-align:right; padding:0.4rem; width:15%">Leistung</th>
+              <th style="text-align:center; padding:0.4rem; width:15%">Laden</th>
               <th style="text-align:right; padding:0.4rem; width:20%">Kosten/Stunde</th>
             </tr>
           </thead>
           <tbody>
             ${hourlyData.map(h => {
-              const isExpensive = h.price > 40;
-              const isCheap = h.price < 25;
               let rowStyle = 'background:#fff';
-              if (isCheap) rowStyle = 'background:#e8f5e9';
-              if (isExpensive) rowStyle = 'background:#ffebee';
+              if (h.charging) rowStyle = 'background:#e8f5e9';
+              else if (h.price > 40) rowStyle = 'background:#ffebee';
               return `
                 <tr style="border-bottom:1px solid #eee; ${rowStyle}">
                   <td style="text-align:center; padding:0.4rem;">${h.hour.toString().padStart(2, '0')}:00</td>
-                  <td style="text-align:right; padding:0.4rem;">${h.price}</td>
+                  <td style="text-align:right; padding:0.4rem;">${h.price.toFixed(1)}</td>
                   <td style="text-align:right; padding:0.4rem;">${h.power.toFixed(1)} kW</td>
-                  <td style="text-align:right; padding:0.4rem; font-weight:bold">€${h.cost.toFixed(2)}</td>
+                  <td style="text-align:center; padding:0.4rem; font-weight:bold; color:${h.charging ? '#0b8f6a' : '#999'}">${h.charging ? 'Ja' : 'Nein'}</td>
+                  <td style="text-align:right; padding:0.4rem; font-weight:bold">${h.charging ? '€' + h.cost.toFixed(2) : '—'}</td>
                 </tr>
               `;
             }).join('')}
@@ -1731,8 +1744,8 @@ function updateEvVehicleProfiles() {
         </table>
       </details>
       <div style="margin-top:0.5rem; padding:0.75rem; background:#f5f5f5; border-radius:4px; font-size:0.9rem">
-        <strong>Kosten pro Ladesession:</strong> €${costPerSession.toFixed(2)} | 
-        <strong>Jährlich (${annualChargingEvents} Ladevorgänge):</strong> <span style="color:#2196f3; font-weight:bold">€${yearlyCost.toFixed(0)}</span>
+        <strong>Ø Ladekosten:</strong> ${(costPerKwh * 100).toFixed(1)} ct/kWh | 
+        <strong>Jährlich (${Math.round(annualKwh)} kWh):</strong> <span style="color:#2196f3; font-weight:bold">€${yearlyCost.toFixed(0)}</span>
       </div>
     `;
     evProfilesContainer.appendChild(profileDiv);
@@ -1749,6 +1762,7 @@ function renumberEvVehicles() {
     button.disabled = removeButtons.length <= 1 && byId('hasEv')?.checked;
   });
 }
+
 
 function collectEvVehicles() {
   return Array.from(document.querySelectorAll('.ev-vehicle')).map((vehicleNode) => ({

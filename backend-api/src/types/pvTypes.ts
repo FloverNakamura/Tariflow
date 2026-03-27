@@ -23,6 +23,8 @@ export interface EVehicleConfig {
   consumption_kwh_per_100km?: number;
   wallboxPower_kw?: number;
   useBidirectional?: boolean;
+  chargingStartHour?: number;
+  chargingEndHour?: number;
 }
 
 export interface LargeLoadConfig {

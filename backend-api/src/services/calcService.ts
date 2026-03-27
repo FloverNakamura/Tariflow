@@ -3,6 +3,7 @@ import * as path from 'path';
 import {
 	CalculationRequest,
 	CalculationResponse,
+	EVehicleConfig,
 	MonthlyEnergy,
 	ScenarioResult,
 	TarifModul14a,
@@ -241,6 +242,58 @@ function buildEvProfile(
 		// Limitiere Peak auf Wallbox-Leistung, aber erlaube Burst für größere Batterien
 		const peakLimit = maxWallboxPower * (1 + Math.min(batteryBuffer / 100, 0.3)); // bis +30% Peak-Boost
 		profile[h] = Math.min(profile[h], peakLimit);
+	}
+
+	return profile;
+}
+
+// Spot-preisoptimiertes EV-Ladeprofil (Nachbildung Python generiere_lastenprofil)
+// Für jedes Fahrzeug: berechne tagesbedarf, finde günstigste Stunden im Ladefenster.
+function buildEvProfileSpotOptimized(
+	vehicles: EVehicleConfig[],
+	spotPrices: number[],
+): number[] {
+	const profile = createHoursTemplate();
+
+	for (const vehicle of vehicles) {
+		const battery = Math.max(10, vehicle.batteryCapacity_kwh || 60);
+		const wallbox = Math.max(1.4, vehicle.wallboxPower_kw || 11);
+		const annualKm = vehicle.annualKm || 0;
+		const consumption = vehicle.consumption_kwh_per_100km || 20;
+		const vehicleAnnualKwh = annualKm * consumption / 100;
+
+		if (vehicleAnnualKwh <= 0) continue;
+
+		// Python: ladungen_pro_woche = annualKwh / 52 / battery
+		const chargesPerWeek = vehicleAnnualKwh / (52 * battery);
+		// Python: tagesbedarf = kap × (ladungen_pro_woche / 7.0)
+		const tagesbedarf = battery * chargesPerWeek / 7;
+		// Python: dauer = ceil(tagesbedarf / wallbox)
+		const dauer = Math.max(1, Math.ceil(tagesbedarf / wallbox));
+
+		const startHour = vehicle.chargingStartHour ?? 22;
+		const endHour = vehicle.chargingEndHour ?? 6;
+
+		for (let day = 0; day < 365; day++) {
+			const offset = day * 24;
+
+			// Verfügbare Stunden im Ladefenster mit Spotpreisen
+			const available: Array<{ h: number; price: number }> = [];
+			for (let h = 0; h < 24; h++) {
+				if (isHourInWindow(h, startHour, endHour)) {
+					available.push({ h, price: spotPrices[offset + h] || 0 });
+				}
+			}
+			if (!available.length) continue;
+
+			// Python: beste_stunden = sorted(verf_preise, key=price)[:dauer]
+			available.sort((a, b) => a.price - b.price);
+			const chargeHours = available.slice(0, Math.min(dauer, available.length));
+
+			for (const { h } of chargeHours) {
+				profile[offset + h] += wallbox;
+			}
+		}
 	}
 
 	return profile;
@@ -756,20 +809,26 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 		? Number(household.annualConsumption_kwh)
 		: householdEstimatedAnnual + heatPumpAnnual + evAnnual + largeLoadAnnual;
 
+	// Spotpreise zuerst aufbauen – für EV-Ladeoptimierung (Python: generiere_lastenprofil)
+	const spotPrices = buildSpotSeries();
+
 	const baseLoad = buildGeneralLoadProfile(manualAnnualGiven ? annualTarget : householdEstimatedAnnual);
 	const heatPumpLoad = manualAnnualGiven ? createHoursTemplate() : buildHeatPumpProfile(heatPumpAnnual, request.heatPump.cop);
-	const evLoad = manualAnnualGiven ? createHoursTemplate() : buildEvProfile(
-		evAnnual,
-		request.emobility.preferNightCharging !== false,
-		request.emobility.chargingPower_kw,
-		(() => {
-			// Ermittle Batterie-Kapazität aus Fahrzeugflotte oder Legacy
-			if (request.emobility.vehicles?.length) {
-				return (request.emobility.vehicles[0]?.batteryCapacity_kwh || 60);
-			}
-			return 60; // Default
-		})(),
-	);
+	// EV-Last: spotpreisoptimiert wenn Fahrzeuge mit Ladefenster vorhanden (Python-Methode)
+	const evLoad = (() => {
+		if (manualAnnualGiven) return createHoursTemplate();
+		const vehicles = request.emobility.vehicles || [];
+		if (vehicles.length > 0) {
+			return buildEvProfileSpotOptimized(vehicles, spotPrices);
+		}
+		// Legacy-Fallback: kein Fahrzeugarray
+		return buildEvProfile(
+			evAnnual,
+			request.emobility.preferNightCharging !== false,
+			request.emobility.chargingPower_kw,
+			60,
+		);
+	})();
 	const largeLoad = manualAnnualGiven ? createHoursTemplate() : buildLargeLoadProfile(largeLoadAnnual, request.tariff.largeLoadDailyCurveKw || []);
 
 	const totalLoad = createHoursTemplate();
@@ -800,8 +859,6 @@ export async function runCalculation(request: CalculationRequest): Promise<Calcu
 			pvHourly.push(0);
 		}
 	}
-
-	const spotPrices = buildSpotSeries();
 
 	const storageResult = simulateStorageAndFlows(totalLoad, pvHourly, request.storage, spotPrices);
 	const bidi = applyBidirectionalShift(

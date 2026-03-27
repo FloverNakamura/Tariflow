@@ -61,5 +61,71 @@ async function demonstrateStorageCalculation() {
     console.log(`   Amortisationsdauer:        ${result.economics.paybackPeriod_years} Jahre`);
     console.log('═══════════════════════════════════════════════════════════════\n');
 }
+function fmt(eur) {
+    return eur.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+}
+async function demonstratePvCalculation() {
+    const pvCalc = new storageCalculator_1.PvCalculator();
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('   PV-Anlage + Speicher – Vergleichsrechnung');
+    console.log('   Jahresverbrauch: 75.000 kWh | Speicher: 800 €/kWh');
+    console.log('═══════════════════════════════════════════════════════════════\n');
+    const combined = pvCalc.calculateCombined({
+        annualConsumption_kwh: 75000,
+        storageInvestCost_eur_per_kwh: 800,
+        coverageTarget: 0.80,
+        discountRate: 0.03,
+    });
+    for (const [label, data] of [
+        ['PV ALLEINE (ohne Speicher)', combined.pvOnly],
+        ['PV + SPEICHER (kombiniert)', combined.pvWithStorage],
+    ]) {
+        const d = data;
+        console.log(`── ${label} ${'─'.repeat(43 - label.length)}`);
+        console.log(`   PV-Anlage:                 ${d.systemSizing.recommended_kwp} kWp`);
+        console.log(`   Benötigte Dachfläche:      ${d.systemSizing.recommended_rooftop_area_m2} m²`);
+        console.log(`   Jahresertrag (Jahr 1):     ${d.systemSizing.annual_yield_year1_kwh.toLocaleString('de-DE')} kWh`);
+        console.log(`   Eigenverbrauchsquote:      ${d.systemSizing.selfConsumptionRate_percent}%`);
+        console.log(`   Eigenverbrauch (Jahr 1):   ${d.systemSizing.selfConsumption_kwh_year1.toLocaleString('de-DE')} kWh`);
+        console.log(`   Einspeisung (Jahr 1):      ${d.systemSizing.feedIn_kwh_year1.toLocaleString('de-DE')} kWh`);
+        console.log(`   EEG-Vergütung:             ${d.pricingBasis.feedInTariff_ct_kwh} ct/kWh (BNetzA 2026)`);
+        console.log(`   Kosten/kWp:                ${d.pricingBasis.costPerKwp_eur} €/kWp (Markt 2026)`);
+        console.log();
+        console.log(`   PV-Investition:            ${fmt(d.economics.pvInvestment_eur)}`);
+        console.log(`   Speicher-Investition:      ${fmt(d.economics.storageInvestment_eur)}`);
+        console.log(`   Gesamt-Investition:        ${fmt(d.economics.totalInvestment_eur)}`);
+        console.log(`   IAB-Steuervorteil:         ${fmt(d.economics.taxBenefitIAB_eur)}`);
+        console.log(`   Netto-Jahresertrag (J.1):  ${fmt(d.economics.annualNetBenefit_eur_year1)}`);
+        console.log(`   Wartungskosten/Jahr:       ${fmt(d.economics.annualOmCost_eur)}`);
+        console.log();
+        console.log(`   ➜ Amortisation (einfach):  ${d.economics.simplePaybackYears} Jahre`);
+        console.log(`   ➜ Amortisation (mit IAB):  ${d.economics.paybackWithTaxYears} Jahre`);
+        console.log(`   ➜ Break-Even-Jahr:         Jahr ${d.economics.breakEvenYear}`);
+        console.log(`   ➜ Gesamtrendite 25 Jahre:  ${d.economics.roi25Years_percent}%`);
+        console.log(`   ➜ NPV 25 Jahre (3%):       ${fmt(d.economics.npv25Years_eur)}`);
+        console.log();
+    }
+    console.log('── EMPFEHLUNG ──────────────────────────────────────────────────');
+    console.log(`   ${combined.recommendation}`);
+    console.log();
+    // Cashflow-Tabelle (erste 10 Jahre)
+    console.log('── CASHFLOW-DETAIL (PV + Speicher, Jahre 1–10) ─────────────────');
+    console.log('   Jahr  Erzeugung  Eigenverbr.  Einspeise-Rev.  Speicher-Arb.  Netto/Jahr  Kumulativ');
+    for (const yr of combined.pvWithStorage.cashflowByYear.slice(0, 10)) {
+        const row = [
+            String(yr.year).padStart(5),
+            String(yr.generation_kwh.toLocaleString('de-DE')).padStart(9) + ' kWh',
+            String(yr.selfConsumed_kwh.toLocaleString('de-DE')).padStart(7) + ' kWh',
+            fmt(yr.feedInRevenue_eur).padStart(12),
+            fmt(yr.storageArbitrage_eur).padStart(12),
+            fmt(yr.netBenefit_eur).padStart(10),
+            fmt(yr.cumulativeBenefit_eur).padStart(12),
+        ].join('  ');
+        console.log(`   ${row}`);
+    }
+    console.log('\n═══════════════════════════════════════════════════════════════\n');
+}
 // Starten
-demonstrateStorageCalculation().catch(console.error);
+demonstrateStorageCalculation()
+    .then(() => demonstratePvCalculation())
+    .catch(console.error);
