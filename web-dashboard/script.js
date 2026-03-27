@@ -875,6 +875,10 @@ function openInfoModal(key) {
   infoModalClose.focus();
 }
 
+function getEventTargetElement(event) {
+  return event?.target instanceof Element ? event.target : null;
+}
+
 function closeInfoModal() {
   if (!infoModal) {
     return;
@@ -884,7 +888,8 @@ function closeInfoModal() {
 
 // Open via any info-btn
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.info-btn');
+  const target = getEventTargetElement(e);
+  const btn = target?.closest('.info-btn');
   if (btn) {
     e.stopPropagation();
     openInfoModal(btn.dataset.info);
@@ -893,11 +898,12 @@ document.addEventListener('click', (e) => {
 
 // Stabilize details/summary toggles in result windows across browsers.
 document.addEventListener('click', (e) => {
-  const summary = e.target.closest('.result-disclosure > summary, .eligibility-group > summary');
+  const target = getEventTargetElement(e);
+  const summary = target?.closest('.result-disclosure > summary, .eligibility-group > summary');
   if (!summary) {
     return;
   }
-  if (e.target.closest('.info-btn')) {
+  if (target?.closest('.info-btn')) {
     return;
   }
   const details = summary.parentElement;
@@ -1469,7 +1475,8 @@ function initEvVehicles() {
   });
 
   evVehiclesContainer.addEventListener('click', (event) => {
-    const removeBtn = event.target.closest('.ev-remove-btn');
+    const target = getEventTargetElement(event);
+    const removeBtn = target?.closest('.ev-remove-btn');
     if (!removeBtn) {
       return;
     }
@@ -1830,7 +1837,8 @@ function initLargeLoads() {
   });
 
   largeLoadsContainer.addEventListener('click', (event) => {
-    const removeBtn = event.target.closest('.large-load-remove-btn');
+    const target = getEventTargetElement(event);
+    const removeBtn = target?.closest('.large-load-remove-btn');
     if (!removeBtn) {
       return;
     }
@@ -2135,6 +2143,14 @@ function initHouseholdConsumptionMode() {
     const known = consumptionKnownEl.checked;
     consumptionKnownFields?.classList.toggle('hidden', !known);
     personsFieldsEl?.classList.toggle('hidden', known);
+
+    if (consumptionKnownFields) {
+      setSectionEnabled(consumptionKnownFields, known);
+    }
+    if (personsFieldsEl) {
+      setSectionEnabled(personsFieldsEl, !known);
+    }
+
     personsInput.required = !known;
     annualConsumptionInput.required = known;
     scheduleWizardHeightSync();
@@ -2566,7 +2582,15 @@ function validateRequiredDecisionButtons(step) {
 
     // Bereits aktive Default-Auswahl als gültig akzeptieren,
     // damit "Weiter" nicht erst nach unnötigem Hin- und Her-Klicken möglich ist.
-    const activeButton = group.querySelector('.decision-btn.active');
+    let activeButton = group.querySelector('.decision-btn.active');
+    if (!activeButton) {
+      const toggleId = group.dataset.toggleId;
+      const toggle = toggleId ? byId(toggleId) : null;
+      if (toggle) {
+        syncDecisionButtons(toggleId, Boolean(toggle.checked));
+        activeButton = group.querySelector('.decision-btn.active');
+      }
+    }
     if (activeButton) {
       continue;
     }
@@ -3654,7 +3678,8 @@ function initHeatingSources() {
 
   if (!container.dataset.bound) {
     container.addEventListener('click', (e) => {
-      const removeBtn = e.target.closest('.heating-source-remove-btn');
+      const target = getEventTargetElement(e);
+      const removeBtn = target?.closest('.heating-source-remove-btn');
       if (!removeBtn) return;
       const card = removeBtn.closest('.heating-source');
       if (card) {
@@ -3682,7 +3707,8 @@ function initHeatingSources() {
 }
 
 document.addEventListener('click', (event) => {
-  const addHeatingBtn = event.target.closest('#addHeatingSourceBtn');
+  const target = getEventTargetElement(event);
+  const addHeatingBtn = target?.closest('#addHeatingSourceBtn');
   if (!addHeatingBtn) {
     return;
   }
@@ -3738,6 +3764,17 @@ function syncWpHeatingCard() {
       </div>
       <small class="hint">Diese Heizquelle wird aus der Wärmepumpen-Auswahl vorgeschlagen und kann entfernt werden.</small>
     `;
+    const removeBtn = info.querySelector('.heating-source-remove-btn');
+    removeBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      wpHeatingSourceManuallyRemoved = true;
+      info.remove();
+      saveHeatingSourcesDraft();
+      renumberHeatingSources();
+      scheduleWizardHeightSync();
+      scheduleFormStateSave();
+    });
     container.prepend(info);
   } else if (includeHeatPump && existing) {
     const wpConsumption = autoHeatPump.consumption;
@@ -3800,6 +3837,17 @@ function addHeatingSource(source = {}) {
 
   card.querySelector('.heating-source-type').value = type;
   syncHeatingSourceCard(card);
+
+  const removeBtn = card.querySelector('.heating-source-remove-btn');
+  removeBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    card.remove();
+    saveHeatingSourcesDraft();
+    renumberHeatingSources();
+    scheduleWizardHeightSync();
+    scheduleFormStateSave();
+  });
 
   card.querySelector('.heating-source-type').addEventListener('change', () => {
     syncHeatingSourceCard(card);
