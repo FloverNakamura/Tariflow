@@ -113,12 +113,13 @@ let marketTickerTimer = null;
 let marketTickerSamples = [];
 let marketTickerBusy = false;
 let marketTickerHistoryLoaded = false;
+let liveSpotPriceCtPerKwh = null;
 let wpHeatingSourceManuallyRemoved = false;
 let heatingSourcesDraft = [];
 
 const MARKET_TICKER_SAMPLE_LIMIT = 120;
 const MARKET_TICKER_HISTORY_HOURS = 168;
-const MARKET_TICKER_INTERVAL_MS = 60 * 60 * 1000;
+const MARKET_TICKER_INTERVAL_MS = 60 * 1000;
 const MARKET_TICKER_SYNC_DELAY_MS = 1500;
 const WIZARD_ANIMATION_MS = 360;
 const FORM_STATE_STORAGE_KEY = 'tariflow.web-dashboard.form-state.v1';
@@ -1227,7 +1228,7 @@ function buildPayload() {
       currentAnnualCost_eur: optionalNumber('annualPowerCost'),
       meteringPointType: byId('meteringPointType')?.value || 'conventional',
       steerableConsumption_kwh: explicitSteerableConsumption ?? inferredSteerableConsumption,
-      spotPrice_eur_per_kwh: optionalNumber('dynamicSpotPrice') ?? 0.08
+      spotPrice_eur_per_kwh: getLiveSpotPriceEurPerKwh()
     }
   };
 }
@@ -2563,6 +2564,13 @@ function validateRequiredDecisionButtons(step) {
       continue;
     }
 
+    // Bereits aktive Default-Auswahl als gültig akzeptieren,
+    // damit "Weiter" nicht erst nach unnötigem Hin- und Her-Klicken möglich ist.
+    const activeButton = group.querySelector('.decision-btn.active');
+    if (activeButton) {
+      continue;
+    }
+
     const firstButton = group.querySelector('.decision-btn');
     firstButton?.focus();
     return 'Bitte treffen Sie bei allen Auswahl-Buttons eine aktive Auswahl (Ja oder Nein), bevor Sie fortfahren.';
@@ -2576,6 +2584,7 @@ function validateRequiredDecisionButtons(step) {
     && !patternContainer.classList.contains('hidden')
     && isElementVisibleForValidation(patternButtons)
     && patternButtons.dataset.userSelected !== 'true'
+    && !patternButtons.querySelector('.module-choice-btn.active')
   ) {
     patternButtons.querySelector('.module-choice-btn')?.focus();
     return 'Bitte wählen Sie für den steuerbaren Verbrauch entweder "Gering bis normal" oder "Sehr hoch" aus.';
@@ -2988,20 +2997,11 @@ function clearMarketTickerTimer() {
 
 function scheduleMarketTicker() {
   clearMarketTickerTimer();
-  const waitMs = msUntilNextFullHour() + MARKET_TICKER_SYNC_DELAY_MS;
+  const waitMs = MARKET_TICKER_INTERVAL_MS;
   marketTickerTimer = setTimeout(async () => {
     await updateMarketTicker();
     scheduleMarketTicker();
   }, waitMs);
-}
-
-function msUntilNextFullHour() {
-  const now = new Date();
-  const next = new Date(now);
-  next.setMinutes(0, 0, 0);
-  next.setHours(now.getHours() + 1);
-  const diff = next.getTime() - now.getTime();
-  return Math.max(1000, Math.min(MARKET_TICKER_INTERVAL_MS, diff));
 }
 
 async function updateMarketTicker(force = false) {
@@ -3032,6 +3032,8 @@ async function updateMarketTicker(force = false) {
       throw new Error('Ungültiger Marktpreis empfangen.');
     }
 
+    liveSpotPriceCtPerKwh = currentCt;
+
     addTickerSample({
       at: startsAt || new Date(),
       valueCt: currentCt
@@ -3050,7 +3052,7 @@ async function updateMarketTicker(force = false) {
     renderTickerTrend();
 
     const updatedAt = formatDateTime(new Date());
-    const nextAt = new Date(Date.now() + msUntilNextFullHour() + MARKET_TICKER_SYNC_DELAY_MS);
+    const nextAt = new Date(Date.now() + MARKET_TICKER_INTERVAL_MS);
     setTickerStatus(`Quelle: ${market.source || 'Markt-API'} | Letztes Update: ${updatedAt} | Nächstes Update: ${formatDateTime(nextAt)}.`);
   } catch (error) {
     setTickerStatus(error.message || 'Ticker konnte nicht aktualisiert werden.');
@@ -3112,6 +3114,15 @@ function getCurrentDailySpotCurveCt() {
     return [...REFERENCE_HOURLY_SPOT_CT];
   }
   return dailySpotCurveCt;
+}
+
+function getLiveSpotPriceEurPerKwh() {
+  if (Number.isFinite(liveSpotPriceCtPerKwh)) {
+    return Number((liveSpotPriceCtPerKwh / 100).toFixed(4));
+  }
+  const curve = getCurrentDailySpotCurveCt();
+  const avgCt = curve.reduce((sum, value) => sum + Number(value || 0), 0) / Math.max(curve.length, 1);
+  return Number((avgCt / 100).toFixed(4));
 }
 
 function updateDailySpotCurveFromSamples() {
