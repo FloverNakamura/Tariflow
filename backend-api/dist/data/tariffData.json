@@ -3,6 +3,13 @@
 		"currency": "EUR",
 		"pricesIncludeVat": true,
 		"year": 2025
+	},
+	"feedIn": {
+		"default_ct_per_kwh": 8.2,
+		"smallSystemUpTo10kWp_ct_per_kwh": 8.2,
+		"largeSystemOver10kWp_ct_per_kwh": 7.1
+	},
+	"staticTariffs": [
 		{
 			"name": "einzaehler",
 			"label": "Einzähler",
@@ -10,13 +17,6 @@
 			"network_ct_per_kwh": 10.9,
 			"base_eur_per_year": 122.96,
 			"meter_eur_per_year": 0
-		}
-			"name": "einzaehler",
-			"label": "Einzähler",
-			"energy_ct_per_kwh": 31.4,
-			"network_ct_per_kwh": 11.8,
-			"base_eur_per_year": 168,
-			"meter_eur_per_year": 32
 		}
 	],
 	"twoRateTariffs": [
