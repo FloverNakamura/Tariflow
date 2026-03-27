@@ -1,21 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-/**
- * Persistent Worker Thread für CPU-intensive Berechnungen.
- * Empfängt CalculationRequest-Payloads via postMessage,
- * führt runCalculation aus und sendet das Ergebnis zurück.
- */
 const worker_threads_1 = require("worker_threads");
 const calcService_1 = require("../services/calcService");
-if (!worker_threads_1.parentPort) {
-    throw new Error('calcWorker muss als Worker Thread gestartet werden');
-}
-worker_threads_1.parentPort.on('message', async (msg) => {
+async function main() {
     try {
-        const result = await (0, calcService_1.runCalculation)(msg.payload);
-        worker_threads_1.parentPort.postMessage({ id: msg.id, ok: true, result });
+        const request = worker_threads_1.workerData;
+        const result = await (0, calcService_1.runCalculation)(request);
+        worker_threads_1.parentPort?.postMessage({ ok: true, data: result });
     }
-    catch (err) {
-        worker_threads_1.parentPort.postMessage({ id: msg.id, ok: false, error: err?.message ?? 'Worker error' });
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown worker error';
+        worker_threads_1.parentPort?.postMessage({ ok: false, error: message });
     }
-});
+}
+void main();

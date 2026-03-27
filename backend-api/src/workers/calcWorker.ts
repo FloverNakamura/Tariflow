@@ -1,21 +1,17 @@
-/**
- * Persistent Worker Thread für CPU-intensive Berechnungen.
- * Empfängt CalculationRequest-Payloads via postMessage,
- * führt runCalculation aus und sendet das Ergebnis zurück.
- */
-import { parentPort } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 import { runCalculation } from '../services/calcService';
 import { CalculationRequest } from '../types/pvTypes';
 
-if (!parentPort) {
-  throw new Error('calcWorker muss als Worker Thread gestartet werden');
+async function main(): Promise<void> {
+	try {
+		const request = workerData as CalculationRequest;
+		const result = await runCalculation(request);
+		parentPort?.postMessage({ ok: true, data: result });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : 'Unknown worker error';
+		parentPort?.postMessage({ ok: false, error: message });
+	}
 }
 
-parentPort.on('message', async (msg: { id: number; payload: CalculationRequest }) => {
-  try {
-    const result = await runCalculation(msg.payload);
-    parentPort!.postMessage({ id: msg.id, ok: true, result });
-  } catch (err: any) {
-    parentPort!.postMessage({ id: msg.id, ok: false, error: err?.message ?? 'Worker error' });
-  }
-});
+void main();
+

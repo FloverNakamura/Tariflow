@@ -58,8 +58,6 @@ function sanitizeVehicles(value, fallbackUseBidirectional) {
             consumption_kwh_per_100km: clamp(toNum(vehicle.consumption_kwh_per_100km, 20), 5, 60),
             wallboxPower_kw: clamp(toNum(vehicle.wallboxPower_kw, 11), 1.4, 22),
             useBidirectional: toBool(vehicle.useBidirectional, fallbackUseBidirectional),
-            chargingStartHour: clamp(Math.round(toNum(vehicle.chargingStartHour, 22)), 0, 23),
-            chargingEndHour: clamp(Math.round(toNum(vehicle.chargingEndHour, 6)), 0, 23),
         };
     });
 }
@@ -78,7 +76,7 @@ function sanitizeLargeLoads(value) {
         .map((entry) => {
         const load = entry;
         return {
-            powerKw: clamp(toNum(load.powerKw, 5), 0, 500),
+            powerKw: clamp(toNum(load.powerKw, 5), 4.2, 500),
             startHour: clamp(Math.round(toNum(load.startHour, 0)), 0, 23),
             endHour: clamp(Math.round(toNum(load.endHour, 0)), 0, 23),
         };
@@ -169,8 +167,6 @@ function validateAndSanitize(body) {
                     consumption_kwh_per_100km: legacyConsumption,
                     wallboxPower_kw: clamp(toNum(evRaw.chargingPower_kw, 11), 1.4, 22),
                     useBidirectional: fallbackUseBidirectional,
-                    chargingStartHour: 22,
-                    chargingEndHour: 6,
                 }]
             : [];
     const emobility = {

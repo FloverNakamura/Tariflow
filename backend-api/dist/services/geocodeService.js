@@ -36,24 +36,50 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCoordsFromPlz = getCoordsFromPlz;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-let plzData;
-try {
-    const filePath = path.join(__dirname, '../data/plzKoords.json');
-    console.log('Loading PLZ data from:', filePath);
-    const data = fs.readFileSync(filePath, 'utf-8');
-    plzData = JSON.parse(data);
-    console.log('PLZ data loaded:', plzData.length, 'entries');
+let cached = null;
+function loadPlzData() {
+    if (cached) {
+        return cached;
+    }
+    try {
+        const filePath = path.join(__dirname, '../data/plzKoords.json');
+        const content = fs.readFileSync(filePath, 'utf-8');
+        cached = JSON.parse(content);
+    }
+    catch {
+        cached = { exact: {}, prefix2: {} };
+    }
+    return cached;
 }
-catch (error) {
-    console.error('Error loading PLZ data:', error);
-    plzData = [];
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+function normalizePlz(plz) {
+    return String(plz || '').trim().replace(/\D/g, '').slice(0, 5);
+}
+function deterministicOffset(seed) {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+        hash = (hash * 31 + seed.charCodeAt(i)) % 100000;
+    }
+    return ((hash % 1000) / 1000 - 0.5) * 0.18;
 }
 function getCoordsFromPlz(plz) {
-    const plzNum = parseInt(plz, 10);
-    const entry = plzData.find((item) => plzNum >= item.from && plzNum <= item.to);
-    if (entry) {
-        return { lat: entry.lat, lon: entry.lon };
+    const normalizedPlz = normalizePlz(plz);
+    const data = loadPlzData();
+    const exactHit = data.exact?.[normalizedPlz];
+    if (exactHit) {
+        return exactHit;
     }
-    // Fallback
-    return { lat: 51.05, lon: 13.74 };
+    const prefix = normalizedPlz.slice(0, 2);
+    const prefixHit = prefix ? data.prefix2?.[prefix] : undefined;
+    if (prefixHit) {
+        const lat = clamp(prefixHit.lat + deterministicOffset(`${normalizedPlz}-lat`), 47.2, 55.1);
+        const lon = clamp(prefixHit.lon + deterministicOffset(`${normalizedPlz}-lon`), 5.4, 15.6);
+        return {
+            lat: Number(lat.toFixed(5)),
+            lon: Number(lon.toFixed(5)),
+        };
+    }
+    return { lat: 51.1657, lon: 10.4515 };
 }

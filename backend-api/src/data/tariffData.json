@@ -1,135 +1,113 @@
 {
-  "_comment": "SachsenEnergie AG – Tarifdaten 2026 (Stand PDF-Angaben, brutto inkl. 19% MwSt)",
-  "_source": "SachsenEnergie/DREWAG Preisinformationen 2026 inkl. §14a EnWG-Module",
-
-  "staticTariff": {
-    "name": "Strom Pur",
-    "label": "Statischer Tarif (Strom Pur)",
-    "basePrice_eur_per_year": 122.96,
-    "workingPrice_ct_per_kwh": 35.71,
-    "_comment": "Standardtarif laut Vorgabe: 35,71 ct/kWh und 122,96 EUR/Jahr."
-  },
-
-  "twoRateTariff": {
-    "name": "Strom Pur HT/NT",
-    "label": "Zweitarif HT/NT",
-    "basePrice_eur_per_year": 159.40,
-    "workingPriceHT_ct_per_kwh": 35.71,
-    "workingPriceNT_ct_per_kwh": 30.39,
-    "ntHours": [22, 23, 0, 1, 2, 3, 4, 5],
-    "_comment": "Hochtarif tagsüber, Niedertarif nachts."
-  },
-
-  "dynamicTariff": {
-    "name": "Strom Flex",
-    "label": "Dynamischer Tarif (Strom Flex)",
-    "basePrice_eur_per_year": 119.52,
-    "spotMarkup_ct_per_kwh": 2.98,
-    "networkCost_ct_per_kwh": 11.06,
-    "taxes_and_levies_ct_per_kwh": 8.79,
-    "iMSysCost_eur_per_year": 30.00,
-    "_workingPrice_comment": "Arbeitspreis = EPEX Spot + Basisverbrauchspreis 2,98 ct/kWh + gesetzliche Umlagen/Abgaben.",
-    "_basePrice_comment": "Basisgrundpreis 83,82 EUR/Jahr + Netznutzungs-Grundpreis 35,70 EUR/Jahr = 119,52 EUR/Jahr.",
-    "iMSysIncluded": true,
-    "minContractTerm_months": 12,
-    "_source": "Dynamischer Tarif SachsenEnergie AG (brutto)"
-  },
-
-  "networkCosts": {
-    "_comment": "SachsenEnergie AG Referenzwerte (brutto): Netzentgelt-Arbeitspreis + Umlagen/Abgaben",
-    "networkTariff_ct_per_kwh": 11.06,
-    "concessionLevy_ct_per_kwh": 2.84,
-    "section19levy_ct_per_kwh": 1.86,
-    "offshoreLevy_ct_per_kwh": 1.12,
-    "abilityLevy_ct_per_kwh": 0.53,
-    "total_ct_per_kwh": 17.41,
-    "_module14a_comment": "Referenz auf SachsenEnergie-Werte; Konzessionsabgabe ist regional unterschiedlich."
-  },
-
-  "meterCosts": {
-    "standard_eur_per_year": 16.33,
-    "modernMeter_eur_per_year": 25.00,
-    "iMSys_fixed_eur_per_year": 30.00,
-    "iMSys_module14a_eur_per_year": 50.00,
-    "iMSys_installation_eur_onetime": 100.00,
-    "iMSys_by_consumption_eur_per_year": {
-      "lte6000": 30.00,
-      "lte10000": 40.00,
-      "lte20000": 50.00,
-      "lte50000": 110.00,
-      "lte100000": 140.00
-    },
-    "_comment": "Messstellenpreise SachsenEnergie AG brutto; bei §14a wird pauschal 50 EUR/Jahr angesetzt."
-  },
-
-  "module14a": {
-    "_comment": "§14a EnWG – Steuerbare Verbrauchseinrichtungen (Wärmepumpe, Wallbox, Stromspeicher). Gültig seit 01.01.2024, aktualisiert 2026.",
-    "_legal_comment": "Netzbetreiber (SachsenNetze) darf bei Engpässen die Leistung auf min. 4,2 kW begrenzen.",
-
-    "modul1": {
-      "name": "Modul 1 – Pauschal",
-      "label": "§14a Modul 1 (Pauschalrabatt)",
-      "networkReduction_pct": 0.0,
-      "reducedNetworkTariff_ct_per_kwh": 11.06,
-      "annualNetDiscount_eur_per_year": 150.00,
-      "meterCost_eur_per_year": 50.00,
-      "iMSysCost_eur_per_year": 50.00,
-      "controlledBy": "Netzbetreiber",
-      "availability_pct": 100,
-      "maxDimmingPower_kw": 4.2,
-      "dimmingEventsMax_per_year": 200,
-      "_comment": "Pauschaler Rabatt auf Netzentgelt (laut Vorgabe ca. 110-190 EUR/Jahr, hier 150 EUR als Modellwert)."
-    },
-
-    "modul2": {
-      "name": "Modul 2 – Prozentual",
-      "label": "§14a Modul 2 (60% Netzentgelt-Reduktion)",
-      "peakHours": [7, 8, 9, 16, 17, 18, 19, 20],
-      "peakNetworkTariff_ct_per_kwh": 4.42,
-      "offpeakNetworkTariff_ct_per_kwh": 4.42,
-      "networkReduction_pct": 60.0,
-      "meterCost_eur_per_year": 50.00,
-      "iMSysCost_eur_per_year": 50.00,
-      "controlledBy": "Kunde",
-      "availability_pct": 95,
-      "_comment": "Netzentgelt wird prozentual um ca. 60% reduziert; separater Zaehler erforderlich."
-    },
-
-    "modul3": {
-      "name": "Modul 3 – Dynamisch",
-      "label": "§14a Modul 3 (HT/NT + Pauschalrabatt)",
-      "networkReduction_pct": 0.0,
-      "peakHours": [7, 8, 9, 16, 17, 18, 19, 20],
-      "peakNetworkTariff_ct_per_kwh": 14.00,
-      "offpeakNetworkTariff_ct_per_kwh": 4.50,
-      "reducedNetworkTariff_ct_per_kwh": 11.06,
-      "annualNetDiscount_eur_per_year": 150.00,
-      "meterCost_eur_per_year": 50.00,
-      "iMSysCost_eur_per_year": 50.00,
-      "iMSysOptional": false,
-      "controlledBy": "Kunde",
-      "availability_pct": 100,
-      "_comment": "Pauschalrabatt (ca. 110-190 EUR/Jahr, hier 150 EUR) plus zeitvariable HT/NT-Netzentgelte mit Smart Meter."
-    }
-  },
-
-  "feedInTariff": {
-    "_comment": "Einspeisevergütung nach EEG 2026 für Anlagen bis 10 kWp",
-    "below10kwp_ct_per_kwh": 7.78,
-    "below10kwp_fullFeedIn_ct_per_kwh": 12.34,
-    "10to40kwp_ct_per_kwh": 6.73,
-    "above40kwp_ct_per_kwh": 5.50,
-    "_comment2": "Überschusseinspeisung (Eigenverbrauch): 6,50 ct/kWh. Volleinspeisung: 7,85 ct/kWh (lohnt für EFH meist nicht). Quelle: EEG 2026, BNetzA"
-  },
-
-  "taxes": {
-    "vat_pct": 19,
-    "electricityTax_ct_per_kwh": 2.44,
-    "eeglevy_ct_per_kwh": 0.00,
-    "_eeglevy_comment": "EEG-Umlage: 0 ct/kWh (seit 01.07.2022 aus Bundesmitteln finanziert, nicht mehr über Strompreis)"
-  },
-
-  "changelog": {
-    "2026_03": "Tarifdaten gem. bereitgestellter PDF aktualisiert: Strom Pur 35,71 ct/kWh + 122,96 EUR/Jahr, Zweitarif HT/NT (35,71/30,39 ct), dynamischer Tarif mit 83,82 EUR Basisgrundpreis + 35,70 EUR Netzgrundpreis, 2,98 ct Basisverbrauchspreis, Netz/Umlagen/Steuern aktualisiert, iMSys-Staffelung und §14a-Module (Modul1/3 Pauschalrabatt, Modul2 60% Reduktion) angepasst."
-  }
+	"meta": {
+		"currency": "EUR",
+		"pricesIncludeVat": true,
+		"year": 2025
+	},
+	"feedIn": {
+		"default_ct_per_kwh": 8.2,
+		"smallSystemUpTo10kWp_ct_per_kwh": 8.2,
+		"largeSystemOver10kWp_ct_per_kwh": 7.1
+	},
+	"staticTariffs": [
+		{
+			"name": "basis_fix",
+			"label": "Fixstrom Basis",
+			"energy_ct_per_kwh": 31.4,
+			"network_ct_per_kwh": 11.8,
+			"base_eur_per_year": 168,
+			"meter_eur_per_year": 32
+		},
+		{
+			"name": "basis_plus",
+			"label": "Fixstrom Plus",
+			"energy_ct_per_kwh": 30.2,
+			"network_ct_per_kwh": 12.1,
+			"base_eur_per_year": 192,
+			"meter_eur_per_year": 34
+		}
+	],
+	"twoRateTariffs": [
+		{
+			"name": "ht_nt_classic",
+			"label": "HT/NT Klassik",
+			"ht_hours": [
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21
+			],
+			"energy_ht_ct_per_kwh": 33.5,
+			"energy_nt_ct_per_kwh": 26.8,
+			"network_ht_ct_per_kwh": 12.3,
+			"network_nt_ct_per_kwh": 10.4,
+			"base_eur_per_year": 196,
+			"meter_eur_per_year": 44
+		}
+	],
+	"dynamicTariff": {
+		"name": "dynamic_spot",
+		"label": "Dynamik Spot+",
+		"spotMarkup_ct_per_kwh": 2.9,
+		"taxes_and_levies_ct_per_kwh": 16.4,
+		"network_ct_per_kwh": 10.9,
+		"base_eur_per_year": 132,
+		"meter_eur_per_year": 54,
+		"allowedModules": [
+			"none",
+			"modul1",
+			"modul2",
+			"modul3"
+		]
+	},
+	"modules14a": {
+		"none": {
+			"label": "Kein Modul",
+			"type": "none"
+		},
+		"modul1": {
+			"label": "Modul 1 (Jahresrabatt)",
+			"type": "annual_discount",
+			"annual_discount_eur": 160
+		},
+		"modul2": {
+			"label": "Modul 2 (Netzrabatt Zeitfenster)",
+			"type": "network_time_window_discount",
+			"discount_ct_per_kwh": 4.2,
+			"windows": [
+				{
+					"startHour": 22,
+					"endHour": 6
+				}
+			]
+		},
+		"modul3": {
+			"label": "Modul 3 (Kombi)",
+			"type": "hybrid",
+			"annual_discount_eur": 80,
+			"discount_ct_per_kwh": 2.2,
+			"windows": [
+				{
+					"startHour": 13,
+					"endHour": 16
+				},
+				{
+					"startHour": 22,
+					"endHour": 6
+				}
+			]
+		}
+	}
 }
