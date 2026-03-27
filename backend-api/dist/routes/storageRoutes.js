@@ -89,4 +89,59 @@ router.get('/info', (req, res) => {
         }
     });
 });
+/**
+ * POST /storage/pv
+ *
+ * Berechnet die Wirtschaftlichkeit einer Gewerbe-PV-Anlage (mit und ohne Speicher).
+ * Vergleicht beide Szenarien und empfiehlt die bessere Kombination.
+ *
+ * Request Body:
+ * {
+ *   "annualConsumption_kwh": 75000,           // Jahresverbrauch in kWh (Pflicht)
+ *   "includeStorage": true,                   // Optional: true/false (default: beide)
+ *   "storageInvestCost_eur_per_kwh": 800,     // Optional: Speicher-Investkosten
+ *   "pvSizeOverrideKwp": null,                // Optional: manuelle kWp-Angabe
+ *   "coverageTarget": 0.80,                   // Optional: Deckungsgrad (default: 80%)
+ *   "discountRate": 0.03                      // Optional: Kalkulationszins (default: 3%)
+ * }
+ */
+router.post('/pv', (req, res) => {
+    try {
+        const { annualConsumption_kwh, includeStorage, storageInvestCost_eur_per_kwh, storageSizeOverride_kwh, pvSizeOverrideKwp, coverageTarget, discountRate, } = req.body;
+        if (!annualConsumption_kwh || annualConsumption_kwh <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'annualConsumption_kwh is required and must be > 0'
+            });
+        }
+        const calculator = new storageCalculator_1.PvCalculator();
+        // Wenn includeStorage explizit gesetzt: nur ein Szenario berechnen
+        if (typeof includeStorage === 'boolean') {
+            const result = calculator.calculate({
+                annualConsumption_kwh,
+                includeStorage,
+                storageInvestCost_eur_per_kwh,
+                storageSizeOverride_kwh,
+                pvSizeOverrideKwp,
+                coverageTarget,
+                discountRate,
+            });
+            return res.json({ success: true, data: result });
+        }
+        // Standard: beide Szenarien + Empfehlung
+        const combined = calculator.calculateCombined({
+            annualConsumption_kwh,
+            storageInvestCost_eur_per_kwh,
+            storageSizeOverride_kwh,
+            pvSizeOverrideKwp,
+            coverageTarget,
+            discountRate,
+        });
+        res.json({ success: true, data: combined });
+    }
+    catch (error) {
+        console.error('[StorageRouter/pv] Error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error during PV calculation' });
+    }
+});
 exports.default = router;

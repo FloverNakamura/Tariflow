@@ -223,3 +223,350 @@ class StorageCalculator {
 }
 
 export { StorageCalculator, StorageCalculationInput, StorageCalculationResult };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PV-ANLAGE WIRTSCHAFTLICHKEITSRECHNUNG
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Input für PV-Anlage (mit optionalem Speicher)
+ */
+interface PvCalculationInput {
+  annualConsumption_kwh: number;           // Jahresverbrauch in kWh
+  includeStorage?: boolean;               // Mit oder ohne Speicher (default: beide)
+  storageInvestCost_eur_per_kwh?: number; // Investitionskosten Speicher (default: 800 €/kWh)
+  storageSizeOverride_kwh?: number;       // Manuelle Speichergröße (sonst aus StorageCalc)
+  pvSizeOverrideKwp?: number;             // Manuelle PV-Größe (sonst berechnet)
+  coverageTarget?: number;               // Deckungsgrad (default 0.80 = 80%)
+  discountRate?: number;                 // Kalkulationszinssatz für NPV (default 0.03 = 3%)
+}
+
+/**
+ * Annual cashflow Jahr-für-Jahr
+ */
+interface AnnualCashflow {
+  year: number;
+  generation_kwh: number;
+  selfConsumed_kwh: number;
+  feedIn_kwh: number;
+  savingsFromSelfConsumption_eur: number;
+  feedInRevenue_eur: number;
+  storageArbitrage_eur: number;
+  omCost_eur: number;
+  netBenefit_eur: number;
+  cumulativeBenefit_eur: number;
+  discountedCumulativeBenefit_eur: number;
+}
+
+/**
+ * Vollständiges PV-Berechnungsergebnis
+ */
+interface PvCalculationResult {
+  systemSizing: {
+    recommended_kwp: number;
+    recommended_rooftop_area_m2: number;  // Faustformel: ~7 m² pro kWp
+    annual_yield_year1_kwh: number;
+    coverage_percent: number;
+    selfConsumption_kwh_year1: number;
+    feedIn_kwh_year1: number;
+    selfConsumptionRate_percent: number;
+  };
+  pricingBasis: {
+    costPerKwp_eur: number;              // Installationskosten (Markt 2026)
+    feedInTariff_ct_kwh: number;        // EEG Einspeisevergütung (BNetzA 2026)
+    gridPrice_eur_kwh: number;          // Bezugspreis Sachsen Energy
+    specificYield_kwh_per_kwp: number;  // Jahresertrag Deutschland-Ø
+  };
+  economics: {
+    pvInvestment_eur: number;
+    storageInvestment_eur: number;
+    totalInvestment_eur: number;
+    annualNetBenefit_eur_year1: number;   // Netto-Jahresertrag (ohne Steuer, Jahr 1)
+    taxBenefitIAB_eur: number;            // IAB-Steuervorteil (Jahr 1, einmalig)
+    annualOmCost_eur: number;
+    simplePaybackYears: number;           // Amortisation ohne Steuereffekt
+    paybackWithTaxYears: number;          // Amortisation mit IAB-Vorteil Jahr 1
+    breakEvenYear: number;               // Kumulativer Break-Even-Zeitpunkt
+    roi25Years_percent: number;           // Gesamtrendite über 25 Jahre
+    npv25Years_eur: number;              // Nettobarwert (NPV) über 25 Jahre
+  };
+  storageBonus?: {
+    extraSavings_eur_year: number;       // Mehrersparnis durch Speicher (vs. PV allein)
+    selfConsumptionIncrease_percent: number;
+    combinedPaybackYears: number;
+  };
+  cashflowByYear: AnnualCashflow[];      // Jahr-für-Jahr-Detail (25 Jahre)
+}
+
+type CombinedSystemResult = {
+  pvOnly: PvCalculationResult;
+  pvWithStorage: PvCalculationResult;
+  recommendation: string;
+}
+
+/**
+ * PV-Anlagen Wirtschaftlichkeitsrechner
+ * Berechnet Rendite, Amortisation und Break-Even für gewerbliche PV-Anlagen
+ * mit und ohne SigEnergy-Gewerbespeicher.
+ *
+ * Datengrundlage:
+ * - EEG Einspeisevergütung: Bundesnetzagentur (März 2026)
+ * - Jahresertrag: PVGIS 2.3 (Deutschland-Ø, Quelle: JRC/EU)
+ * - Installationskosten: Marktdaten von Photovoltaik4all / EuPD Research 2026
+ * - Eigenverbrauchsquoten: HTW Berlin Studie (Quaschning 2023)
+ */
+class PvCalculator {
+  // ── EEG Einspeisevergütung 2026 (BNetzA, §48 EEG 2023, Gebäudeanlagen Teileinspeisung) ──
+  // Quelle: https://www.bundesnetzagentur.de (stand März 2026)
+  // Gilt für Inbetriebnahme ab Januar 2026
+  private readonly EEG_FEED_IN_TIERS: { maxKwp: number; rate_ct_kwh: number }[] = [
+    { maxKwp: 10,       rate_ct_kwh: 7.78 },   // bis 10 kWp: 7,78 ct/kWh
+    { maxKwp: 40,       rate_ct_kwh: 6.73 },   // 10–40 kWp: 6,73 ct/kWh
+    { maxKwp: 100,      rate_ct_kwh: 5.50 },   // 40–100 kWp: 5,50 ct/kWh
+    { maxKwp: Infinity, rate_ct_kwh: 5.50 },   // > 100 kWp: ~5,50 ct/kWh
+  ];
+
+  // ── Installationskosten Gewerbe (Marktdaten 2026, EuPD Research / Photovoltaik4all) ──
+  private readonly PV_COST_TIERS: { maxKwp: number; cost_eur_kwp: number }[] = [
+    { maxKwp: 30,       cost_eur_kwp: 1_150 }, // <30 kWp: 1.150 €/kWp
+    { maxKwp: 100,      cost_eur_kwp:   950 }, // 30–100 kWp: 950 €/kWp
+    { maxKwp: Infinity, cost_eur_kwp:   750 }, // >100 kWp: 750 €/kWp
+  ];
+
+  // ── Betriebsparameter ──
+  private readonly SPECIFIC_YIELD_KWH_KWP = 950;    // kWh/kWp/Jahr (PVGIS, DE-Ø)
+  private readonly DEGRADATION_RATE = 0.005;         // 0,5 %/Jahr (IEC Norm)
+  private readonly OM_COST_EUR_KWP_YEAR = 15;        // €/kWp/Jahr (ca. 1,5 % Investkosten)
+  private readonly PV_LIFETIME_YEARS = 25;           // Systemlebensdauer
+  private readonly ROOFTOP_M2_PER_KWP = 7;          // m² Dachfläche pro kWp (Faustformel)
+
+  // ── Eigenverbrauchsquoten (HTW Berlin / Quaschning 2023) ──
+  private readonly SELF_CONSUMPTION_WITHOUT_STORAGE = 0.30; // 30% direkte Eigenverbrauchsquote
+  private readonly SELF_CONSUMPTION_WITH_STORAGE    = 0.70; // 70% mit optimiertem Speicher
+
+  // ── Preise (geerbt aus StorageCalculator-Kontext) ──
+  private readonly FIX_PRICE_EUR_KWH = 0.27;        // Sachsen Energy Fixpreis
+  private readonly SPOT_PRICE_AVG_EUR_KWH = 0.12;   // Spotpreis-Ø 2026
+  private readonly STORAGE_DAILY_CYCLES = 1.5;
+  private readonly STORAGE_EFFICIENCY = 0.90;
+
+  // ── Steuer ──
+  private readonly IAB_DEDUCTION_BASE = 0.50;       // 50% AfA-Basis
+  private readonly IAB_TAX_RATE = 0.35;             // KöSt + GewSt
+
+  /**
+   * Berechne PV-Wirtschaftlichkeit für beide Szenarien (ohne/mit Speicher)
+   * und gib eine Empfehlung aus.
+   */
+  calculateCombined(input: PvCalculationInput): CombinedSystemResult {
+    const pvOnly = this.calculate({ ...input, includeStorage: false });
+    const pvWithStorage = this.calculate({ ...input, includeStorage: true });
+
+    const delta = pvWithStorage.economics.npv25Years_eur - pvOnly.economics.npv25Years_eur;
+    const recommendation =
+      delta > 0
+        ? `PV + Speicher empfohlen: Zusätzlicher NPV-Vorteil von ${Math.round(delta).toLocaleString('de-DE')} € über 25 Jahre.`
+        : `PV alleine rechnet sich besser (NPV Δ ${Math.round(delta).toLocaleString('de-DE')} €). Speicher prüfen wenn Eigenverbrauch > 70 % gewünscht.`;
+
+    return { pvOnly, pvWithStorage, recommendation };
+  }
+
+  /**
+   * Kernberechnung PV (mit oder ohne Speicher)
+   */
+  calculate(input: PvCalculationInput): PvCalculationResult {
+    const coverage = input.coverageTarget ?? 0.80;
+    const discountRate = input.discountRate ?? 0.03;
+    const withStorage = input.includeStorage ?? false;
+    const storageInvestCost = input.storageInvestCost_eur_per_kwh ?? 800;
+
+    // ── F) PV-Dimensionierung ──
+    // P_PV = (Jahresverbrauch × Deckungsgrad) / spezifischer Jahresertrag
+    const pvKwp = input.pvSizeOverrideKwp
+      ?? parseFloat(((input.annualConsumption_kwh * coverage) / this.SPECIFIC_YIELD_KWH_KWP).toFixed(1));
+
+    // Feed-in-Tariff nach Anlagengröße (BNetzA-Stufen)
+    const feedInTariff_ct = this.getFeedInTariff(pvKwp);
+    const feedInTariff_eur = feedInTariff_ct / 100;
+
+    // Installationskosten nach Größenstufe (Markt 2026)
+    const costPerKwp = this.getInstallCost(pvKwp);
+    const pvInvestment = pvKwp * costPerKwp;
+
+    // Speicher-Dimensionierung (aus StorageCalculator-Logik: 30–50% Tagesverbrauch)
+    const dailyConsumption = input.annualConsumption_kwh / 365;
+    const storageSizeKwh = input.storageSizeOverride_kwh
+      ?? this.selectStorageSize(dailyConsumption * 0.5);
+    const storageInvestment = withStorage ? storageSizeKwh * storageInvestCost : 0;
+    const totalInvestment = pvInvestment + storageInvestment;
+
+    // Eigenverbrauchsquote
+    const selfConsumptionRate = withStorage
+      ? this.SELF_CONSUMPTION_WITH_STORAGE
+      : this.SELF_CONSUMPTION_WITHOUT_STORAGE;
+
+    // ── G) Jahres-Cashflow über 25 Jahre ──
+    const cashflowByYear: AnnualCashflow[] = [];
+    let cumulativeBenefit = 0;
+    let discountedCumulative = 0;
+    let breakEvenYear = -1;
+    const omCostYear = pvKwp * this.OM_COST_EUR_KWP_YEAR;
+
+    for (let yr = 1; yr <= this.PV_LIFETIME_YEARS; yr++) {
+      // Jährliche PV-Erzeugung mit Degradation: E_n = P_PV × ertrag × (1 - degradation)^(n-1)
+      const generation = pvKwp * this.SPECIFIC_YIELD_KWH_KWP * Math.pow(1 - this.DEGRADATION_RATE, yr - 1);
+      const selfConsumed = generation * selfConsumptionRate;
+      const feedIn = generation * (1 - selfConsumptionRate);
+
+      // Ersparnis durch Eigenverbrauch (Netzstrom wird nicht gekauft)
+      const savingsFromSelfConsumption = selfConsumed * this.FIX_PRICE_EUR_KWH;
+
+      // EEG-Einnahmen (feste 20-Jahr-Vergütung, danach 0 oder Marktprämie)
+      const feedInRevenue = yr <= 20 ? feedIn * feedInTariff_eur : feedIn * (this.SPOT_PRICE_AVG_EUR_KWH * 0.8);
+
+      // Speicher-Arbitrage (nur mit Speicher, Degradation analog 10 Jahre Nutzung)
+      const storageDegradation = withStorage ? Math.pow(1 - 0.02, yr - 1) : 0; // 2%/Jahr LiFePO4
+      const storageArbitrage = withStorage
+        ? storageSizeKwh * this.STORAGE_DAILY_CYCLES * this.STORAGE_EFFICIENCY
+          * (this.FIX_PRICE_EUR_KWH - this.SPOT_PRICE_AVG_EUR_KWH) * 365 * storageDegradation
+        : 0;
+
+      const netBenefit = savingsFromSelfConsumption + feedInRevenue + storageArbitrage - omCostYear;
+      cumulativeBenefit += netBenefit;
+
+      // Barwert-Diskontierung: BW_n = Nutzen_n / (1 + r)^n
+      const discountFactor = Math.pow(1 + discountRate, yr);
+      discountedCumulative += netBenefit / discountFactor;
+
+      // Break-Even: Wann überschreitet kumulativer Nutzen die Gesamtinvestition?
+      if (breakEvenYear === -1 && cumulativeBenefit >= totalInvestment) {
+        breakEvenYear = yr;
+      }
+
+      cashflowByYear.push({
+        year: yr,
+        generation_kwh: parseFloat(generation.toFixed(0)),
+        selfConsumed_kwh: parseFloat(selfConsumed.toFixed(0)),
+        feedIn_kwh: parseFloat(feedIn.toFixed(0)),
+        savingsFromSelfConsumption_eur: parseFloat(savingsFromSelfConsumption.toFixed(2)),
+        feedInRevenue_eur: parseFloat(feedInRevenue.toFixed(2)),
+        storageArbitrage_eur: parseFloat(storageArbitrage.toFixed(2)),
+        omCost_eur: parseFloat(omCostYear.toFixed(2)),
+        netBenefit_eur: parseFloat(netBenefit.toFixed(2)),
+        cumulativeBenefit_eur: parseFloat(cumulativeBenefit.toFixed(2)),
+        discountedCumulativeBenefit_eur: parseFloat(discountedCumulative.toFixed(2)),
+      });
+    }
+
+    const year1 = cashflowByYear[0];
+    const annualNetBenefitYear1 = year1.netBenefit_eur;
+
+    // IAB Steuervorteil (einmalig Jahr 1)
+    const taxBenefitIAB = totalInvestment * this.IAB_DEDUCTION_BASE * this.IAB_TAX_RATE;
+
+    // Einfache Amortisationsdauer (ohne Steuer)
+    const simplePayback = totalInvestment / annualNetBenefitYear1;
+
+    // Amortisation mit IAB (Vorteil wird auf Investment angerechnet)
+    const effectiveInvestmentAfterTax = totalInvestment - taxBenefitIAB;
+    const paybackWithTax = effectiveInvestmentAfterTax / annualNetBenefitYear1;
+
+    // Gesamtrendite über 25 Jahre
+    const totalRevenue25 = cumulativeBenefit;
+    const roi25 = ((totalRevenue25 - totalInvestment) / totalInvestment) * 100;
+
+    // Nettobarwert (NPV)
+    const npv25 = discountedCumulative - totalInvestment;
+
+    // Speicher-Bonus (nur wenn Storage aktiv)
+    let storageBonus = undefined;
+    if (withStorage) {
+      const extraSavings = year1.storageArbitrage_eur
+        + (year1.selfConsumed_kwh - pvKwp * this.SPECIFIC_YIELD_KWH_KWP * this.SELF_CONSUMPTION_WITHOUT_STORAGE)
+          * this.FIX_PRICE_EUR_KWH;
+      storageBonus = {
+        extraSavings_eur_year: parseFloat(extraSavings.toFixed(2)),
+        selfConsumptionIncrease_percent: parseFloat(
+          ((this.SELF_CONSUMPTION_WITH_STORAGE - this.SELF_CONSUMPTION_WITHOUT_STORAGE) * 100).toFixed(1)
+        ),
+        combinedPaybackYears: parseFloat(paybackWithTax.toFixed(2)),
+      };
+    }
+
+    return {
+      systemSizing: {
+        recommended_kwp: pvKwp,
+        recommended_rooftop_area_m2: Math.ceil(pvKwp * this.ROOFTOP_M2_PER_KWP),
+        annual_yield_year1_kwh: parseFloat((pvKwp * this.SPECIFIC_YIELD_KWH_KWP).toFixed(0)),
+        coverage_percent: parseFloat((coverage * 100).toFixed(1)),
+        selfConsumption_kwh_year1: parseFloat(year1.selfConsumed_kwh.toString()),
+        feedIn_kwh_year1: parseFloat(year1.feedIn_kwh.toString()),
+        selfConsumptionRate_percent: selfConsumptionRate * 100,
+      },
+      pricingBasis: {
+        costPerKwp_eur: costPerKwp,
+        feedInTariff_ct_kwh: feedInTariff_ct,
+        gridPrice_eur_kwh: this.FIX_PRICE_EUR_KWH,
+        specificYield_kwh_per_kwp: this.SPECIFIC_YIELD_KWH_KWP,
+      },
+      economics: {
+        pvInvestment_eur: parseFloat(pvInvestment.toFixed(2)),
+        storageInvestment_eur: parseFloat(storageInvestment.toFixed(2)),
+        totalInvestment_eur: parseFloat(totalInvestment.toFixed(2)),
+        annualNetBenefit_eur_year1: parseFloat(annualNetBenefitYear1.toFixed(2)),
+        taxBenefitIAB_eur: parseFloat(taxBenefitIAB.toFixed(2)),
+        annualOmCost_eur: parseFloat(omCostYear.toFixed(2)),
+        simplePaybackYears: parseFloat(simplePayback.toFixed(2)),
+        paybackWithTaxYears: parseFloat(paybackWithTax.toFixed(2)),
+        breakEvenYear: breakEvenYear > 0 ? breakEvenYear : -1,
+        roi25Years_percent: parseFloat(roi25.toFixed(2)),
+        npv25Years_eur: parseFloat(npv25.toFixed(2)),
+      },
+      storageBonus,
+      cashflowByYear,
+    };
+  }
+
+  /**
+   * F) EEG-Einspeisevergütung nach Anlagengröße (BNetzA 2026, §48 EEG)
+   * Gibt ct/kWh zurück
+   */
+  private getFeedInTariff(pvKwp: number): number {
+    for (const tier of this.EEG_FEED_IN_TIERS) {
+      if (pvKwp <= tier.maxKwp) return tier.rate_ct_kwh;
+    }
+    return this.EEG_FEED_IN_TIERS[this.EEG_FEED_IN_TIERS.length - 1].rate_ct_kwh;
+  }
+
+  /**
+   * G) Installationskosten nach Anlagengröße (Markt 2026)
+   * Gibt €/kWp zurück
+   */
+  private getInstallCost(pvKwp: number): number {
+    for (const tier of this.PV_COST_TIERS) {
+      if (pvKwp <= tier.maxKwp) return tier.cost_eur_kwp;
+    }
+    return this.PV_COST_TIERS[this.PV_COST_TIERS.length - 1].cost_eur_kwp;
+  }
+
+  /**
+   * Speichergröße aus AVAILABLE_SIZES wählen (analog StorageCalculator)
+   */
+  private selectStorageSize(maxSize: number): number {
+    const AVAILABLE_SIZES = [10, 15, 20, 25, 30, 35, 40, 45, 50, 54];
+    let selected = AVAILABLE_SIZES[0];
+    for (const size of AVAILABLE_SIZES) {
+      if (size <= maxSize) selected = size;
+      else break;
+    }
+    return selected;
+  }
+}
+
+export {
+  PvCalculator,
+  PvCalculationInput,
+  PvCalculationResult,
+  CombinedSystemResult,
+  AnnualCashflow,
+};
