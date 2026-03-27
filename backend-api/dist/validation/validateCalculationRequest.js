@@ -37,6 +37,18 @@ function toModule(value) {
         return value;
     return 'none';
 }
+function toCurrentTariffType(value) {
+    if (value === 'single' || value === 'twoRate' || value === 'dynamic' || value === 'newCustomer') {
+        return value;
+    }
+    return 'single';
+}
+function toMeteringPointType(value) {
+    if (value === 'conventional' || value === 'modern' || value === 'smart') {
+        return value;
+    }
+    return 'conventional';
+}
 function toPersons(value) {
     const n = Number(value);
     if (n >= 1 && n <= 10 && Number.isInteger(n))
@@ -58,6 +70,8 @@ function sanitizeVehicles(value, fallbackUseBidirectional) {
             consumption_kwh_per_100km: clamp(toNum(vehicle.consumption_kwh_per_100km, 20), 5, 60),
             wallboxPower_kw: clamp(toNum(vehicle.wallboxPower_kw, 11), 1.4, 22),
             useBidirectional: toBool(vehicle.useBidirectional, fallbackUseBidirectional),
+            chargingStartHour: clamp(Math.round(toNum(vehicle.chargingStartHour, 22)), 0, 23),
+            chargingEndHour: clamp(Math.round(toNum(vehicle.chargingEndHour, 6)), 0, 23),
         };
     });
 }
@@ -167,6 +181,8 @@ function validateAndSanitize(body) {
                     consumption_kwh_per_100km: legacyConsumption,
                     wallboxPower_kw: clamp(toNum(evRaw.chargingPower_kw, 11), 1.4, 22),
                     useBidirectional: fallbackUseBidirectional,
+                    chargingStartHour: clamp(Math.round(toNum(evRaw.chargingStartHour, 22)), 0, 23),
+                    chargingEndHour: clamp(Math.round(toNum(evRaw.chargingEndHour, 6)), 0, 23),
                 }]
             : [];
     const emobility = {
@@ -200,12 +216,17 @@ function validateAndSanitize(body) {
     const tariff = {
         compareStaticTariff: true, // always compare static
         compareDynamicTariff: true,
-        module14a: 'none',
+        module14a: toModule(taRaw.module14a),
         largeLoadOver42kw,
         largeLoadCount,
         largeLoadPowerKw,
         largeLoads: normalizedLargeLoads,
         largeLoadDailyCurveKw,
+        currentTariffType: toCurrentTariffType(taRaw.currentTariffType),
+        currentAnnualCost_eur: clamp(toNum(taRaw.currentAnnualCost_eur, 0), 0, 200000),
+        meteringPointType: toMeteringPointType(taRaw.meteringPointType),
+        steerableConsumption_kwh: clamp(toNum(taRaw.steerableConsumption_kwh, 0), 0, 200000),
+        spotPrice_eur_per_kwh: clamp(toNum(taRaw.spotPrice_eur_per_kwh, 0.08), -0.2, 1),
     };
     return {
         household: {

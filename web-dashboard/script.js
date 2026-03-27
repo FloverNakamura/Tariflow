@@ -1143,6 +1143,11 @@ function buildPayload() {
   const moduleDecision = determineModuleDecision();
   const heatPumpUsageMode = byId('heatPumpUsageMode')?.value || '';
   const annualLargeLoadConsumption = estimateAnnualLargeLoadConsumption(largeLoads);
+  const explicitSteerableConsumption = optionalNumber('steerableConsumption');
+  const inferredSteerableConsumption =
+    (hasHeatPump ? (optionalNumber('heatPumpConsumption') || 0) : 0)
+    + evVehicles.reduce((sum, vehicle) => sum + ((vehicle.annualKm || 0) * 20 / 100), 0)
+    + annualLargeLoadConsumption;
 
   if (consumptionKnown && Number.isFinite(annualHouseholdConsumption)) {
     annualHouseholdConsumption = Math.max(0, annualHouseholdConsumption - annualLargeLoadConsumption);
@@ -1186,7 +1191,12 @@ function buildPayload() {
       largeLoadCount,
       largeLoadPowerKw,
       largeLoads,
-      largeLoadDailyCurveKw
+      largeLoadDailyCurveKw,
+      currentTariffType: byId('powerTariff')?.value || 'single',
+      currentAnnualCost_eur: optionalNumber('annualPowerCost'),
+      meteringPointType: byId('meteringPointType')?.value || 'conventional',
+      steerableConsumption_kwh: explicitSteerableConsumption ?? inferredSteerableConsumption,
+      spotPrice_eur_per_kwh: optionalNumber('dynamicSpotPrice') ?? 0.08
     }
   };
 }
@@ -2830,6 +2840,7 @@ function renderResults(data) {
   byId('resUncertainty').textContent = `${formatEuro(ub.bestCase)} / ${formatEuro(ub.expected)} / ${formatEuro(ub.worstCase)}`;
 
   renderTariffTable(visibleTariffs);
+  renderSachsenComparison(data.sachsenComparison || null);
   renderTransparency(data.dataTransparency || []);
   if (data.eligibilityReport) {
     renderEligibilityReport(data.eligibilityReport);
@@ -3191,6 +3202,45 @@ function renderTariffTable(tariffs) {
       <td>${formatEuro(tariff.feedInRevenue_eur)}</td>
     `;
 
+    tbody.appendChild(tr);
+  });
+}
+
+function renderSachsenComparison(comparison) {
+  const tbody = document.querySelector('#sachsenComparisonTable tbody');
+  const meta = byId('sachsenComparisonMeta');
+  if (!tbody || !meta) {
+    return;
+  }
+
+  if (!comparison || !Array.isArray(comparison.rows)) {
+    tbody.innerHTML = '';
+    meta.textContent = 'Keine Vergleichsdaten verfügbar.';
+    return;
+  }
+
+  const assumptions = Array.isArray(comparison.assumptions) ? comparison.assumptions : [];
+  const missingInputs = Array.isArray(comparison.missingInputs) ? comparison.missingInputs : [];
+  const noteParts = [];
+  noteParts.push(`Ist-Kosten: ${formatEuro(comparison.currentStateCost_eur || 0)}`);
+  noteParts.push(`Empfehlung: ${comparison.recommendation || '-'}`);
+  if (missingInputs.length) {
+    noteParts.push(`Fehlende Angaben: ${missingInputs.join(', ')}`);
+  }
+  if (assumptions.length) {
+    noteParts.push(`Annahmen: ${assumptions.join(' | ')}`);
+  }
+  meta.textContent = noteParts.join(' | ');
+
+  tbody.innerHTML = '';
+  comparison.rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    if (row.recommended) tr.classList.add('best');
+    tr.innerHTML = `
+      <td>${escapeHtml(row.label)}${row.recommended ? ' (Empfohlen)' : ''}</td>
+      <td>${formatEuro(row.annualCost_eur)}</td>
+      <td>${formatEuro(row.savingVsCurrent_eur)}</td>
+    `;
     tbody.appendChild(tr);
   });
 }

@@ -578,6 +578,125 @@ function buildScenarioResults(tariffs) {
         };
     });
 }
+function calcDynamicMeterFeeEur(annualConsumptionKwh) {
+    if (annualConsumptionKwh < 6000)
+        return 30;
+    if (annualConsumptionKwh < 20000)
+        return 40;
+    if (annualConsumptionKwh < 50000)
+        return 110;
+    if (annualConsumptionKwh < 100000)
+        return 140;
+    return 140;
+}
+function calcSachsenTariffBaseCostEur(tariff, annualConsumptionKwh, spotPriceEurPerKwh) {
+    if (tariff === 'single') {
+        return 122.96 + annualConsumptionKwh * 0.3571;
+    }
+    if (tariff === 'twoRate') {
+        const wHT = annualConsumptionKwh * 0.666;
+        const wNT = annualConsumptionKwh * 0.333;
+        return 159.40 + (wHT * 0.3571) + (wNT * 0.3039);
+    }
+    const meterFee = calcDynamicMeterFeeEur(annualConsumptionKwh);
+    return (119.52 + meterFee) + annualConsumptionKwh * (0.2283 + spotPriceEurPerKwh);
+}
+function buildSachsenTariffComparison(request, annualConsumptionKwh, inferredSteerableConsumptionKwh) {
+    const tariffInput = request.tariff || {};
+    const spotPrice = Number.isFinite(tariffInput.spotPrice_eur_per_kwh)
+        ? Number(tariffInput.spotPrice_eur_per_kwh)
+        : 0.08;
+    const steerableFromInput = Number(tariffInput.steerableConsumption_kwh || 0);
+    const steerableConsumption = steerableFromInput > 0
+        ? steerableFromInput
+        : Math.max(0, inferredSteerableConsumptionKwh);
+    const currentTariffType = tariffInput.currentTariffType || 'single';
+    const currentAnnualCostInput = Number(tariffInput.currentAnnualCost_eur || 0);
+    const meteringPointType = tariffInput.meteringPointType || 'conventional';
+    const assumptions = [];
+    const missingInputs = [];
+    if (!(currentAnnualCostInput > 0)) {
+        missingInputs.push('Bisherige Gesamtkosten im letzten Jahr (Euro)');
+        assumptions.push('Ist-Kosten nicht angegeben: Referenz wurde aus dem aktuellen Tariftyp mit den Standardformeln berechnet.');
+    }
+    if (!(steerableFromInput > 0)) {
+        missingInputs.push('Anteil der steuerbaren Verbrauchseinrichtung in kWh (für Modul 2)');
+        assumptions.push('Steuerbarer Verbrauch nicht explizit angegeben: Anteil wurde aus Wärmepumpe/E-Mobilität/Großverbrauchern abgeleitet.');
+    }
+    if (!Number.isFinite(annualConsumptionKwh) || annualConsumptionKwh <= 0) {
+        missingInputs.push('Jahresverbrauch insgesamt (kWh)');
+    }
+    if (!tariffInput.currentTariffType) {
+        missingInputs.push('Aktueller Tariftyp (Einzähler, Zweizähler, Dynamisch oder Neukunde)');
+    }
+    if (!tariffInput.meteringPointType) {
+        missingInputs.push('Vorhandene Messstelle (Konventionell, Modern, Smart Meter)');
+    }
+    const currentStateCost = currentAnnualCostInput > 0
+        ? currentAnnualCostInput
+        : calcSachsenTariffBaseCostEur(currentTariffType === 'newCustomer' ? 'single' : currentTariffType, annualConsumptionKwh, spotPrice);
+    const tariffs = ['single', 'twoRate', 'dynamic'];
+    const modules = ['none', 'modul1', 'modul2'];
+    const rows = [];
+    for (const tariff of tariffs) {
+        for (const module of modules) {
+            let annualCost = calcSachsenTariffBaseCostEur(tariff, annualConsumptionKwh, spotPrice);
+            if (tariff === 'dynamic' && meteringPointType !== 'smart') {
+                annualCost += 100;
+            }
+            if (module === 'modul1') {
+                annualCost -= 165;
+            }
+            if (module === 'modul2') {
+                const module2Savings = steerableConsumption * 0.10 * 0.60;
+                const secondMeterCost = 36.44;
+                annualCost = annualCost - module2Savings + secondMeterCost;
+            }
+            annualCost = Math.max(0, annualCost);
+            const tariffLabel = tariff === 'single'
+                ? 'Einzähler'
+                : tariff === 'twoRate'
+                    ? 'Zweizähler'
+                    : 'Dynamisch';
+            const moduleLabel = module === 'none'
+                ? 'ohne Modul'
+                : module === 'modul1'
+                    ? 'Modul 1'
+                    : 'Modul 2';
+            rows.push({
+                key: `${tariff}_${module}`,
+                tariff,
+                module,
+                label: `${tariffLabel} + ${moduleLabel}`,
+                annualCost_eur: round(annualCost),
+                savingVsCurrent_eur: round(currentStateCost - annualCost),
+                recommended: false,
+            });
+        }
+    }
+    const best = [...rows].sort((a, b) => a.annualCost_eur - b.annualCost_eur)[0];
+    const markedRows = rows.map((row) => ({
+        ...row,
+        recommended: Boolean(best && row.key === best.key),
+    }));
+    const recommendation = best
+        ? `${best.label} (Ersparnis ggü. Ist: ${round(currentStateCost - best.annualCost_eur)} EUR/Jahr)`
+        : 'Keine Empfehlung verfügbar.';
+    return {
+        currentStateCost_eur: round(currentStateCost),
+        recommendation,
+        missingInputs,
+        assumptions,
+        rows: markedRows,
+        inputs: {
+            annualConsumption_kwh: round(annualConsumptionKwh),
+            currentTariffType,
+            meteringPointType,
+            steerableConsumption_kwh: round(steerableConsumption),
+            spotPrice_eur_per_kwh: round(spotPrice, 4),
+        },
+    };
+}
 async function runCalculation(request) {
     const household = request.household;
     const coords = (0, geocodeService_1.getCoordsFromPlz)(household.plz);
@@ -595,6 +714,9 @@ async function runCalculation(request) {
     const evAnnual = !manualAnnualGiven && request.emobility.hasEV
         ? Math.max(0, evAnnualFromVehicles || evAnnualLegacy)
         : 0;
+    const inferredSteerableConsumption = Math.max(0, request.heatPump.hasHeatPump ? (request.heatPump.annualConsumption_kwh || 0) : 0)
+        + Math.max(0, evAnnualFromVehicles || evAnnualLegacy)
+        + Math.max(0, (request.tariff.largeLoadDailyCurveKw || []).reduce((acc, value) => acc + Math.max(0, value), 0) * 365);
     const largeLoadDaily = (request.tariff.largeLoadDailyCurveKw || []).reduce((acc, value) => acc + Math.max(0, value), 0);
     const largeLoadAnnual = !manualAnnualGiven ? Math.max(0, largeLoadDaily * 365) : 0;
     const annualTarget = manualAnnualGiven
@@ -680,6 +802,7 @@ async function runCalculation(request) {
         dynamicSpreadCtPerKwh: p90 - p10,
     });
     const annualSavingVsStatic = bestStatic.netCost_eur - recommended.netCost_eur;
+    const sachsenComparison = buildSachsenTariffComparison(request, totalConsumption, inferredSteerableConsumption);
     return {
         success: true,
         data: {
@@ -713,6 +836,7 @@ async function runCalculation(request) {
                     note: 'Stundenwerte werden aus Monats- und Intraday-Struktur generiert.',
                 },
             ],
+            sachsenComparison,
             eligibilityReport,
             summary: {
                 pvYield_kwh: round(totalPvYield),

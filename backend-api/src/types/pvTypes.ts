@@ -27,6 +27,9 @@ export interface EVehicleConfig {
   chargingEndHour?: number;
 }
 
+export type CurrentTariffType = 'single' | 'twoRate' | 'dynamic' | 'newCustomer';
+export type MeteringPointType = 'conventional' | 'modern' | 'smart';
+
 export interface LargeLoadConfig {
   powerKw?: number;
   startHour?: number;
@@ -77,6 +80,36 @@ export interface TariffConfig {
   largeLoadPowerKw?: number;
   largeLoads?: LargeLoadConfig[];
   largeLoadDailyCurveKw?: number[];
+  currentTariffType?: CurrentTariffType;
+  currentAnnualCost_eur?: number;
+  meteringPointType?: MeteringPointType;
+  steerableConsumption_kwh?: number;
+  spotPrice_eur_per_kwh?: number;
+}
+
+export interface SachsenTariffComparisonRow {
+  key: string;
+  tariff: 'single' | 'twoRate' | 'dynamic';
+  module: 'none' | 'modul1' | 'modul2';
+  label: string;
+  annualCost_eur: number;
+  savingVsCurrent_eur: number;
+  recommended: boolean;
+}
+
+export interface SachsenTariffComparisonResult {
+  currentStateCost_eur: number;
+  recommendation: string;
+  missingInputs: string[];
+  assumptions: string[];
+  rows: SachsenTariffComparisonRow[];
+  inputs: {
+    annualConsumption_kwh: number;
+    currentTariffType: CurrentTariffType;
+    meteringPointType: MeteringPointType;
+    steerableConsumption_kwh: number;
+    spotPrice_eur_per_kwh: number;
+  };
 }
 
 export interface CalculationRequest {
@@ -170,6 +203,7 @@ export interface CalculationResponse {
       source: string;
       note: string;
     }[];
+    sachsenComparison?: SachsenTariffComparisonResult;
     eligibilityReport?: DynamicTarifEligibilityReport;
     summary: {
       pvYield_kwh: number;

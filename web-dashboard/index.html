@@ -239,12 +239,32 @@
                     <option value="single" selected>Einzähler-Tarif</option>
                     <option value="twoRate">Zweitarif HT/NT</option>
                     <option value="dynamic">Dynamischer Tarif</option>
+                    <option value="newCustomer">Neukunde</option>
                   </select>
                 </label>
 
                 <label class="field">
                   <span>Jährliche Stromkosten (EUR) <button type="button" class="info-btn" data-info="annualPowerCost">&#9432;</button></span>
                   <input id="annualPowerCost" type="number" min="0" max="50000" step="0.01" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+                </label>
+
+                <label class="field">
+                  <span>Messstelle</span>
+                  <select id="meteringPointType">
+                    <option value="conventional" selected>Konventionell</option>
+                    <option value="modern">Modern</option>
+                    <option value="smart">Smart Meter</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Steuerbarer Verbrauch (kWh/Jahr, optional)</span>
+                  <input id="steerableConsumption" type="number" min="0" max="200000" step="1" inputmode="numeric" pattern="[0-9]*">
+                </label>
+
+                <label class="field">
+                  <span>Spotpreis für Dynamik (EUR/kWh)</span>
+                  <input id="dynamicSpotPrice" type="number" min="-0.2" max="1" step="0.001" value="0.08" inputmode="decimal" pattern="-?[0-9]*[.,]?[0-9]*">
                 </label>
               </div>
             </fieldset>
@@ -424,6 +444,21 @@
                   <th>Energie</th>
                   <th>Netz und Grundpreis</th>
                   <th>Einspeisung</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="table-wrap compact-wrap">
+            <h3>SachsenEnergie Tarif + §14a Vergleich</h3>
+            <p id="sachsenComparisonMeta" class="chart-note">-</p>
+            <table id="sachsenComparisonTable">
+              <thead>
+                <tr>
+                  <th>Kombination</th>
+                  <th>Kosten EUR/Jahr</th>
+                  <th>Ersparnis vs. Ist</th>
                 </tr>
               </thead>
               <tbody></tbody>
