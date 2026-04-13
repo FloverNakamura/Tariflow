@@ -14,3 +14,10 @@ pnpm-debug.log*
 !.vscode/extensions.json
 !.vscode/launch.json
 !.vscode/tasks.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
